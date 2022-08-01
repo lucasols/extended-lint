@@ -5,7 +5,7 @@
   "scripts": {
     "test": "vitest run",
     "test:ui": "vitest --ui",
-    "build": "vitest run && vite build",
+    "build": "vitest run && tsm esbuild.ts",
     "npm-publish": "scripts/check-if-is-sync.sh && pnpm build && npm publish --access=public"
   },
   "files": [
@@ -13,12 +13,12 @@
   ],
   "repository": "github:lucaslos/vite-plugin-linaria-initial-build-time",
   "author": "Lucas Santos",
-  "main": "./dist/eslint-plugin-extended-lint.js",
-  "module": "./dist/eslint-plugin-extended-lint.mjs",
+  "main": "./dist/extended-lint.js",
+  "module": "./dist/extended-lint.mjs",
   "exports": {
     ".": {
-      "import": "./dist/eslint-plugin-extended-lint.mjs",
-      "require": "./dist/eslint-plugin-extended-lint.js"
+      "import": "./dist/extended-lint.mjs",
+      "require": "./dist/extended-lint.js"
     }
   },
   "engines": {
@@ -29,10 +29,17 @@
     "@types/node": "^18.6.3",
     "@vitest/ui": "^0.20.2",
     "add": "^2.0.6",
+    "esbuild": "^0.14.51",
+    "eslint": "^8.20.0",
+    "tsm": "^2.2.2",
     "typescript": "^4.7.4",
     "vite": "^3.0.4",
-    "vitest": "0.20.2",
-    "eslint": "^8.20.0"
+    "vitest": "0.20.2"
+  },
+  "dependencies": {
+    "escape-string-regexp": "^4.0.0",
+    "espree": "^9.3.3",
+    "esutils": "^2.0.2"
   },
   "peerDependencies": {
     "eslint": "^8.20.0"
