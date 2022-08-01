@@ -6,7 +6,7 @@
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "build": "vitest run && vite build",
-    "npm-publish": "scripts/check-if-is-sync.sh && pnpm build && npm publish"
+    "npm-publish": "scripts/check-if-is-sync.sh && pnpm build && npm publish --access=public"
   },
   "files": [
     "dist"
