@@ -1,5 +1,3 @@
-import type { Rule } from 'eslint'
-
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
 
 const createRule = ESLintUtils.RuleCreator(
@@ -8,19 +6,27 @@ const createRule = ESLintUtils.RuleCreator(
 
 function getTypeLiteralMembers(
   typeAnnotation: TSESTree.TSTypeLiteral,
-): string[] {
-  const members: string[] = []
+): [string, TSESTree.Node][] {
+  const members: [string, TSESTree.Node][] = []
 
   for (const member of typeAnnotation.members) {
     if (
       member.type === AST_NODE_TYPES.TSPropertySignature &&
       member.key.type === AST_NODE_TYPES.Identifier
     ) {
-      members.push(member.key.name)
+      members.push([member.key.name, member])
     }
   }
 
   return members
+}
+
+function extendMap<K, V>(map: Map<K, V>, ...entries: [K, V][]): Map<K, V> {
+  for (const entry of entries) {
+    map.set(...entry)
+  }
+
+  return map
 }
 
 const rule = createRule({
@@ -42,13 +48,14 @@ const rule = createRule({
       FunctionDeclaration: function (node) {
         for (const param of node.params) {
           if (param.type === 'ObjectPattern' && param.typeAnnotation) {
-            const declaredProperties: string[] = []
+            const declaredProperties = new Map<string, TSESTree.Node>()
 
             if (
               param.typeAnnotation.typeAnnotation.type ===
               AST_NODE_TYPES.TSTypeLiteral
             ) {
-              declaredProperties.push(
+              extendMap(
+                declaredProperties,
                 ...getTypeLiteralMembers(param.typeAnnotation.typeAnnotation),
               )
             } else {
@@ -60,24 +67,31 @@ const rule = createRule({
               ) {
                 const typeName = typeAnnotation.typeName.name
 
-                const type = context
+                const resolved = context
                   .getScope()
                   .references.find(
                     (reference) => reference.identifier.name === typeName,
-                  )?.resolved?.defs[0]?.node
+                  )?.resolved
+
+                if (!resolved || resolved.references.length > 1) {
+                  continue
+                }
+
+                const type = resolved?.defs[0]?.node
 
                 if (
                   type?.type === AST_NODE_TYPES.TSTypeAliasDeclaration &&
                   type.typeAnnotation.type === AST_NODE_TYPES.TSTypeLiteral
                 ) {
-                  declaredProperties.push(
+                  extendMap(
+                    declaredProperties,
                     ...getTypeLiteralMembers(type.typeAnnotation),
                   )
                 }
               }
             }
 
-            if (declaredProperties.length === 0) {
+            if (declaredProperties.size === 0) {
               continue
             }
 
@@ -92,10 +106,10 @@ const rule = createRule({
               }
             }
 
-            for (const declaredProperty of declaredProperties) {
+            for (const [declaredProperty, node] of declaredProperties) {
               if (!destructuredProperties.includes(declaredProperty)) {
                 context.report({
-                  node: param,
+                  node: node,
                   messageId: 'unusedObjectTypeProperty',
                   data: {
                     propertyName: declaredProperty,

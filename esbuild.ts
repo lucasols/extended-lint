@@ -3,8 +3,13 @@ import esbuild from 'esbuild'
 const sharedConfig: esbuild.BuildOptions = {
   entryPoints: ['src/extended-lint.ts'],
   bundle: true,
-  // minify: true,
-  external: ['escape-string-regexp', 'espree', 'esutils'],
+  external: [
+    'escape-string-regexp',
+    'espree',
+    'esutils',
+    '@typescript-eslint/utils',
+  ],
+  platform: 'node',
 }
 
 esbuild.buildSync({
@@ -20,3 +25,5 @@ esbuild.buildSync({
   format: 'esm',
   target: ['esnext'],
 })
+
+console.log('Build complete')

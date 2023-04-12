@@ -172,4 +172,23 @@ describe('no-unused-object-type-properties', () => {
     `,
     )
   })
+
+  test('ignored shared types', () => {
+    valid(
+      `
+      type Test = {
+        unusedType?: string;
+        usedType?: string;
+      };
+
+      function test({ usedType }: Test) {
+        console.log(usedType);
+      }
+
+      function test2({ usedType }: Test) {
+        console.log(usedType);
+      }
+    `,
+    )
+  })
 })
