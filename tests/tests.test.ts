@@ -202,4 +202,43 @@ describe('no-unused-object-type-properties', () => {
     `,
     )
   })
+
+  test('unused properties with FC object type reference', () => {
+    invalid(
+      `
+      type Props = {
+        title: ReactNode;
+        onClose: () => void;
+      };
+
+      export const Component: FC<Props> = ({
+        title,
+      }) => {
+        return null;
+      };
+    `,
+      [{ data: { propertyName: 'onClose' } }],
+    )
+  })
+
+  test('unused properties with FC object type literal', () => {
+    invalid(
+      `
+      type Props = {
+        title: ReactNode;
+        onClose: () => void;
+      };
+
+      export const Component: FC<{
+        title: ReactNode;
+        onClose: () => void;
+      }> = ({
+        title,
+      }) => {
+        return null;
+      };
+    `,
+      [{ data: { propertyName: 'onClose' } }],
+    )
+  })
 })

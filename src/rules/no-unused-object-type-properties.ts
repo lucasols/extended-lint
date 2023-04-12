@@ -45,7 +45,36 @@ const rule = createRule({
   },
   defaultOptions: [],
   create: function (context) {
-    function checkParams(params: TSESTree.Parameter[]) {
+    function extendFromTypeReference(
+      reference: TSESTree.Identifier,
+      declaredProperties: Map<string, TSESTree.Node>,
+    ) {
+      const typeName = reference.name
+
+      const resolved = context
+        .getScope()
+        .references.find(
+          (reference) => reference.identifier.name === typeName,
+        )?.resolved
+
+      if (!resolved || resolved.references.length > 1) {
+        return
+      }
+
+      const type = resolved?.defs[0]?.node
+
+      if (
+        type?.type === AST_NODE_TYPES.TSTypeAliasDeclaration &&
+        type.typeAnnotation.type === AST_NODE_TYPES.TSTypeLiteral
+      ) {
+        extendMap(
+          declaredProperties,
+          ...getTypeLiteralMembers(type.typeAnnotation),
+        )
+      }
+    }
+
+    function checkParamsOfInferedDeclarations(params: TSESTree.Parameter[]) {
       for (const param of params) {
         if (param.type === 'ObjectPattern' && param.typeAnnotation) {
           const declaredProperties = new Map<string, TSESTree.Node>()
@@ -65,29 +94,10 @@ const rule = createRule({
               typeAnnotation.type === AST_NODE_TYPES.TSTypeReference &&
               typeAnnotation.typeName.type === AST_NODE_TYPES.Identifier
             ) {
-              const typeName = typeAnnotation.typeName.name
-
-              const resolved = context
-                .getScope()
-                .references.find(
-                  (reference) => reference.identifier.name === typeName,
-                )?.resolved
-
-              if (!resolved || resolved.references.length > 1) {
-                continue
-              }
-
-              const type = resolved?.defs[0]?.node
-
-              if (
-                type?.type === AST_NODE_TYPES.TSTypeAliasDeclaration &&
-                type.typeAnnotation.type === AST_NODE_TYPES.TSTypeLiteral
-              ) {
-                extendMap(
-                  declaredProperties,
-                  ...getTypeLiteralMembers(type.typeAnnotation),
-                )
-              }
+              extendFromTypeReference(
+                typeAnnotation.typeName,
+                declaredProperties,
+              )
             }
           }
 
@@ -95,38 +105,82 @@ const rule = createRule({
             continue
           }
 
-          const destructuredProperties: string[] = []
+          checkProperties(param, declaredProperties)
+        }
+      }
+    }
 
-          for (const property of param.properties) {
-            if (
-              property.type === AST_NODE_TYPES.Property &&
-              property.key.type === AST_NODE_TYPES.Identifier
-            ) {
-              destructuredProperties.push(property.key.name)
-            }
-          }
+    function checkProperties(
+      param: TSESTree.ObjectPattern,
+      declaredProperties: Map<string, TSESTree.Node>,
+    ) {
+      const destructuredProperties: string[] = []
 
-          for (const [declaredProperty, node] of declaredProperties) {
-            if (!destructuredProperties.includes(declaredProperty)) {
-              context.report({
-                node: node,
-                messageId: 'unusedObjectTypeProperty',
-                data: {
-                  propertyName: declaredProperty,
-                },
-              })
-            }
-          }
+      for (const property of param.properties) {
+        if (
+          property.type === AST_NODE_TYPES.Property &&
+          property.key.type === AST_NODE_TYPES.Identifier
+        ) {
+          destructuredProperties.push(property.key.name)
+        }
+      }
+
+      for (const [declaredProperty, node] of declaredProperties) {
+        if (!destructuredProperties.includes(declaredProperty)) {
+          context.report({
+            node: node,
+            messageId: 'unusedObjectTypeProperty',
+            data: {
+              propertyName: declaredProperty,
+            },
+          })
         }
       }
     }
 
     return {
+      VariableDeclaration: function (node) {
+        const declaration = node.declarations[0]
+
+        if (!declaration) return
+
+        const declaredProperties = new Map<string, TSESTree.Node>()
+
+        const fcPropsParam =
+          declaration.id.type === AST_NODE_TYPES.Identifier &&
+          declaration.id.typeAnnotation?.typeAnnotation.type ===
+            AST_NODE_TYPES.TSTypeReference &&
+          declaration.id.typeAnnotation.typeAnnotation.typeName.type ===
+            AST_NODE_TYPES.Identifier &&
+          declaration.id.typeAnnotation.typeAnnotation.typeName.name === 'FC' &&
+          declaration.id.typeAnnotation.typeAnnotation.typeParameters?.params[0]
+
+        if (!fcPropsParam) return
+
+        if (
+          fcPropsParam.type === AST_NODE_TYPES.TSTypeReference &&
+          fcPropsParam.typeName.type === AST_NODE_TYPES.Identifier
+        ) {
+          extendFromTypeReference(fcPropsParam.typeName, declaredProperties)
+        } else if (fcPropsParam.type === AST_NODE_TYPES.TSTypeLiteral) {
+          extendMap(declaredProperties, ...getTypeLiteralMembers(fcPropsParam))
+        }
+
+        if (declaredProperties.size === 0) return
+
+        if (declaration.init?.type === AST_NODE_TYPES.ArrowFunctionExpression) {
+          const params = declaration.init.params[0]
+
+          if (params && params.type === AST_NODE_TYPES.ObjectPattern) {
+            checkProperties(params, declaredProperties)
+          }
+        }
+      },
       FunctionDeclaration: function (node) {
-        checkParams(node.params)
+        checkParamsOfInferedDeclarations(node.params)
       },
       ArrowFunctionExpression: function (node) {
-        checkParams(node.params)
+        checkParamsOfInferedDeclarations(node.params)
       },
     }
   },
