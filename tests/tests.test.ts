@@ -259,4 +259,40 @@ describe('no-unused-object-type-properties', () => {
     `,
     )
   })
+
+  test('ignore exported refs rest parameters', () => {
+    valid(
+      `
+      export type Props = {
+        title: ReactNode;
+        onClose: () => void;
+      };
+
+      export const Component: FC<Props> = ({
+        title,
+      }) => {
+        return null;
+      };
+    `,
+    )
+  })
+
+  test('ignore exported refs rest parameters 2', () => {
+    valid(
+      `
+       type Props = {
+        title: ReactNode;
+        onClose: () => void;
+      };
+
+      export type Props2 = Props
+
+      export const Component: FC<Props> = ({
+        title,
+      }) => {
+        return null;
+      };
+    `,
+    )
+  })
 })

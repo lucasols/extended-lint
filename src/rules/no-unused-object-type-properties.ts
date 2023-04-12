@@ -65,6 +65,7 @@ const rule = createRule({
 
       if (
         type?.type === AST_NODE_TYPES.TSTypeAliasDeclaration &&
+        type.parent?.type !== AST_NODE_TYPES.ExportNamedDeclaration &&
         type.typeAnnotation.type === AST_NODE_TYPES.TSTypeLiteral
       ) {
         extendMap(
