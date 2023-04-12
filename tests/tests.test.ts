@@ -115,6 +115,17 @@ describe('no-unused-object-type-properties', () => {
     )
   })
 
+  test('unused properties with object type literal', () => {
+    invalid(
+      `
+      const test = ({ usedType }: { unusedType?: string, usedType?: string }) => {
+        console.log(usedType);
+      }
+    `,
+      [{ data: { propertyName: 'unusedType' } }],
+    )
+  })
+
   test('unused properties with object type reference', () => {
     invalid(
       `
