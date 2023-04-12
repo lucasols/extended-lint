@@ -241,4 +241,22 @@ describe('no-unused-object-type-properties', () => {
       [{ data: { propertyName: 'onClose' } }],
     )
   })
+
+  test('ignore rest parameters', () => {
+    valid(
+      `
+      type Props = {
+        title: ReactNode;
+        onClose: () => void;
+      };
+
+      export const Component: FC<Props> = ({
+        title,
+        ...rest
+      }) => {
+        return null;
+      };
+    `,
+    )
+  })
 })

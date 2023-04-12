@@ -39,7 +39,7 @@ const rule = createRule({
       recommended: 'error',
     },
     messages: {
-      unusedObjectTypeProperty: `Unused object type property '{{ propertyName }}'`,
+      unusedObjectTypeProperty: `Object type property '{{ propertyName }}' is defined but never used`,
     },
     schema: [],
   },
@@ -115,6 +115,13 @@ const rule = createRule({
       declaredProperties: Map<string, TSESTree.Node>,
     ) {
       const destructuredProperties: string[] = []
+
+      const lastIsRest =
+        param.properties.at(-1)?.type === AST_NODE_TYPES.RestElement
+
+      if (lastIsRest) {
+        return
+      }
 
       for (const property of param.properties) {
         if (
