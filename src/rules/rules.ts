@@ -1,5 +1,5 @@
-import { noWarningComment } from './no-warning-comment'
+import { noUnusedObjectTypeProperties } from './no-unused-object-type-properties'
 
 export const rules = {
-  [noWarningComment.name]: noWarningComment.rule,
+  [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
 }
