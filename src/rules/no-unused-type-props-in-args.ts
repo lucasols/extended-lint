@@ -30,8 +30,10 @@ function extendMap<K, V>(map: Map<K, V>, ...entries: [K, V][]): Map<K, V> {
   return map
 }
 
+const name = 'no-unused-type-props-in-args'
+
 const rule = createRule({
-  name: 'no-unused-object-type-properties',
+  name,
   meta: {
     type: 'problem',
     docs: {
@@ -63,15 +65,56 @@ const rule = createRule({
 
       const type = resolved?.defs[0]?.node
 
-      if (
-        type?.type === AST_NODE_TYPES.TSTypeAliasDeclaration &&
-        type.parent?.type !== AST_NODE_TYPES.ExportNamedDeclaration &&
-        type.typeAnnotation.type === AST_NODE_TYPES.TSTypeLiteral
-      ) {
-        extendMap(
-          declaredProperties,
-          ...getTypeLiteralMembers(type.typeAnnotation),
-        )
+      if (type?.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration) return
+
+      if (type?.type === AST_NODE_TYPES.TSTypeAliasDeclaration) {
+        extendDeclaredTypeParams(declaredProperties, type.typeAnnotation, true)
+        return
+      }
+
+      if (type?.type === AST_NODE_TYPES.TSInterfaceDeclaration) {
+        extendDeclaredTypeParams(declaredProperties, type.body, true)
+        return
+      }
+    }
+
+    function extendDeclaredTypeParams(
+      declaredProperties: Map<string, TSESTree.Node>,
+      typeNode: TSESTree.TypeNode | TSESTree.TSInterfaceBody,
+      ignoreReferences: boolean,
+    ) {
+      if (typeNode.type === AST_NODE_TYPES.TSInterfaceBody) {
+        for (const member of typeNode.body) {
+          if (
+            member.type === AST_NODE_TYPES.TSPropertySignature &&
+            member.key.type === AST_NODE_TYPES.Identifier
+          ) {
+            declaredProperties.set(member.key.name, member)
+          }
+        }
+
+        return
+      }
+
+      if (typeNode.type === AST_NODE_TYPES.TSTypeLiteral) {
+        extendMap(declaredProperties, ...getTypeLiteralMembers(typeNode))
+        return
+      }
+
+      if (typeNode.type === AST_NODE_TYPES.TSIntersectionType) {
+        for (const type of typeNode.types) {
+          extendDeclaredTypeParams(declaredProperties, type, true)
+        }
+        return
+      }
+
+      if (!ignoreReferences) {
+        if (
+          typeNode.type === AST_NODE_TYPES.TSTypeReference &&
+          typeNode.typeName.type === AST_NODE_TYPES.Identifier
+        ) {
+          extendFromTypeReference(typeNode.typeName, declaredProperties)
+        }
       }
     }
 
@@ -80,27 +123,11 @@ const rule = createRule({
         if (param.type === 'ObjectPattern' && param.typeAnnotation) {
           const declaredProperties = new Map<string, TSESTree.Node>()
 
-          if (
-            param.typeAnnotation.typeAnnotation.type ===
-            AST_NODE_TYPES.TSTypeLiteral
-          ) {
-            extendMap(
-              declaredProperties,
-              ...getTypeLiteralMembers(param.typeAnnotation.typeAnnotation),
-            )
-          } else {
-            const typeAnnotation = param.typeAnnotation.typeAnnotation
-
-            if (
-              typeAnnotation.type === AST_NODE_TYPES.TSTypeReference &&
-              typeAnnotation.typeName.type === AST_NODE_TYPES.Identifier
-            ) {
-              extendFromTypeReference(
-                typeAnnotation.typeName,
-                declaredProperties,
-              )
-            }
-          }
+          extendDeclaredTypeParams(
+            declaredProperties,
+            param.typeAnnotation.typeAnnotation,
+            false,
+          )
 
           if (declaredProperties.size === 0) {
             continue
@@ -195,6 +222,6 @@ const rule = createRule({
 })
 
 export const noUnusedObjectTypeProperties = {
-  name: 'no-unused-object-type-properties',
-  rule: rule,
+  name,
+  rule,
 }

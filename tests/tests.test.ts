@@ -1,5 +1,5 @@
 import { describe, test } from 'vitest'
-import { noUnusedObjectTypeProperties } from '../src/rules/no-unused-object-type-properties'
+import { noUnusedObjectTypeProperties } from '../src/rules/no-unused-type-props-in-args'
 
 import { ESLintUtils } from '@typescript-eslint/utils'
 import { RuleModule } from '@typescript-eslint/utils/dist/ts-eslint'
@@ -8,7 +8,6 @@ const ruleTester = new ESLintUtils.RuleTester({
   parser: '@typescript-eslint/parser',
   parserOptions: {
     createDefaultProgram: true,
-    project: true,
   },
 })
 
@@ -54,7 +53,7 @@ function createTester<T extends RuleModule<string, any[]>>(
   }
 }
 
-describe('no-unused-object-type-properties', () => {
+describe('no-unused-type-props-in-args', () => {
   const { valid, invalid } = createTester(
     noUnusedObjectTypeProperties,
     'unusedObjectTypeProperty',
@@ -142,18 +141,19 @@ describe('no-unused-object-type-properties', () => {
     )
   })
 
-  test('ignore types with intersections', () => {
-    valid(
+  test('unused properties with object interface reference', () => {
+    invalid(
       `
-      type Test = {
+      interface Test {
         unusedType?: string;
         usedType?: string;
-      } & { otherType?: string };
+      };
 
       function test({ usedType }: Test) {
         console.log(usedType);
       }
     `,
+      [{ data: { propertyName: 'unusedType' } }],
     )
   })
 
@@ -293,6 +293,42 @@ describe('no-unused-object-type-properties', () => {
         return null;
       };
     `,
+    )
+  })
+
+  test('dont ignore types with intersections, referenced', () => {
+    invalid(
+      `
+      type Test = {
+        unusedType?: string;
+        usedType?: string;
+      } & { otherType?: string };
+
+      function test({ usedType }: Test) {
+        console.log(usedType);
+      }
+    `,
+      [
+        { data: { propertyName: 'unusedType' } },
+        { data: { propertyName: 'otherType' } },
+      ],
+    )
+  })
+
+  test('dont ignore types with intersections', () => {
+    invalid(
+      `
+      function test({ usedType }: {
+        unusedType?: string;
+        usedType?: string;
+      } & { otherType?: string }) {
+        console.log(usedType);
+      }
+    `,
+      [
+        { data: { propertyName: 'unusedType' } },
+        { data: { propertyName: 'otherType' } },
+      ],
     )
   })
 })
