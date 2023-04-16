@@ -1,6 +1,6 @@
 # Extended rules for eslint
 
-# `@lucasols/extended-lint/no-unused-type-props-in-args`
+# `no-unused-type-props-in-args`
 
 Checks if there are unused type props in function arguments.
 
@@ -9,7 +9,7 @@ Examples
 ```ts
 // Bad
 function foo({ a }: { a: string; b: string }) {
-                              /* ^ b is declared but unused in the function */
+                              /* ^ b is declared but not used in the function */
 
   // ...
 }
@@ -25,7 +25,7 @@ It will also work with the react `FC` type:
 ```ts
 // Bad
 const Foo: FC<{ a: string; b: string }> = ({ a }) => {
-                        /* ^ b is declared but unused in the component */
+                        /* ^ b is declared but not used in the component */
   // ...
 }
 
