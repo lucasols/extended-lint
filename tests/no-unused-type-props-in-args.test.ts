@@ -1,66 +1,14 @@
 import { describe, test } from 'vitest'
 import { noUnusedObjectTypeProperties } from '../src/rules/no-unused-type-props-in-args'
+import { createTester } from './utils/createTester'
 
-import { ESLintUtils } from '@typescript-eslint/utils'
-import { RuleModule } from '@typescript-eslint/utils/dist/ts-eslint'
+const { valid, invalid } = createTester(
+  noUnusedObjectTypeProperties,
+  'unusedObjectTypeProperty',
+)
 
-const ruleTester = new ESLintUtils.RuleTester({
-  parser: '@typescript-eslint/parser',
-  parserOptions: {
-    createDefaultProgram: true,
-  },
-})
-
-function createTester<T extends RuleModule<string, any[]>>(
-  rule: {
-    name: string
-    rule: T
-  },
-  defaultErrorId?: string,
-) {
-  return {
-    valid(code: string) {
-      ruleTester.run(rule.name, rule.rule, {
-        valid: [
-          {
-            code,
-          },
-        ],
-        invalid: [],
-      })
-    },
-    invalid(
-      code: string,
-      errors: {
-        messageId?: string
-        data?: Record<string, string>
-      }[],
-    ) {
-      ruleTester.run(rule.name, rule.rule, {
-        valid: [],
-        invalid: [
-          {
-            code,
-            errors:
-              errors.map((error) => ({
-                messageId: error.messageId || defaultErrorId || '?',
-                data: error.data,
-              })) || [],
-          },
-        ],
-      })
-    },
-  }
-}
-
-describe('no-unused-type-props-in-args', () => {
-  const { valid, invalid } = createTester(
-    noUnusedObjectTypeProperties,
-    'unusedObjectTypeProperty',
-  )
-
-  test('no type annotation', () => {
-    valid(`
+test('no type annotation', () => {
+  valid(`
       function test({ usedType }: { [k: string]: string }) {
         console.log(usedType);
       }
@@ -69,18 +17,18 @@ describe('no-unused-type-props-in-args', () => {
         console.log(usedType);
       }
     `)
-  })
+})
 
-  test('no unused properties with object type literal', () => {
-    valid(`
+test('no unused properties with object type literal', () => {
+  valid(`
       function test({ usedType }: { usedType?: string }) {
         console.log(usedType);
       }
     `)
-  })
+})
 
-  test('no unused properties with object type reference', () => {
-    valid(`
+test('no unused properties with object type reference', () => {
+  valid(`
       type Test = {
         usedType?: string;
       };
@@ -89,10 +37,10 @@ describe('no-unused-type-props-in-args', () => {
         console.log(usedType);
       }
     `)
-  })
+})
 
-  test('ignore param type unions', () => {
-    valid(`
+test('ignore param type unions', () => {
+  valid(`
       type Test = {
         usedType?: string;
       };
@@ -101,33 +49,33 @@ describe('no-unused-type-props-in-args', () => {
         console.log(usedType);
       }
     `)
-  })
+})
 
-  test('unused properties with object type literal', () => {
-    invalid(
-      `
+test('unused properties with object type literal', () => {
+  invalid(
+    `
       function test({ usedType }: { unusedType?: string, usedType?: string }) {
         console.log(usedType);
       }
     `,
-      [{ data: { propertyName: 'unusedType' } }],
-    )
-  })
+    [{ data: { propertyName: 'unusedType' } }],
+  )
+})
 
-  test('unused properties with object type literal', () => {
-    invalid(
-      `
+test('unused properties with object type literal', () => {
+  invalid(
+    `
       const test = ({ usedType }: { unusedType?: string, usedType?: string }) => {
         console.log(usedType);
       }
     `,
-      [{ data: { propertyName: 'unusedType' } }],
-    )
-  })
+    [{ data: { propertyName: 'unusedType' } }],
+  )
+})
 
-  test('unused properties with object type reference', () => {
-    invalid(
-      `
+test('unused properties with object type reference', () => {
+  invalid(
+    `
       type Test = {
         unusedType?: string;
         usedType?: string;
@@ -137,13 +85,13 @@ describe('no-unused-type-props-in-args', () => {
         console.log(usedType);
       }
     `,
-      [{ data: { propertyName: 'unusedType' } }],
-    )
-  })
+    [{ data: { propertyName: 'unusedType' } }],
+  )
+})
 
-  test('unused properties with object interface reference', () => {
-    invalid(
-      `
+test('unused properties with object interface reference', () => {
+  invalid(
+    `
       interface Test {
         unusedType?: string;
         usedType?: string;
@@ -153,13 +101,13 @@ describe('no-unused-type-props-in-args', () => {
         console.log(usedType);
       }
     `,
-      [{ data: { propertyName: 'unusedType' } }],
-    )
-  })
+    [{ data: { propertyName: 'unusedType' } }],
+  )
+})
 
-  test('ignore types with unions', () => {
-    valid(
-      `
+test('ignore types with unions', () => {
+  valid(
+    `
       type Test = {
         unusedType?: string;
         usedType?: string;
@@ -169,24 +117,24 @@ describe('no-unused-type-props-in-args', () => {
         console.log(usedType);
       }
     `,
-    )
-  })
+  )
+})
 
-  test('ignore imported types', () => {
-    valid(
-      `
+test('ignore imported types', () => {
+  valid(
+    `
       import { Test } from './test';
 
       function test({ usedType }: Test) {
         console.log(usedType);
       }
     `,
-    )
-  })
+  )
+})
 
-  test('ignored shared types', () => {
-    valid(
-      `
+test('ignored shared types', () => {
+  valid(
+    `
       type Test = {
         unusedType?: string;
         usedType?: string;
@@ -200,12 +148,12 @@ describe('no-unused-type-props-in-args', () => {
         console.log(usedType);
       }
     `,
-    )
-  })
+  )
+})
 
-  test('unused properties with FC object type reference', () => {
-    invalid(
-      `
+test('unused properties with FC object type reference', () => {
+  invalid(
+    `
       type Props = {
         title: ReactNode;
         onClose: () => void;
@@ -217,13 +165,13 @@ describe('no-unused-type-props-in-args', () => {
         return null;
       };
     `,
-      [{ data: { propertyName: 'onClose' } }],
-    )
-  })
+    [{ data: { propertyName: 'onClose' } }],
+  )
+})
 
-  test('unused properties with FC object type literal', () => {
-    invalid(
-      `
+test('unused properties with FC object type literal', () => {
+  invalid(
+    `
       type Props = {
         title: ReactNode;
         onClose: () => void;
@@ -238,13 +186,13 @@ describe('no-unused-type-props-in-args', () => {
         return null;
       };
     `,
-      [{ data: { propertyName: 'onClose' } }],
-    )
-  })
+    [{ data: { propertyName: 'onClose' } }],
+  )
+})
 
-  test('ignore rest parameters', () => {
-    valid(
-      `
+test('ignore rest parameters', () => {
+  valid(
+    `
       type Props = {
         title: ReactNode;
         onClose: () => void;
@@ -257,12 +205,12 @@ describe('no-unused-type-props-in-args', () => {
         return null;
       };
     `,
-    )
-  })
+  )
+})
 
-  test('ignore exported refs rest parameters', () => {
-    valid(
-      `
+test('ignore exported refs rest parameters', () => {
+  valid(
+    `
       export type Props = {
         title: ReactNode;
         onClose: () => void;
@@ -274,12 +222,12 @@ describe('no-unused-type-props-in-args', () => {
         return null;
       };
     `,
-    )
-  })
+  )
+})
 
-  test('ignore exported refs rest parameters 2', () => {
-    valid(
-      `
+test('ignore exported refs rest parameters 2', () => {
+  valid(
+    `
        type Props = {
         title: ReactNode;
         onClose: () => void;
@@ -293,12 +241,12 @@ describe('no-unused-type-props-in-args', () => {
         return null;
       };
     `,
-    )
-  })
+  )
+})
 
-  test('dont ignore types with intersections, referenced', () => {
-    invalid(
-      `
+test('dont ignore types with intersections, referenced', () => {
+  invalid(
+    `
       type Test = {
         unusedType?: string;
         usedType?: string;
@@ -308,16 +256,16 @@ describe('no-unused-type-props-in-args', () => {
         console.log(usedType);
       }
     `,
-      [
-        { data: { propertyName: 'unusedType' } },
-        { data: { propertyName: 'otherType' } },
-      ],
-    )
-  })
+    [
+      { data: { propertyName: 'unusedType' } },
+      { data: { propertyName: 'otherType' } },
+    ],
+  )
+})
 
-  test('dont ignore types with intersections', () => {
-    invalid(
-      `
+test('dont ignore types with intersections', () => {
+  invalid(
+    `
       function test({ usedType }: {
         unusedType?: string;
         usedType?: string;
@@ -325,10 +273,9 @@ describe('no-unused-type-props-in-args', () => {
         console.log(usedType);
       }
     `,
-      [
-        { data: { propertyName: 'unusedType' } },
-        { data: { propertyName: 'otherType' } },
-      ],
-    )
-  })
+    [
+      { data: { propertyName: 'unusedType' } },
+      { data: { propertyName: 'otherType' } },
+    ],
+  )
 })
