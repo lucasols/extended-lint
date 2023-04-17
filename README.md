@@ -23,14 +23,18 @@ Checks if there are unused type props in function arguments.
 
 Examples
 
+Bad
+
 ```ts
-// Bad
 function foo({ a }: { a: string; b: string }) {
   /* ^ b is declared but not used in the function */
   // ...
 }
+```
 
-// Good
+Good
+
+```ts
 function foo({ a, b }: { a: string; b: string }) {
   // ...
 }
@@ -38,14 +42,18 @@ function foo({ a, b }: { a: string; b: string }) {
 
 It will also work with the react `FC` type:
 
+Bad
+
 ```ts
-// Bad
 const Foo: FC<{ a: string; b: string }> = ({ a }) => {
   /* ^ b is declared but not used in the component */
   // ...
 }
+```
 
-// Good
+Good
+
+```
 const Foo: FC<{ a: string; b: string }> = ({ a, b }) => {
   // ...
 }
