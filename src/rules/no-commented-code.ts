@@ -64,6 +64,10 @@ const rule = createRule({
 
       const commentWithTrimmedStart = comment.trimStart()
 
+      if (comment.startsWith('TODO:') || comment.startsWith('FIX:')) {
+        return false
+      }
+
       for (const pattern of startsWithPatterns) {
         if (commentWithTrimmedStart.startsWith(pattern)) {
           return { wrongPattern: pattern }
