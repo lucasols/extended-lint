@@ -64,7 +64,11 @@ const rule = createRule({
 
       const commentWithTrimmedStart = comment.trimStart()
 
-      if (comment.startsWith('TODO:') || comment.startsWith('FIX:')) {
+      if (
+        comment.startsWith('TODO:') ||
+        comment.startsWith('FIX:') ||
+        comment.startsWith('eslint-disable')
+      ) {
         return false
       }
 
