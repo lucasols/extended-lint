@@ -6,6 +6,22 @@ const createRule = ESLintUtils.RuleCreator(
 )
 
 const name = 'no-commented-out-code'
+
+const startsWithPatterns = [
+  'function ',
+  'class ',
+  'interface ',
+  'type ',
+  'enum ',
+  'namespace ',
+  'import ',
+  'export ',
+  'const ',
+  'let ',
+  'var ',
+  'return ',
+]
+
 const codePatterns: (string | RegExp)[] = [
   ') {',
   'return;',
@@ -15,16 +31,12 @@ const codePatterns: (string | RegExp)[] = [
   'switch (',
   '/>',
   '</',
-  'const ',
-  'let ',
-  'var ',
   '},',
   ': {',
   ' } = ',
   '={',
   /\w=("|')/,
   ');',
-  /type \w+ =/,
 ]
 
 const rule = createRule({
@@ -37,25 +49,35 @@ const rule = createRule({
     },
     messages: {
       commentedOutCode:
-        'Commented code is not allowed. Use a block comment `\\* *\\` if you want to keep this code commented out.',
+        'Commented code is not allowed. Detected pattern: `{{ wrongPattern }}` Use a block comment `\\* *\\` if you want to keep this code commented out.',
     },
     schema: [],
   },
   defaultOptions: [],
   create: function (context) {
-    function isCommentedCode(comment: string) {
+    function isCommentedCode(
+      comment: string,
+    ): false | { wrongPattern: string } {
       if (comment.startsWith('/')) {
         return false
+      }
+
+      const commentWithTrimmedStart = comment.trimStart()
+
+      for (const pattern of startsWithPatterns) {
+        if (commentWithTrimmedStart.startsWith(pattern)) {
+          return { wrongPattern: pattern }
+        }
       }
 
       for (const pattern of codePatterns) {
         if (typeof pattern === 'string') {
           if (comment.includes(pattern)) {
-            return true
+            return { wrongPattern: pattern }
           }
         } else {
           if (pattern.test(comment)) {
-            return true
+            return { wrongPattern: `regex(${pattern.toString()})` }
           }
         }
       }
@@ -69,14 +91,18 @@ const rule = createRule({
         const comments = sourceCode.getAllComments()
 
         for (const comment of comments) {
-          if (
-            comment.type === TSESTree.AST_TOKEN_TYPES.Line &&
-            isCommentedCode(comment.value)
-          ) {
-            context.report({
-              node: comment,
-              messageId: 'commentedOutCode',
-            })
+          if (comment.type === TSESTree.AST_TOKEN_TYPES.Line) {
+            const commentedCode = isCommentedCode(comment.value)
+
+            if (commentedCode) {
+              context.report({
+                node: comment,
+                messageId: 'commentedOutCode',
+                data: {
+                  wrongPattern: commentedCode.wrongPattern,
+                },
+              })
+            }
           }
         }
       },

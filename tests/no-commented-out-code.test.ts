@@ -12,6 +12,8 @@ test('valid code', () => {
 
       // ignore triple slash directives
       /// <reference lib="WebWorker" />
+
+      // TODO: salvar nome do menu localmente pq essa informação não é persistente no servidor
     `)
 })
 
