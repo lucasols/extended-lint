@@ -76,3 +76,5 @@ function foo() {
 }
 */
 ```
+
+- This rule will not detect all possible commented code, and can give false negatives.
