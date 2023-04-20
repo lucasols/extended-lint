@@ -279,3 +279,38 @@ test('dont ignore types with intersections', () => {
     ],
   )
 })
+
+test.only('false positive', () => {
+  invalid(
+    `
+import { sleep } from '@utils/sleep';
+
+export async function retryOnError<T>(
+  fn: () => Promise<T>,
+  maxRetries: number,
+  {
+    delayBetweenRetriesMs,
+    // retryCondition
+  }: {
+    delayBetweenRetriesMs?: number;
+    retryCondition?: (error: unknown) => boolean;
+  } = {},
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (maxRetries > 0) {
+      if (delayBetweenRetriesMs) {
+        await sleep(delayBetweenRetriesMs);
+      }
+
+      return retryOnError(fn, maxRetries - 1, { delayBetweenRetriesMs });
+    } else {
+      throw error;
+    }
+  }
+}
+  `,
+    [{ data: { propertyName: 'retryCondition' } }],
+  )
+})

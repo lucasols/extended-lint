@@ -134,6 +134,11 @@ const rule = createRule({
           }
 
           checkProperties(param, declaredProperties)
+        } else if (
+          param.type === AST_NODE_TYPES.AssignmentPattern &&
+          param.left.type === AST_NODE_TYPES.ObjectPattern
+        ) {
+          checkParamsOfInferedDeclarations([param.left])
         }
       }
     }
