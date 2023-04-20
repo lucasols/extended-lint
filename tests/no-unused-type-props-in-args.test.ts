@@ -280,7 +280,7 @@ test('dont ignore types with intersections', () => {
   )
 })
 
-test.only('false positive', () => {
+test('false positive', () => {
   invalid(
     `
 import { sleep } from '@utils/sleep';
