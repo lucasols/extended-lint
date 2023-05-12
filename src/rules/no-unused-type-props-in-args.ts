@@ -50,6 +50,7 @@ const rule = createRule({
     function extendFromTypeReference(
       reference: TSESTree.Identifier,
       declaredProperties: Map<string, TSESTree.Node>,
+      ignoreExported = true,
     ) {
       const typeName = reference.name
 
@@ -65,7 +66,12 @@ const rule = createRule({
 
       const type = resolved?.defs[0]?.node
 
-      if (type?.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration) return
+      if (
+        ignoreExported &&
+        type?.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration
+      ) {
+        return
+      }
 
       if (type?.type === AST_NODE_TYPES.TSTypeAliasDeclaration) {
         extendDeclaredTypeParams(declaredProperties, type.typeAnnotation, true)
@@ -201,7 +207,11 @@ const rule = createRule({
           fcPropsParam.type === AST_NODE_TYPES.TSTypeReference &&
           fcPropsParam.typeName.type === AST_NODE_TYPES.Identifier
         ) {
-          extendFromTypeReference(fcPropsParam.typeName, declaredProperties)
+          extendFromTypeReference(
+            fcPropsParam.typeName,
+            declaredProperties,
+            false,
+          )
         } else if (fcPropsParam.type === AST_NODE_TYPES.TSTypeLiteral) {
           extendMap(declaredProperties, ...getTypeLiteralMembers(fcPropsParam))
         }

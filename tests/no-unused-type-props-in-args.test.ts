@@ -208,23 +208,6 @@ test('ignore rest parameters', () => {
   )
 })
 
-test('ignore exported refs rest parameters', () => {
-  valid(
-    `
-      export type Props = {
-        title: ReactNode;
-        onClose: () => void;
-      };
-
-      export const Component: FC<Props> = ({
-        title,
-      }) => {
-        return null;
-      };
-    `,
-  )
-})
-
 test('ignore exported refs rest parameters 2', () => {
   valid(
     `
@@ -312,5 +295,24 @@ export async function retryOnError<T>(
 }
   `,
     [{ data: { propertyName: 'retryCondition' } }],
+  )
+})
+
+test('dont ignore exported refs in FC components', () => {
+  invalid(
+    `
+       export type Props = {
+        title: ReactNode;
+        onClose: () => void;
+      };
+
+
+      export const Component: FC<Props> = ({
+        title,
+      }) => {
+        return null;
+      };
+    `,
+    [{ data: { propertyName: 'onClose' } }],
   )
 })
