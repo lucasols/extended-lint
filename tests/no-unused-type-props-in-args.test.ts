@@ -2,10 +2,9 @@ import { describe, test } from 'vitest'
 import { noUnusedObjectTypeProperties } from '../src/rules/no-unused-type-props-in-args'
 import { createTester } from './utils/createTester'
 
-const { valid, invalid } = createTester(
-  noUnusedObjectTypeProperties,
-  'unusedObjectTypeProperty',
-)
+const { valid, invalid } = createTester(noUnusedObjectTypeProperties, {
+  defaultErrorId: 'unusedObjectTypeProperty',
+})
 
 test('no type annotation', () => {
   valid(`

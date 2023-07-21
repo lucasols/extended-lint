@@ -3,7 +3,9 @@ import { noUnusedObjectTypeProperties } from '../src/rules/no-unused-type-props-
 import { createTester } from './utils/createTester'
 import { noCommentedOutCode } from '../src/rules/no-commented-code'
 
-const { valid, invalid } = createTester(noCommentedOutCode, 'commentedOutCode')
+const { valid, invalid } = createTester(noCommentedOutCode, {
+  defaultErrorId: 'commentedOutCode',
+})
 
 test('valid code', () => {
   valid(`

@@ -7,19 +7,23 @@ const ruleTester = new ESLintUtils.RuleTester({
     createDefaultProgram: true,
   },
 })
-export function createTester<T extends RuleModule<string, any[]>>(
+export function createTester<
+  T extends RuleModule<string, any[]>,
+  O extends any[],
+>(
   rule: {
     name: string
     rule: T
   },
-  defaultErrorId?: string,
+  { defaultErrorId }: { defaultErrorId?: string; optionsType?: O } = {},
 ) {
   return {
-    valid(code: string) {
+    valid(code: string, options?: O) {
       ruleTester.run(rule.name, rule.rule, {
         valid: [
           {
             code,
+            options: options || [],
           },
         ],
         invalid: [],
@@ -33,12 +37,14 @@ export function createTester<T extends RuleModule<string, any[]>>(
             data?: Record<string, string>
           }[]
         | number,
+      options?: O,
     ) {
       ruleTester.run(rule.name, rule.rule, {
         valid: [],
         invalid: [
           {
             code,
+            options: options || [],
             errors:
               typeof errors === 'number'
                 ? Array.from({ length: errors }, () => ({
