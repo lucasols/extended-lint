@@ -27,7 +27,7 @@ Bad
 
 ```ts
 function foo({ a }: { a: string; b: string }) {
-  /* ^ b is declared but not used in the function */
+  /*                             ^ b is declared but not used in the function */
   // ...
 }
 ```
@@ -46,7 +46,7 @@ Bad
 
 ```ts
 const Foo: FC<{ a: string; b: string }> = ({ a }) => {
-  /* ^ b is declared but not used in the component */
+  /*                       ^ b is declared but not used in the component */
   // ...
 }
 ```
