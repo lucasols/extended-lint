@@ -1,19 +1,20 @@
 import { RuleTester } from '@typescript-eslint/rule-tester'
 import { TSESLint } from '@typescript-eslint/utils'
-import * as vitest from 'vitest'
-
-RuleTester.afterAll = vitest.afterAll
-RuleTester.it = vitest.it
-RuleTester.itOnly = vitest.it.only
-RuleTester.describe = vitest.describe
+import { fileURLToPath } from 'node:url'
 
 const ruleTester = new RuleTester({
   parser: '@typescript-eslint/parser',
   parserOptions: {
-    tsconfigRootDir: './tests/fixture',
+    tsconfigRootDir: fileURLToPath(new URL('../fixture', import.meta.url)),
     project: './tsconfig.json',
+    ecmaFeatures: {
+      jsx: true,
+    },
+    ecmaVersion: 2020,
+    sourceType: 'module',
   },
 })
+
 export function createTester<
   T extends TSESLint.RuleModule<string, any[]>,
   O extends any[],
@@ -22,7 +23,14 @@ export function createTester<
     name: string
     rule: T
   },
-  { defaultErrorId }: { defaultErrorId?: string; optionsType?: O } = {},
+  {
+    defaultErrorId,
+    ignoreError,
+  }: {
+    defaultErrorId?: string
+    optionsType?: O
+    ignoreError: TSESLint.InvalidTestCase<string, any[]>
+  },
 ) {
   return {
     valid(code: string, options?: O) {
@@ -33,7 +41,7 @@ export function createTester<
             options: options || [],
           },
         ],
-        invalid: [],
+        invalid: [ignoreError],
       })
     },
     invalid(
@@ -47,9 +55,15 @@ export function createTester<
       options?: O,
     ) {
       ruleTester.run(rule.name, rule.rule, {
-        valid: [],
+        valid: [
+          {
+            code: 'const a = 1',
+            name: 'ignore',
+          },
+        ],
         invalid: [
           {
+            name: 'test',
             code,
             options: options || [],
             errors:

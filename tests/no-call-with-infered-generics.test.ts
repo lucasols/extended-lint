@@ -1,4 +1,4 @@
-import { test } from 'vitest'
+import { test, describe } from 'vitest'
 import {
   Options,
   noCallWithInferedGenerics,
@@ -7,9 +7,23 @@ import { createTester } from './utils/createTester'
 
 const { valid, invalid } = createTester(noCallWithInferedGenerics, {
   optionsType: {} as Options,
+  ignoreError: {
+    code: `test('user/update', { name });`,
+    options: [
+      {
+        functions: [{ name: 'test' }],
+      },
+    ],
+    errors: [
+      {
+        data: { functionName: 'test', minGenerics: '1' },
+        messageId: 'missingGenericDeclaration',
+      },
+    ],
+  },
 })
 
-test('valid code', () => {
+describe('valid code', () => {
   valid(
     `
       otherFunction('user/update', { name });
@@ -22,7 +36,7 @@ test('valid code', () => {
   )
 })
 
-test('invalid', () => {
+describe('invalid', () => {
   invalid(
     `
       test('user/update', { name });
@@ -41,7 +55,7 @@ test('invalid', () => {
   )
 })
 
-test('invalid, need more than one generic defined', () => {
+describe('invalid, need more than one generic defined', () => {
   invalid(
     `
       test<Type>('user/update', { name });
@@ -60,7 +74,7 @@ test('invalid, need more than one generic defined', () => {
   )
 })
 
-test('invalid usage of any', () => {
+describe('invalid usage of any', () => {
   invalid(
     `
       test<any>('user/update', { name });
@@ -79,7 +93,7 @@ test('invalid usage of any', () => {
   )
 })
 
-test('invalid usage of any alias', () => {
+describe('invalid usage of any alias', () => {
   invalid(
     `
       test<__ANY__>('user/update', { name });

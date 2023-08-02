@@ -7,5 +7,6 @@ export default defineConfig({
     include: ['tests/*.test.{ts,tsx}'],
     testTimeout: 2_000,
     allowOnly: isDev,
+    setupFiles: 'tests/fixture/setup.ts',
   },
 })

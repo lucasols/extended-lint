@@ -1,5 +1,4 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
-import { RuleContext } from '@typescript-eslint/utils/dist/ts-eslint'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -38,7 +37,7 @@ const rule = createRule({
     type: 'problem',
     docs: {
       description: 'Disallow unused undestructured object type properties',
-      recommended: 'error',
+      recommended: 'recommended',
     },
     messages: {
       unusedObjectTypeProperty: `Object type property '{{ propertyName }}' is defined but never used`,

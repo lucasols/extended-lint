@@ -1,12 +1,20 @@
-import { test } from 'vitest'
+import { test, describe } from 'vitest'
 import { noCommentedOutCode } from '../src/rules/no-commented-code'
 import { createTester } from './utils/createTester'
 
 const { valid, invalid } = createTester(noCommentedOutCode, {
   defaultErrorId: 'commentedOutCode',
+  ignoreError: {
+    code: `
+      // This comment includes some code:
+      // const answer = 54;
+      const answer = 42;
+    `,
+    errors: [{ messageId: 'commentedOutCode' }],
+  },
 })
 
-test('valid code', () => {
+describe('valid code', () => {
   valid(`
       // This comment isn't code.
       const answer = 42;
@@ -18,7 +26,7 @@ test('valid code', () => {
     `)
 })
 
-test('invalid', () => {
+describe('invalid', () => {
   invalid(
     `
       // This comment includes some code:
@@ -28,7 +36,7 @@ test('invalid', () => {
   )
 })
 
-test('invalid block of code', () => {
+describe('invalid block of code', () => {
   invalid(
     `
       // function onClickAdd() {
@@ -50,7 +58,7 @@ test('invalid block of code', () => {
   )
 })
 
-test('invalid jsx commented prop', () => {
+describe('invalid jsx commented prop', () => {
   invalid(
     `
     // getLastCoords={getLastCoords}
@@ -61,7 +69,7 @@ test('invalid jsx commented prop', () => {
   )
 })
 
-test('invalid objects', () => {
+describe('invalid objects', () => {
   invalid(
     `
       // TODO: add to back

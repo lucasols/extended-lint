@@ -4,9 +4,20 @@ import { createTester } from './utils/createTester'
 
 const { valid, invalid } = createTester(noUnusedObjectTypeProperties, {
   defaultErrorId: 'unusedObjectTypeProperty',
+  ignoreError: {
+    code: `function test({ usedType }: { unusedType?: string, usedType?: string }) {
+        console.log(usedType);
+      }`,
+    errors: [
+      {
+        data: { propertyName: 'unusedType' },
+        messageId: 'unusedObjectTypeProperty',
+      },
+    ],
+  },
 })
 
-test('no type annotation', () => {
+describe('no type annotation', () => {
   valid(`
       function test({ usedType }: { [k: string]: string }) {
         console.log(usedType);
@@ -18,7 +29,7 @@ test('no type annotation', () => {
     `)
 })
 
-test('no unused properties with object type literal', () => {
+describe('no unused properties with object type literal', () => {
   valid(`
       function test({ usedType }: { usedType?: string }) {
         console.log(usedType);
@@ -26,7 +37,7 @@ test('no unused properties with object type literal', () => {
     `)
 })
 
-test('no unused properties with object type reference', () => {
+describe('no unused properties with object type reference', () => {
   valid(`
       type Test = {
         usedType?: string;
@@ -50,7 +61,7 @@ test('ignore param type unions', () => {
     `)
 })
 
-test('unused properties with object type literal', () => {
+describe('unused properties with object type literal', () => {
   invalid(
     `
       function test({ usedType }: { unusedType?: string, usedType?: string }) {
@@ -61,7 +72,7 @@ test('unused properties with object type literal', () => {
   )
 })
 
-test('unused properties with object type literal', () => {
+describe('unused properties with object type literal', () => {
   invalid(
     `
       const test = ({ usedType }: { unusedType?: string, usedType?: string }) => {
@@ -72,7 +83,7 @@ test('unused properties with object type literal', () => {
   )
 })
 
-test('unused properties with object type reference', () => {
+describe('unused properties with object type reference', () => {
   invalid(
     `
       type Test = {
@@ -88,7 +99,7 @@ test('unused properties with object type reference', () => {
   )
 })
 
-test('unused properties with object interface reference', () => {
+describe('unused properties with object interface reference', () => {
   invalid(
     `
       interface Test {
@@ -104,7 +115,7 @@ test('unused properties with object interface reference', () => {
   )
 })
 
-test('ignore types with unions', () => {
+describe('ignore types with unions', () => {
   valid(
     `
       type Test = {
@@ -119,7 +130,7 @@ test('ignore types with unions', () => {
   )
 })
 
-test('ignore imported types', () => {
+describe('ignore imported types', () => {
   valid(
     `
       import { Test } from './test';
@@ -131,7 +142,7 @@ test('ignore imported types', () => {
   )
 })
 
-test('ignored shared types', () => {
+describe('ignored shared types', () => {
   valid(
     `
       type Test = {
@@ -150,7 +161,7 @@ test('ignored shared types', () => {
   )
 })
 
-test('unused properties with FC object type reference', () => {
+describe('unused properties with FC object type reference', () => {
   invalid(
     `
       type Props = {
@@ -168,7 +179,7 @@ test('unused properties with FC object type reference', () => {
   )
 })
 
-test('unused properties with FC object type literal', () => {
+describe('unused properties with FC object type literal', () => {
   invalid(
     `
       type Props = {
@@ -189,7 +200,7 @@ test('unused properties with FC object type literal', () => {
   )
 })
 
-test('ignore rest parameters', () => {
+describe('ignore rest parameters', () => {
   valid(
     `
       type Props = {
@@ -207,7 +218,7 @@ test('ignore rest parameters', () => {
   )
 })
 
-test('ignore exported refs rest parameters 2', () => {
+describe('ignore exported refs rest parameters 2', () => {
   valid(
     `
        type Props = {
@@ -226,7 +237,7 @@ test('ignore exported refs rest parameters 2', () => {
   )
 })
 
-test('dont ignore types with intersections, referenced', () => {
+describe('dont ignore types with intersections, referenced', () => {
   invalid(
     `
       type Test = {
@@ -245,7 +256,7 @@ test('dont ignore types with intersections, referenced', () => {
   )
 })
 
-test('dont ignore types with intersections', () => {
+describe('dont ignore types with intersections', () => {
   invalid(
     `
       function test({ usedType }: {
@@ -262,7 +273,7 @@ test('dont ignore types with intersections', () => {
   )
 })
 
-test('false positive', () => {
+describe('false positive', () => {
   invalid(
     `
 import { sleep } from '@utils/sleep';
@@ -297,7 +308,7 @@ export async function retryOnError<T>(
   )
 })
 
-test('dont ignore exported refs in FC components', () => {
+describe('dont ignore exported refs in FC components', () => {
   invalid(
     `
        export type Props = {
@@ -313,5 +324,32 @@ test('dont ignore exported refs in FC components', () => {
       };
     `,
     [{ data: { propertyName: 'onClose' } }],
+  )
+})
+
+describe('test bug', () => {
+  invalid(
+    `
+      type FormItemsInput = {
+  className?: string;
+  selected: FormItem[];
+  hint?: string;
+  label: string;
+  optional?: boolean;
+  errors: string[];
+  handleChange: (setter: (current: FormItem[]) => FormItem[]) => void;
+};
+
+export const FormItemsInput: FC<FormItemsInput> = ({
+  label,
+  hint,
+  errors,
+  selected,
+  handleChange,
+}) => {
+  return null
+};
+    `,
+    [{ data: {} }],
   )
 })
