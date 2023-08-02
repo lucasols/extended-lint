@@ -24,7 +24,7 @@ const rule = createRule({
     type: 'problem',
     docs: {
       description: 'Disable calling configured functions with infered generics',
-      recommended: 'error',
+      recommended: 'recommended',
     },
     messages: {
       missingGenericDeclaration: `Function '{{ functionName }}' should be called with at least {{ minGenerics }} generic(s) (ex: \`fn<Generic>()\`) defined`,
@@ -77,7 +77,7 @@ const rule = createRule({
           disallowTypes = options.disallowTypes,
         } = functionConfig
 
-        const generics = node.typeParameters?.params.length || 0
+        const generics = node.typeArguments?.params.length || 0
 
         if (generics < (minGenerics || 0)) {
           context.report({
@@ -93,7 +93,7 @@ const rule = createRule({
         if (allowAny && !disallowTypes) return
 
         if (
-          node.typeParameters?.params?.some(
+          node.typeArguments?.params?.some(
             (type) =>
               (!allowAny && type.type === AST_NODE_TYPES.TSAnyKeyword) ||
               (disallowTypes &&

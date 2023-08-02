@@ -1,14 +1,21 @@
-import { ESLintUtils } from '@typescript-eslint/utils'
-import { RuleModule } from '@typescript-eslint/utils/dist/ts-eslint'
+import { RuleTester } from '@typescript-eslint/rule-tester'
+import { TSESLint } from '@typescript-eslint/utils'
+import * as vitest from 'vitest'
 
-const ruleTester = new ESLintUtils.RuleTester({
+RuleTester.afterAll = vitest.afterAll
+RuleTester.it = vitest.it
+RuleTester.itOnly = vitest.it.only
+RuleTester.describe = vitest.describe
+
+const ruleTester = new RuleTester({
   parser: '@typescript-eslint/parser',
   parserOptions: {
-    createDefaultProgram: true,
+    tsconfigRootDir: './tests/fixture',
+    project: './tsconfig.json',
   },
 })
 export function createTester<
-  T extends RuleModule<string, any[]>,
+  T extends TSESLint.RuleModule<string, any[]>,
   O extends any[],
 >(
   rule: {

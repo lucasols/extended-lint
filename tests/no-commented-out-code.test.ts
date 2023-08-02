@@ -1,7 +1,6 @@
-import { describe, test } from 'vitest'
-import { noUnusedObjectTypeProperties } from '../src/rules/no-unused-type-props-in-args'
-import { createTester } from './utils/createTester'
+import { test } from 'vitest'
 import { noCommentedOutCode } from '../src/rules/no-commented-code'
+import { createTester } from './utils/createTester'
 
 const { valid, invalid } = createTester(noCommentedOutCode, {
   defaultErrorId: 'commentedOutCode',
