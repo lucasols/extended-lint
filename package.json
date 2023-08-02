@@ -1,6 +1,6 @@
 {
   "name": "@lucasols/eslint-plugin-extended-lint",
-  "version": "0.10.0",
+  "version": "1.0.0",
   "license": "MIT",
   "scripts": {
     "test": "vitest run",
