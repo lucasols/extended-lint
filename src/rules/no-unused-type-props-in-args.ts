@@ -59,7 +59,11 @@ const rule = createRule({
           (reference) => reference.identifier.name === typeName,
         )?.resolved
 
-      if (!resolved || resolved.references.length > 1) {
+      if (
+        !resolved ||
+        resolved.references.filter((reference) => reference.isTypeReference)
+          .length > 1
+      ) {
         return
       }
 

@@ -350,6 +350,17 @@ export const FormItemsInput: FC<FormItemsInput> = ({
   return null
 };
     `,
-    [{ data: {} }],
+    [
+      {
+        data: {
+          propertyName: 'className',
+        },
+      },
+      {
+        data: {
+          propertyName: 'optional',
+        },
+      },
+    ],
   )
 })

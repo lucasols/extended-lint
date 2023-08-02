@@ -8,12 +8,12 @@ import { createTester } from './utils/createTester'
 const { valid, invalid } = createTester(noCallWithInferedGenerics, {
   optionsType: {} as Options,
   ignoreError: {
-    code: `test('user/update', { name });`,
     options: [
       {
         functions: [{ name: 'test' }],
       },
     ],
+    code: `test('user/update', { name });`,
     errors: [
       {
         data: { functionName: 'test', minGenerics: '1' },

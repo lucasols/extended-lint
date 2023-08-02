@@ -59,6 +59,7 @@ export function createTester<
           {
             code: 'const a = 1',
             name: 'ignore',
+            options: options || [],
           },
         ],
         invalid: [
