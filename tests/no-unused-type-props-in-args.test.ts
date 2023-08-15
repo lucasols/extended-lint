@@ -1,24 +1,13 @@
-import { describe, test } from 'vitest'
 import { noUnusedObjectTypeProperties } from '../src/rules/no-unused-type-props-in-args'
 import { createTester } from './utils/createTester'
 
-const { valid, invalid } = createTester(noUnusedObjectTypeProperties, {
+const tests = createTester(noUnusedObjectTypeProperties, {
   defaultErrorId: 'unusedObjectTypeProperty',
-  ignoreError: {
-    code: `function test({ usedType }: { unusedType?: string, usedType?: string }) {
-        console.log(usedType);
-      }`,
-    errors: [
-      {
-        data: { propertyName: 'unusedType' },
-        messageId: 'unusedObjectTypeProperty',
-      },
-    ],
-  },
 })
 
-describe('no type annotation', () => {
-  valid(`
+tests.addValid(
+  'no type annotation',
+  `
       function test({ usedType }: { [k: string]: string }) {
         console.log(usedType);
       }
@@ -26,256 +15,242 @@ describe('no type annotation', () => {
       function test(test: 'k') {
         console.log(usedType);
       }
-    `)
-})
-
-describe('no unused properties with object type literal', () => {
-  valid(`
-      function test({ usedType }: { usedType?: string }) {
-        console.log(usedType);
-      }
-    `)
-})
-
-describe('no unused properties with object type reference', () => {
-  valid(`
-      type Test = {
-        usedType?: string;
-      };
-
-      function test({ usedType }: Test) {
-        console.log(usedType);
-      }
-    `)
-})
-
-test('ignore param type unions', () => {
-  valid(`
-      type Test = {
-        usedType?: string;
-      };
-
-      function test({ usedType }: Test | { otherType?: string }) {
-        console.log(usedType);
-      }
-    `)
-})
-
-describe('unused properties with object type literal', () => {
-  invalid(
-    `
-      function test({ usedType }: { unusedType?: string, usedType?: string }) {
-        console.log(usedType);
-      }
     `,
-    [{ data: { propertyName: 'unusedType' } }],
-  )
-})
+)
 
-describe('unused properties with object type literal', () => {
-  invalid(
-    `
-      const test = ({ usedType }: { unusedType?: string, usedType?: string }) => {
-        console.log(usedType);
-      }
-    `,
-    [{ data: { propertyName: 'unusedType' } }],
-  )
-})
+tests.addValid(
+  'no unused properties with object type literal',
+  `
+  function test({ usedType }: { usedType?: string }) {
+    console.log(usedType);
+  }
+`,
+)
 
-describe('unused properties with object type reference', () => {
-  invalid(
-    `
-      type Test = {
-        unusedType?: string;
-        usedType?: string;
-      };
+tests.addValid(
+  'no unused properties with object type reference',
+  `
+  type Test = {
+    usedType?: string;
+  };
 
-      function test({ usedType }: Test) {
-        console.log(usedType);
-      }
-    `,
-    [{ data: { propertyName: 'unusedType' } }],
-  )
-})
+  function test({ usedType }: Test) {
+    console.log(usedType);
+  }
+`,
+)
 
-describe('unused properties with object interface reference', () => {
-  invalid(
-    `
-      interface Test {
-        unusedType?: string;
-        usedType?: string;
-      };
+tests.addValid(
+  'ignore param type unions',
+  `
+  type Test = {
+    usedType?: string;
+  };
 
-      function test({ usedType }: Test) {
-        console.log(usedType);
-      }
-    `,
-    [{ data: { propertyName: 'unusedType' } }],
-  )
-})
+  function test({ usedType }: Test | { otherType?: string }) {
+    console.log(usedType);
+  }
+`,
+)
 
-describe('ignore types with unions', () => {
-  valid(
-    `
-      type Test = {
-        unusedType?: string;
-        usedType?: string;
-      } | { otherType?: string };
+tests.addInvalid(
+  'unused properties with object type literal',
+  `
+  function test({ usedType }: { unusedType?: string, usedType?: string }) {
+    console.log(usedType);
+  }
+`,
+  [{ data: { propertyName: 'unusedType' } }],
+)
 
-      function test({ usedType }: Test) {
-        console.log(usedType);
-      }
-    `,
-  )
-})
+tests.addInvalid(
+  'unused properties with object type literal',
+  `
+  const test = ({ usedType }: { unusedType?: string, usedType?: string }) => {
+    console.log(usedType);
+  }
+`,
+  [{ data: { propertyName: 'unusedType' } }],
+)
 
-describe('ignore imported types', () => {
-  valid(
-    `
-      import { Test } from './test';
+tests.addInvalid(
+  'unused properties with object type reference',
+  `
+  type Test = {
+    unusedType?: string;
+    usedType?: string;
+  };
 
-      function test({ usedType }: Test) {
-        console.log(usedType);
-      }
-    `,
-  )
-})
+  function test({ usedType }: Test) {
+    console.log(usedType);
+  }
+`,
+  [{ data: { propertyName: 'unusedType' } }],
+)
 
-describe('ignored shared types', () => {
-  valid(
-    `
-      type Test = {
-        unusedType?: string;
-        usedType?: string;
-      };
+tests.addInvalid(
+  'unused properties with object interface reference',
+  `
+  interface Test {
+    unusedType?: string;
+    usedType?: string;
+  };
 
-      function test({ usedType }: Test) {
-        console.log(usedType);
-      }
+  function test({ usedType }: Test) {
+    console.log(usedType);
+  }
+`,
+  [{ data: { propertyName: 'unusedType' } }],
+)
 
-      function test2({ usedType }: Test) {
-        console.log(usedType);
-      }
-    `,
-  )
-})
+tests.addValid(
+  'ignore types with unions',
+  `
+  type Test = {
+    unusedType?: string;
+    usedType?: string;
+  } | { otherType?: string };
 
-describe('unused properties with FC object type reference', () => {
-  invalid(
-    `
-      type Props = {
-        title: ReactNode;
-        onClose: () => void;
-      };
+  function test({ usedType }: Test) {
+    console.log(usedType);
+  }
+`,
+)
+tests.addValid(
+  'ignore imported types',
+  `
+  import { Test } from './test';
 
-      export const Component: FC<Props> = ({
-        title,
-      }) => {
-        return null;
-      };
-    `,
-    [{ data: { propertyName: 'onClose' } }],
-  )
-})
+  function test({ usedType }: Test) {
+    console.log(usedType);
+  }
+`,
+)
+tests.addValid(
+  'ignored shared types',
+  `
+  type Test = {
+    unusedType?: string;
+    usedType?: string;
+  };
 
-describe('unused properties with FC object type literal', () => {
-  invalid(
-    `
-      type Props = {
-        title: ReactNode;
-        onClose: () => void;
-      };
+  function test({ usedType }: Test) {
+    console.log(usedType);
+  }
 
-      export const Component: FC<{
-        title: ReactNode;
-        onClose: () => void;
-      }> = ({
-        title,
-      }) => {
-        return null;
-      };
-    `,
-    [{ data: { propertyName: 'onClose' } }],
-  )
-})
+  function test2({ usedType }: Test) {
+    console.log(usedType);
+  }
+`,
+)
 
-describe('ignore rest parameters', () => {
-  valid(
-    `
-      type Props = {
-        title: ReactNode;
-        onClose: () => void;
-      };
+tests.addInvalid(
+  'unused properties with FC object type reference',
+  `
+  type Props = {
+    title: ReactNode;
+    onClose: () => void;
+  };
 
-      export const Component: FC<Props> = ({
-        title,
-        ...rest
-      }) => {
-        return null;
-      };
-    `,
-  )
-})
+  export const Component: FC<Props> = ({
+    title,
+  }) => {
+    return null;
+  };
+`,
+  [{ data: { propertyName: 'onClose' } }],
+)
+tests.addInvalid(
+  'unused properties with FC object type literal',
+  `
+  type Props = {
+    title: ReactNode;
+    onClose: () => void;
+  };
 
-describe('ignore exported refs rest parameters 2', () => {
-  valid(
-    `
-       type Props = {
-        title: ReactNode;
-        onClose: () => void;
-      };
+  export const Component: FC<{
+    title: ReactNode;
+    onClose: () => void;
+  }> = ({
+    title,
+  }) => {
+    return null;
+  };
+`,
+  [{ data: { propertyName: 'onClose' } }],
+)
+tests.addValid(
+  'ignore rest parameters',
+  `
+  type Props = {
+    title: ReactNode;
+    onClose: () => void;
+  };
 
-      export type Props2 = Props
+  export const Component: FC<Props> = ({
+    title,
+    ...rest
+  }) => {
+    return null;
+  };
+`,
+)
 
-      export const Component: FC<Props> = ({
-        title,
-      }) => {
-        return null;
-      };
-    `,
-  )
-})
+tests.addValid(
+  'ignore exported refs rest parameters 2',
+  `
+  type Props = {
+    title: ReactNode;
+    onClose: () => void;
+  };
 
-describe('dont ignore types with intersections, referenced', () => {
-  invalid(
-    `
-      type Test = {
-        unusedType?: string;
-        usedType?: string;
-      } & { otherType?: string };
+  export type Props2 = Props
 
-      function test({ usedType }: Test) {
-        console.log(usedType);
-      }
-    `,
-    [
-      { data: { propertyName: 'unusedType' } },
-      { data: { propertyName: 'otherType' } },
-    ],
-  )
-})
+  export const Component: FC<Props> = ({
+    title,
+  }) => {
+    return null;
+  };
+`,
+)
 
-describe('dont ignore types with intersections', () => {
-  invalid(
-    `
-      function test({ usedType }: {
-        unusedType?: string;
-        usedType?: string;
-      } & { otherType?: string }) {
-        console.log(usedType);
-      }
-    `,
-    [
-      { data: { propertyName: 'unusedType' } },
-      { data: { propertyName: 'otherType' } },
-    ],
-  )
-})
+tests.addInvalid(
+  'dont ignore types with intersections, referenced',
+  `
+  type Test = {
+    unusedType?: string;
+    usedType?: string;
+  } & { otherType?: string };
 
-describe('false positive', () => {
-  invalid(
-    `
+  function test({ usedType }: Test) {
+    console.log(usedType);
+  }
+`,
+  [
+    { data: { propertyName: 'unusedType' } },
+    { data: { propertyName: 'otherType' } },
+  ],
+)
+
+tests.addInvalid(
+  'dont ignore types with intersections',
+  `
+  function test({ usedType }: {
+    unusedType?: string;
+    usedType?: string;
+  } & { otherType?: string }) {
+    console.log(usedType);
+  }
+`,
+  [
+    { data: { propertyName: 'unusedType' } },
+    { data: { propertyName: 'otherType' } },
+  ],
+)
+
+tests.addInvalid(
+  'false positive',
+  `
 import { sleep } from '@utils/sleep';
 
 export async function retryOnError<T>(
@@ -303,64 +278,84 @@ export async function retryOnError<T>(
     }
   }
 }
-  `,
-    [{ data: { propertyName: 'retryCondition' } }],
-  )
-})
+`,
+  [{ data: { propertyName: 'retryCondition' } }],
+)
 
-describe('dont ignore exported refs in FC components', () => {
-  invalid(
-    `
-       export type Props = {
-        title: ReactNode;
-        onClose: () => void;
-      };
+tests.addInvalid(
+  'dont ignore exported refs in FC components',
+  `
+  export type Props = {
+    title: ReactNode;
+    onClose: () => void;
+  };
 
 
-      export const Component: FC<Props> = ({
-        title,
-      }) => {
-        return null;
-      };
-    `,
-    [{ data: { propertyName: 'onClose' } }],
-  )
-})
+  export const Component: FC<Props> = ({
+    title,
+  }) => {
+    return null;
+  };
+`,
+  [{ data: { propertyName: 'onClose' } }],
+)
 
-describe('test bug', () => {
-  invalid(
-    `
-      type FormItemsInput = {
-  className?: string;
-  selected: FormItem[];
-  hint?: string;
-  label: string;
-  optional?: boolean;
-  errors: string[];
-  handleChange: (setter: (current: FormItem[]) => FormItem[]) => void;
-};
+tests.addInvalid(
+  'dont ignore types with intersections, referenced in FC',
+  `
+  export type Props = {
+    onClose: () => void;
+  };
 
-export const FormItemsInput: FC<FormItemsInput> = ({
-  label,
-  hint,
-  errors,
-  selected,
-  handleChange,
-}) => {
-  return null
-};
-    `,
-    [
-      {
-        data: {
-          propertyName: 'className',
-        },
+  export const Component: FC<Props & {
+    otherType?: string;
+  }> = ({
+    title,
+  }) => {
+    return null;
+  };
+`,
+  [
+    { data: { propertyName: 'onClose' } },
+    { data: { propertyName: 'otherType' } },
+  ],
+)
+
+tests.addInvalid(
+  'test bug',
+  `
+  type FormItemsInput = {
+    className?: string;
+    selected: FormItem[];
+    hint?: string;
+    label: string;
+    optional?: boolean;
+    errors: string[];
+    handleChange: (setter: (current: FormItem[]) => FormItem[]) => void;
+  };
+
+  export const FormItemsInput: FC<FormItemsInput> = ({
+    label,
+    hint,
+    errors,
+    selected,
+    handleChange,
+  }) => {
+    return null
+  };
+`,
+  [
+    {
+      data: {
+        propertyName: 'className',
       },
-      {
-        data: {
-          propertyName: 'optional',
-        },
+    },
+    {
+      data: {
+        propertyName: 'optional',
       },
-    ],
-  )
-})
+    },
+  ],
+)
+
+tests.run()

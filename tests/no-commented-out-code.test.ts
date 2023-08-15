@@ -1,21 +1,14 @@
 import { test, describe } from 'vitest'
 import { noCommentedOutCode } from '../src/rules/no-commented-code'
-import { createTester } from './utils/createTester'
+import { createOldTester, createTester } from './utils/createTester'
 
-const { valid, invalid } = createTester(noCommentedOutCode, {
+const tests = createTester(noCommentedOutCode, {
   defaultErrorId: 'commentedOutCode',
-  ignoreError: {
-    code: `
-      // This comment includes some code:
-      // const answer = 54;
-      const answer = 42;
-    `,
-    errors: [{ messageId: 'commentedOutCode' }],
-  },
 })
 
-describe('valid code', () => {
-  valid(`
+tests.addValid(
+  'valid code',
+  `
       // This comment isn't code.
       const answer = 42;
 
@@ -23,22 +16,21 @@ describe('valid code', () => {
       /// <reference lib="WebWorker" />
 
       // TODO: salvar nome do menu localmente pq essa informação não é persistente no servidor
-    `)
-})
+    `,
+)
 
-describe('invalid', () => {
-  invalid(
-    `
+tests.addInvalid(
+  'invalid',
+  `
       // This comment includes some code:
       // const answer = 54;
       const answer = 42;
     `,
-  )
-})
+)
 
-describe('invalid block of code', () => {
-  invalid(
-    `
+tests.addInvalid(
+  'invalid block of code',
+  `
       // function onClickAdd() {
       //   const coords = getLastCoords();
 
@@ -54,24 +46,22 @@ describe('invalid block of code', () => {
 
       //   const { contentNode, endPos } = blockInfo;
   `,
-    8,
-  )
-})
+  8,
+)
 
-describe('invalid jsx commented prop', () => {
-  invalid(
-    `
+tests.addInvalid(
+  'invalid jsx commented prop',
+  `
     // getLastCoords={getLastCoords}
     // editor={editor}
     // editor="editor"
   `,
-    3,
-  )
-})
+  3,
+)
 
-describe('invalid objects', () => {
-  invalid(
-    `
+tests.addInvalid(
+  'invalid objects',
+  `
       // TODO: add to back
       // {
       //   ...normalizedBase,
@@ -87,6 +77,7 @@ describe('invalid objects', () => {
       //   operator: 'contains',
       // },
   `,
-    4,
-  )
-})
+  4,
+)
+
+tests.run()

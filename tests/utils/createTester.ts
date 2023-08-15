@@ -15,7 +15,7 @@ const ruleTester = new RuleTester({
   },
 })
 
-export function createTester<
+export function createOldTester<
   T extends TSESLint.RuleModule<string, any[]>,
   O extends any[],
 >(
@@ -82,5 +82,74 @@ export function createTester<
         ],
       })
     },
+  }
+}
+
+export function createTester<
+  T extends TSESLint.RuleModule<string, any[]>,
+  O extends any[],
+>(
+  rule: {
+    name: string
+    rule: T
+  },
+  {
+    defaultErrorId,
+  }: {
+    defaultErrorId?: string
+    optionsType?: O
+  },
+) {
+  const valid: TSESLint.ValidTestCase<any[]>[] = []
+  const invalid: TSESLint.InvalidTestCase<string, any[]>[] = []
+
+  function run() {
+    ruleTester.run(rule.name, rule.rule, {
+      valid: valid,
+      invalid: invalid,
+    })
+  }
+
+  function addValid(testName: string, code: string, options?: O) {
+    valid.push({
+      name: testName,
+      code,
+      options: options || [],
+    })
+  }
+
+  function addInvalid(
+    testName: string,
+    code: string,
+    errors?:
+      | {
+          messageId?: string
+          data?: Record<string, string>
+        }[]
+      | number,
+    options?: O,
+  ) {
+    invalid.push({
+      name: testName,
+      code,
+      options: options || [],
+      errors:
+        typeof errors === 'number'
+          ? Array.from({ length: errors }, () => ({
+              messageId: defaultErrorId || '?',
+            }))
+          : errors
+          ? errors.map((error) => ({
+              messageId: error.messageId || defaultErrorId || '?',
+              data: error.data,
+            })) || []
+          : [{ messageId: defaultErrorId || '?' }],
+    })
+  }
+
+  return {
+    run,
+    addValid,
+    addInvalid,
   }
 }

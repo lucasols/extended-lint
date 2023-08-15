@@ -202,7 +202,7 @@ const rule = createRule({
           declaration.id.typeAnnotation.typeAnnotation.typeName.type ===
             AST_NODE_TYPES.Identifier &&
           declaration.id.typeAnnotation.typeAnnotation.typeName.name === 'FC' &&
-          declaration.id.typeAnnotation.typeAnnotation.typeParameters?.params[0]
+          declaration.id.typeAnnotation.typeAnnotation.typeArguments?.params[0]
 
         if (!fcPropsParam) return
 
@@ -217,6 +217,17 @@ const rule = createRule({
           )
         } else if (fcPropsParam.type === AST_NODE_TYPES.TSTypeLiteral) {
           extendMap(declaredProperties, ...getTypeLiteralMembers(fcPropsParam))
+        } else if (fcPropsParam.type === AST_NODE_TYPES.TSIntersectionType) {
+          for (const type of fcPropsParam.types) {
+            if (
+              type.type === AST_NODE_TYPES.TSTypeReference &&
+              type.typeName.type === AST_NODE_TYPES.Identifier
+            ) {
+              extendFromTypeReference(type.typeName, declaredProperties, false)
+            } else {
+              extendDeclaredTypeParams(declaredProperties, type, true)
+            }
+          }
         }
 
         if (declaredProperties.size === 0) return
