@@ -98,7 +98,7 @@ export function createTester<
   }: {
     defaultErrorId?: string
     optionsType?: O
-  },
+  } = {},
 ) {
   const valid: TSESLint.ValidTestCase<any[]>[] = []
   const invalid: TSESLint.InvalidTestCase<string, any[]>[] = []

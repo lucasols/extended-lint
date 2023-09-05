@@ -86,3 +86,54 @@ function foo() {
 ```
 
 - This rule will not detect all possible commented code, and can give false negatives.
+
+## `no-call-with-infered-generics`
+
+This rule disallows calling functions with inferred generics.
+
+The rule options types are as follows:
+
+````ts
+type Options = [
+  {
+    functions: Array<{
+      name: string;
+      minGenerics?: number;
+      allowAny?: boolean;
+      disallowTypes?: string[];
+    }>;
+    anyAliases?: string[];
+  }
+];
+
+Examples:
+
+Bad:
+
+```ts
+// @typescript-eslint/no-call-with-inferred-generics: ["error", { functions: ["foo"] }]
+
+function foo<T>(arg: T) {
+  // ...
+}
+
+foo('bar') // Error: Generics must be defined explicitly
+foo<any>('bar') // Error: 'any' is not allowed in generics
+````
+
+Good:
+
+```ts
+// @typescript-eslint/no-call-with-inferred-generics: ["error", { functions: ["foo"] }]
+function foo<T>(arg: T) {
+  // ...
+}
+
+foo<string>('bar') // OK
+```
+
+## `rules-of-hooks`
+
+A fork of the `eslint-plugin-react-hooks` `rules-of-hooks` rule, but with the following changes:
+
+- Identifies hooks in camelCase namespaced functions (e.g. `test.useFoo()`)

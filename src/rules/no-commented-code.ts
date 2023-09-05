@@ -45,7 +45,7 @@ const rule = createRule({
     type: 'problem',
     docs: {
       description: 'Disallow commented code',
-      recommended: 'error',
+      recommended: 'recommended',
     },
     messages: {
       commentedOutCode:
