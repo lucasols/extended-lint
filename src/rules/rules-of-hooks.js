@@ -553,7 +553,6 @@ export default {
               if (isSomewhereInsideComponentOrHook && !isUseIdentifier(hook)) {
                 // is not inside a useCallback callback which variable is a hook
                 // `const useHook = useCallback(() => useFn(...), [])`
-                console.log(codePathNode.parent)
 
                 if (
                   codePathNode.parent.type === 'CallExpression' &&
