@@ -486,6 +486,22 @@ const tests = {
         }
       `,
     },
+    {
+      code: normalizeIndent`
+        // Valid because is being called in a useCallback hook callback
+        function App(props) {
+          const useFormState = useCallback(
+            ({ mustBeDiffFromInitial }: { mustBeDiffFromInitial?: boolean } = {}) =>
+              formStore.useSelector(
+                (s) => {
+                  const fieldsEntries = Object.entries(s.fields);
+                },
+              ),
+            [],
+          );
+        }
+      `,
+    },
   ],
   invalid: [
     {
@@ -1080,10 +1096,7 @@ const tests = {
           }, []);
         }
       `,
-      errors: [
-        genericError('useHook'),
-        genericError('useHook2'),
-      ],
+      errors: [genericError('useHook'), genericError('useHook2')],
     },
   ],
 }

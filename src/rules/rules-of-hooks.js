@@ -553,22 +553,14 @@ export default {
               if (isSomewhereInsideComponentOrHook && !isUseIdentifier(hook)) {
                 // is not inside a useCallback callback which variable is a hook
                 // `const useHook = useCallback(() => useFn(...), [])`
+                console.log(codePathNode.parent)
 
                 if (
-                  hook.parent &&
-                  hook.parent.parent &&
-                  hook.parent.parent.parent &&
-                  hook.parent.parent.parent.parent &&
-                  hook.parent.parent.parent.parent.parent &&
-                  hook.parent.parent.parent.parent.parent.type ===
-                    'CallExpression' &&
-                  hook.parent.parent.parent.parent.parent.callee &&
-                  hook.parent.parent.parent.parent.parent.callee.type ===
-                    'Identifier' &&
-                  hook.parent.parent.parent.parent.parent.callee.name ===
-                    'useCallback'
+                  codePathNode.parent.type === 'CallExpression' &&
+                  codePathNode.parent.callee.type === 'Identifier' &&
+                  codePathNode.parent.callee.name === 'useCallback'
                 ) {
-                  const useCallback = hook.parent.parent.parent.parent.parent
+                  const useCallback = codePathNode.parent
 
                   if (
                     useCallback.parent.type === 'VariableDeclarator' &&
