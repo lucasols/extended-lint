@@ -474,6 +474,18 @@ const tests = {
         }
       `,
     },
+
+    {
+      code: normalizeIndent`
+        // Valid because is being called in a useCallback hook callback
+        function App(props) {
+          const useFn = useCallback(() => {
+            useHook();
+            useHook2();
+          }, []);
+        }
+      `,
+    },
   ],
   invalid: [
     {
@@ -1057,6 +1069,21 @@ const tests = {
         })
       `,
       errors: [topLevelError('jest.useFakeTimers')],
+    },
+    {
+      code: normalizeIndent`
+        // Valid because is being called in a useCallback hook callback
+        function App(props) {
+          const userFunc = useCallback(() => {
+            useHook();
+            useHook2();
+          }, []);
+        }
+      `,
+      errors: [
+        genericError('useHook'),
+        genericError('useHook2'),
+      ],
     },
   ],
 }

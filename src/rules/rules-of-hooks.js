@@ -551,6 +551,33 @@ export default {
               // uncommon cases doesn't matter.
               // `use(...)` can be called in callbacks.
               if (isSomewhereInsideComponentOrHook && !isUseIdentifier(hook)) {
+                // is not inside a useCallback callback which variable is a hook
+                // `const useHook = useCallback(() => useFn(...), [])`
+
+                if (
+                  hook.parent &&
+                  hook.parent.parent &&
+                  hook.parent.parent.parent &&
+                  hook.parent.parent.parent.parent &&
+                  hook.parent.parent.parent.parent.parent &&
+                  hook.parent.parent.parent.parent.parent.type ===
+                    'CallExpression' &&
+                  hook.parent.parent.parent.parent.parent.callee &&
+                  hook.parent.parent.parent.parent.parent.callee.type ===
+                    'Identifier' &&
+                  hook.parent.parent.parent.parent.parent.callee.name ===
+                    'useCallback'
+                ) {
+                  const useCallback = hook.parent.parent.parent.parent.parent
+
+                  if (
+                    useCallback.parent.type === 'VariableDeclarator' &&
+                    isHookName(useCallback.parent.id.name)
+                  ) {
+                    return
+                  }
+                }
+
                 const message =
                   `React Hook "${context.getSource(hook)}" cannot be called ` +
                   'inside a callback. React Hooks must be called in a ' +
