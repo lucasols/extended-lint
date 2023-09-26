@@ -25,20 +25,20 @@
     "node": ">=14.6.0"
   },
   "devDependencies": {
-    "@types/eslint": "^8.44.1",
-    "@types/node": "^20.4.5",
-    "@typescript-eslint/parser": "^6.2.1",
-    "@typescript-eslint/rule-tester": "^6.2.1",
-    "@vitest/ui": "^0.34.1",
-    "esbuild": "^0.18.17",
-    "eslint": "^8.46.0",
+    "@types/eslint": "^8.44.3",
+    "@types/node": "^20.7.0",
+    "@typescript-eslint/parser": "^6.7.3",
+    "@typescript-eslint/rule-tester": "^6.7.3",
+    "@vitest/ui": "^0.34.5",
+    "esbuild": "^0.19.3",
+    "eslint": "^8.50.0",
     "tsm": "^2.3.0",
-    "typescript": "^5.1.6",
-    "vite": "^4.4.8",
-    "vitest": "0.34.1"
+    "typescript": "^5.2.2",
+    "vite": "^4.4.9",
+    "vitest": "0.34.5"
   },
   "dependencies": {
-    "@typescript-eslint/utils": "^6.2.1",
+    "@typescript-eslint/utils": "^6.7.3",
     "escape-string-regexp": "^5.0.0",
     "espree": "^9.6.1",
     "esutils": "^2.0.3"
