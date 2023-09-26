@@ -15,6 +15,8 @@ import { fileURLToPath } from 'node:url'
 
 const __EXPERIMENTAL__ = false
 
+const name = 'delete-this'
+
 /**
  * A string template tag that removes padding from the left side of multi-line strings
  * @param strings array of code strings (only one expected)
@@ -233,27 +235,6 @@ const tests = {
             console.log(props.bar);
             console.log(local);
           }, [props.foo, props.bar, local]);
-        }
-      `,
-    },
-    {
-      name: 'useEffect with no deps',
-      // [props, props.foo] is technically unnecessary ('props' covers 'props.foo').
-      // However, it's valid for effects to over-specify their deps.
-      // So we don't warn about this. We *would* warn about useMemo/useCallback.
-      code: normalizeIndent`
-        function MyComponent(props) {
-          const local = {};
-          useEffect(() => {
-            console.log(props.foo);
-            console.log(props.bar);
-          }, [props, props.foo]);
-
-          let color = someFunc();
-          useEffect(() => {
-            console.log(props.foo.bar.baz);
-            console.log(color);
-          }, [props.foo, props.foo.bar.baz, color]);
         }
       `,
     },
@@ -923,26 +904,6 @@ const tests = {
             console.log(local2);
             console.log(local3);
           }, [local1, local2, local3]);
-        }
-      `,
-    },
-    {
-      // It is valid for effects to over-specify their deps.
-      code: normalizeIndent`
-        function MyComponent(props) {
-          const local = props.local;
-          useEffect(() => {}, [local]);
-        }
-      `,
-    },
-    {
-      // Valid even though activeTab is "unused".
-      // We allow over-specifying deps for effects, but not callbacks or memo.
-      code: normalizeIndent`
-        function Foo({ activeTab }) {
-          useEffect(() => {
-            window.scrollTo(0, 0);
-          }, [activeTab]);
         }
       `,
     },
@@ -2699,13 +2660,13 @@ const tests = {
             'Either include it or remove the dependency array.',
           suggestions: [
             {
-              desc: 'Update the dependencies array to be: [local, local.id]',
+              desc: 'Update the dependencies array to be: [local]',
               output: normalizeIndent`
                 function MyComponent() {
                   const local = {id: 42};
                   useEffect(() => {
                     console.log(local);
-                  }, [local, local.id]);
+                  }, [local]);
                 }
               `,
             },
@@ -3952,13 +3913,13 @@ const tests = {
       errors: [
         {
           message:
-            "React Hook useEffect has unnecessary dependencies: 'ref1.current' and 'ref2.current'. " +
+            "React Hook useEffect has unnecessary dependencies: 'activeTab', 'ref1.current', and 'ref2.current'. " +
             'Either exclude them or remove the dependency array. ' +
             "Mutable values like 'ref1.current' aren't valid dependencies " +
             "because mutating them doesn't re-render the component.",
           suggestions: [
             {
-              desc: 'Update the dependencies array to be: [activeTab]',
+              desc: 'Update the dependencies array to be: []',
               output: normalizeIndent`
                 function MyComponent({ activeTab }) {
                   const ref1 = useRef();
@@ -3966,7 +3927,7 @@ const tests = {
                   useEffect(() => {
                     ref1.current.scrollTop = 0;
                     ref2.current.scrollTop = 0;
-                  }, [activeTab]);
+                  }, []);
                 }
               `,
             },
@@ -4280,7 +4241,7 @@ const tests = {
             `props inside useEffect.`,
           suggestions: [
             {
-              desc: 'Update the dependencies array to be: [skillsCount, props.isEditMode, props.toggleEditMode, props]',
+              desc: 'Update the dependencies array to be: [skillsCount, props]',
               output: normalizeIndent`
                 function MyComponent(props) {
                   const [skillsCount] = useState();
@@ -4288,7 +4249,7 @@ const tests = {
                     if (skillsCount === 0 && !props.isEditMode) {
                       props.toggleEditMode();
                     }
-                  }, [skillsCount, props.isEditMode, props.toggleEditMode, props]);
+                  }, [skillsCount, props]);
                 }
               `,
             },
@@ -4859,15 +4820,13 @@ const tests = {
         {
           message:
             'React Hook useEffect has unnecessary dependencies: ' +
-            "'MutableStore.hello.world', 'global.stuff', and 'z'. " +
+            "'MutableStore.hello.world', 'global.stuff', 'props.foo', 'x', 'y', and 'z'. " +
             'Either exclude them or remove the dependency array. ' +
             "Outer scope values like 'MutableStore.hello.world' aren't valid dependencies " +
             "because mutating them doesn't re-render the component.",
-          // The output should contain the ones that are inside a component
-          // since there are legit reasons to over-specify them for effects.
           suggestions: [
             {
-              desc: 'Update the dependencies array to be: [props.foo, x, y]',
+              desc: 'Update the dependencies array to be: []',
               output: normalizeIndent`
                 import MutableStore from 'store';
                 let z = {};
@@ -4878,7 +4837,7 @@ const tests = {
                     let y = props.bar;
                     useEffect(() => {
                       // nothing
-                    }, [props.foo, x, y]);
+                    }, []);
                   }
                 }
               `,
@@ -8147,57 +8106,10 @@ describe('react-hooks', () => {
     sourceType: 'module',
   }
 
-  const testsBabelEslint = {
-    valid: [...tests.valid],
-    invalid: [...tests.invalid],
-  }
-
-  new RuleTester({
-    parser: '@typescript-eslint/parser',
-    parserOptions,
-  }).run('parser: babel-eslint', ReactHooksESLintRule, testsBabelEslint)
-
-  new RuleTester({
-    parser: '@typescript-eslint/parser',
-    parserOptions,
-  }).run('parser: @babel/eslint-parser', ReactHooksESLintRule, testsBabelEslint)
-
   const testsTypescriptEslintParser = {
     valid: [...testsTypescript.valid, ...tests.valid],
     invalid: [...testsTypescript.invalid, ...tests.invalid],
   }
-
-  new RuleTester({
-    parser: '@typescript-eslint/parser',
-    parserOptions,
-  }).run(
-    'parser: @typescript-eslint/parser@2.x',
-    ReactHooksESLintRule,
-    testsTypescriptEslintParser,
-  )
-
-  new RuleTester({
-    parser: '@typescript-eslint/parser',
-    parserOptions,
-  }).run(
-    'parser: @typescript-eslint/parser@3.x',
-    ReactHooksESLintRule,
-    testsTypescriptEslintParser,
-  )
-
-  new RuleTester({
-    parser: '@typescript-eslint/parser',
-    parserOptions,
-  }).run('parser: @typescript-eslint/parser@4.x', ReactHooksESLintRule, {
-    valid: [
-      ...testsTypescriptEslintParserV4.valid,
-      ...testsTypescriptEslintParser.valid,
-    ],
-    invalid: [
-      ...testsTypescriptEslintParserV4.invalid,
-      ...testsTypescriptEslintParser.invalid,
-    ],
-  })
 
   new RuleTester({
     parser: '@typescript-eslint/parser',
