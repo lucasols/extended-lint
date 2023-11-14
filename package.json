@@ -41,7 +41,8 @@
     "@typescript-eslint/utils": "^6.7.3",
     "escape-string-regexp": "^5.0.0",
     "espree": "^9.6.1",
-    "esutils": "^2.0.3"
+    "esutils": "^2.0.3",
+    "magic-string": "^0.30.5"
   },
   "peerDependencies": {
     "eslint": "^8.46.0"
