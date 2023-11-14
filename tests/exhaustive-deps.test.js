@@ -12,6 +12,7 @@ import ReactHooksESLintRule from '../src/rules/exhaustive-deps'
 import { dedent } from './utils/dedent'
 import { describe } from 'vitest'
 import { fileURLToPath } from 'node:url'
+import { getCodeLine } from 'virtual:get-code-line'
 
 const __EXPERIMENTAL__ = false
 
@@ -3843,7 +3844,7 @@ const tests = {
       errors: [
         {
           message:
-            "React Hook useEffect has unnecessary dependencies: 'ref1.current' and 'ref2.current'. " +
+            "React Hook useEffect has unnecessary dependencies: 'ref1?.current' and 'ref2?.current'. " +
             'Either exclude them or remove the dependency array. ' +
             "Mutable values like 'ref1.current' aren't valid dependencies " +
             "because mutating them doesn't re-render the component.",
@@ -4910,7 +4911,7 @@ const tests = {
         {
           message:
             'React Hook useCallback has unnecessary dependencies: ' +
-            "'MutableStore.hello.world', 'global.stuff', 'props.foo', 'x', 'y', and 'z'. " +
+            "'MutableStore?.hello?.world', 'global?.stuff', 'props.foo', 'x', 'y', and 'z'. " +
             'Either exclude them or remove the dependency array. ' +
             "Outer scope values like 'MutableStore.hello.world' aren't valid dependencies " +
             "because mutating them doesn't re-render the component.",
@@ -7569,6 +7570,74 @@ const tests = {
         },
       ],
     },
+    {
+      name: 'Preserve optional chains in declared dependencies #https://github.com/facebook/react/pull/25932/files?w=1',
+      code: normalizeIndent`
+        function Foo({ prop, otherProp }) {
+          useEffect(() => {
+            if (!prop) {
+              return;
+            }
+            console.log(otherProp);
+          }, [prop, prop?.a]);
+        }
+      `,
+      errors: [
+        {
+          message:
+            "React Hook useEffect has a missing dependency: 'otherProp'. " +
+            'Either include it or remove the dependency array.',
+          suggestions: [
+            {
+              desc: 'Update the dependencies array to be: [otherProp, prop]',
+              output: normalizeIndent`
+                function Foo({ prop, otherProp }) {
+                  useEffect(() => {
+                    if (!prop) {
+                      return;
+                    }
+                    console.log(otherProp);
+                  }, [otherProp, prop]);
+                }
+              `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'Preserve optional chains in declared dependencies #https://github.com/facebook/react/pull/25932/files?w=1',
+      code: normalizeIndent`
+        function Foo({ prop }) {
+          useEffect(() => {
+            if (prop?.a && prop.a) {
+              return;
+            }
+          }, []);
+        }
+      `,
+      errors: [
+        {
+          message:
+            "React Hook useEffect has a missing dependency: 'prop?.a'. " +
+            'Either include it or remove the dependency array.',
+          suggestions: [
+            {
+              desc: 'Update the dependencies array to be: [prop?.a]',
+              output: normalizeIndent`
+                function Foo({ prop }) {
+                  useEffect(() => {
+                    if (prop?.a && prop.a) {
+                      return;
+                    }
+                  }, [prop?.a]);
+                }
+              `,
+            },
+          ],
+        },
+      ],
+    },
   ],
 }
 
@@ -7734,6 +7803,7 @@ const testsTypescript = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function MyComponent() {
           const pizza = {};
@@ -7768,6 +7838,7 @@ const testsTypescript = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function MyComponent() {
           const pizza = {};
@@ -7781,11 +7852,11 @@ const testsTypescript = {
       errors: [
         {
           message:
-            "React Hook useEffect has a missing dependency: 'pizza.crust'. " +
+            "React Hook useEffect has a missing dependency: 'pizza?.crust'. " +
             'Either include it or remove the dependency array.',
           suggestions: [
             {
-              desc: 'Update the dependencies array to be: [pizza.crust]',
+              desc: 'Update the dependencies array to be: [pizza?.crust]',
               output: normalizeIndent`
                 function MyComponent() {
                   const pizza = {};
@@ -7793,7 +7864,7 @@ const testsTypescript = {
                   useEffect(() => ({
                     crust: pizza?.crust,
                     density: pizza.crust.density,
-                  }), [pizza.crust]);
+                  }), [pizza?.crust]);
                 }
               `,
             },

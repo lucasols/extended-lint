@@ -704,7 +704,7 @@ export default {
           try {
             declaredDependency = analyzePropertyChain(
               declaredDependencyNode,
-              null,
+              optionalChains,
             )
           } catch (error) {
             // @ts-ignore
@@ -1746,8 +1746,10 @@ function markNode(node, optionalChains, result) {
         optionalChains.set(result, true)
       }
     } else {
-      // Mark as required.
-      optionalChains.set(result, false)
+      if (!optionalChains.has(result)) {
+        // Mark as (maybe) optional. If there's a required usage, this will be overridden.
+        optionalChains.set(result, false)
+      }
     }
   }
 }
