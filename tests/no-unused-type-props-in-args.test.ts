@@ -179,6 +179,7 @@ tests.addInvalid(
 `,
   [{ data: { propertyName: 'onClose' } }],
 )
+
 tests.addValid(
   'ignore rest parameters',
   `

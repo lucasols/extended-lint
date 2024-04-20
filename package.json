@@ -11,7 +11,7 @@
   "files": [
     "dist"
   ],
-  "repository": "github:lucaslos/vite-plugin-linaria-initial-build-time",
+  "repository": "github:lucaslos/eslint-plugin-extended-lint",
   "author": "Lucas Santos",
   "main": "./dist/extended-lint.js",
   "module": "./dist/extended-lint.mjs",
@@ -25,26 +25,26 @@
     "node": ">=14.6.0"
   },
   "devDependencies": {
-    "@types/eslint": "^8.44.3",
-    "@types/node": "^20.7.0",
-    "@typescript-eslint/parser": "^6.7.3",
-    "@typescript-eslint/rule-tester": "^6.7.3",
-    "@vitest/ui": "^0.34.5",
-    "esbuild": "^0.19.3",
-    "eslint": "^8.50.0",
+    "@types/eslint": "^8.56.10",
+    "@types/node": "^20.12.7",
+    "@typescript-eslint/parser": "^7.7.0",
+    "@typescript-eslint/rule-tester": "^7.7.0",
+    "@vitest/ui": "^1.5.0",
+    "esbuild": "^0.20.2",
+    "eslint": "^8.57.0",
     "tsm": "^2.3.0",
-    "typescript": "^5.2.2",
-    "vite": "^4.4.9",
-    "vitest": "0.34.5"
+    "typescript": "^5.4.5",
+    "vite": "^5.2.10",
+    "vitest": "^1.5.0"
   },
   "dependencies": {
-    "@typescript-eslint/utils": "^6.7.3",
+    "@typescript-eslint/utils": "^7.7.0",
     "escape-string-regexp": "^5.0.0",
-    "espree": "^9.6.1",
+    "espree": "^10.0.1",
     "esutils": "^2.0.3",
-    "magic-string": "^0.30.5"
+    "magic-string": "^0.30.10"
   },
   "peerDependencies": {
-    "eslint": "^8.46.0"
+    "eslint": "^9.1.0"
   }
 }
