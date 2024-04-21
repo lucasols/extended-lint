@@ -1,9 +1,8 @@
-import { test, describe } from 'vitest'
 import {
   Options,
   noCallWithInferedGenerics,
 } from '../src/rules/no-call-with-infered-generics'
-import { createOldTester, createTester } from './utils/createTester'
+import { createTester } from './utils/createTester'
 
 const tests = createTester(noCallWithInferedGenerics, {
   optionsType: {} as Options,
@@ -32,11 +31,13 @@ tests.addInvalid(
       data: { functionName: 'test', minGenerics: '1' },
     },
   ],
-  [
-    {
-      functions: [{ name: 'test' }],
-    },
-  ],
+  {
+    options: [
+      {
+        functions: [{ name: 'test' }],
+      },
+    ],
+  },
 )
 
 tests.addInvalid(
@@ -50,11 +51,13 @@ tests.addInvalid(
       data: { functionName: 'test', minGenerics: '2' },
     },
   ],
-  [
-    {
-      functions: [{ name: 'test', minGenerics: 2 }],
-    },
-  ],
+  {
+    options: [
+      {
+        functions: [{ name: 'test', minGenerics: 2 }],
+      },
+    ],
+  },
 )
 
 tests.addInvalid(
@@ -68,11 +71,13 @@ tests.addInvalid(
       data: { functionName: 'test' },
     },
   ],
-  [
-    {
-      functions: [{ name: 'test' }],
-    },
-  ],
+  {
+    options: [
+      {
+        functions: [{ name: 'test' }],
+      },
+    ],
+  },
 )
 
 tests.addInvalid(
@@ -86,12 +91,14 @@ tests.addInvalid(
       data: { functionName: 'test' },
     },
   ],
-  [
-    {
-      functions: [{ name: 'test' }],
-      disallowTypes: ['__ANY__'],
-    },
-  ],
+  {
+    options: [
+      {
+        functions: [{ name: 'test' }],
+        disallowTypes: ['__ANY__'],
+      },
+    ],
+  },
 )
 
 tests.run()

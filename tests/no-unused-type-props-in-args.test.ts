@@ -60,7 +60,18 @@ tests.addInvalid(
     console.log(usedType);
   }
 `,
-  [{ data: { propertyName: 'unusedType' } }],
+  [
+    {
+      data: { propertyName: 'unusedType' },
+    },
+  ],
+  {
+    output: `
+      function test({ usedType, unusedType }: { unusedType?: string, usedType?: string }) {
+        console.log(usedType);
+      }
+    `,
+  },
 )
 
 tests.addInvalid(
@@ -71,6 +82,13 @@ tests.addInvalid(
   }
 `,
   [{ data: { propertyName: 'unusedType' } }],
+  {
+    output: `
+      const test = ({ usedType, unusedType }: { unusedType?: string, usedType?: string }) => {
+        console.log(usedType);
+      }
+    `,
+  },
 )
 
 tests.addInvalid(
@@ -86,6 +104,18 @@ tests.addInvalid(
   }
 `,
   [{ data: { propertyName: 'unusedType' } }],
+  {
+    output: `
+      type Test = {
+        unusedType?: string;
+        usedType?: string;
+      };
+
+      function test({ usedType, unusedType }: Test) {
+        console.log(usedType);
+      }
+    `,
+  },
 )
 
 tests.addInvalid(
@@ -101,6 +131,18 @@ tests.addInvalid(
   }
 `,
   [{ data: { propertyName: 'unusedType' } }],
+  {
+    output: `
+      interface Test {
+        unusedType?: string;
+        usedType?: string;
+      };
+
+      function test({ usedType, unusedType }: Test) {
+        console.log(usedType);
+      }
+    `,
+  },
 )
 
 tests.addValid(
@@ -159,6 +201,20 @@ tests.addInvalid(
   };
 `,
   [{ data: { propertyName: 'onClose' } }],
+  {
+    output: `
+      type Props = {
+        title: ReactNode;
+        onClose: () => void;
+      };
+
+      export const Component: FC<Props> = ({
+        title, onClose,
+      }) => {
+        return null;
+      };
+    `,
+  },
 )
 tests.addInvalid(
   'unused properties with FC object type literal',
@@ -178,6 +234,23 @@ tests.addInvalid(
   };
 `,
   [{ data: { propertyName: 'onClose' } }],
+  {
+    output: `
+      type Props = {
+        title: ReactNode;
+        onClose: () => void;
+      };
+
+      export const Component: FC<{
+        title: ReactNode;
+        onClose: () => void;
+      }> = ({
+        title, onClose,
+      }) => {
+        return null;
+      };
+    `,
+  },
 )
 
 tests.addValid(
@@ -231,6 +304,18 @@ tests.addInvalid(
     { data: { propertyName: 'unusedType' } },
     { data: { propertyName: 'otherType' } },
   ],
+  {
+    output: `
+      type Test = {
+        unusedType?: string;
+        usedType?: string;
+      } & { otherType?: string };
+
+      function test({ usedType, unusedType, otherType }: Test) {
+        console.log(usedType);
+      }
+    `,
+  },
 )
 
 tests.addInvalid(
@@ -247,40 +332,82 @@ tests.addInvalid(
     { data: { propertyName: 'unusedType' } },
     { data: { propertyName: 'otherType' } },
   ],
+  {
+    output: `
+      function test({ usedType, unusedType, otherType }: {
+        unusedType?: string;
+        usedType?: string;
+      } & { otherType?: string }) {
+        console.log(usedType);
+      }
+    `,
+  },
 )
 
 tests.addInvalid(
   'false positive',
   `
-import { sleep } from '@utils/sleep';
+  import { sleep } from '@utils/sleep';
 
-export async function retryOnError<T>(
-  fn: () => Promise<T>,
-  maxRetries: number,
-  {
-    delayBetweenRetriesMs,
-    // retryCondition
-  }: {
-    delayBetweenRetriesMs?: number;
-    retryCondition?: (error: unknown) => boolean;
-  } = {},
-): Promise<T> {
-  try {
-    return await fn();
-  } catch (error) {
-    if (maxRetries > 0) {
-      if (delayBetweenRetriesMs) {
-        await sleep(delayBetweenRetriesMs);
+  export async function retryOnError<T>(
+    fn: () => Promise<T>,
+    maxRetries: number,
+    {
+      delayBetweenRetriesMs,
+      // retryCondition
+    }: {
+      delayBetweenRetriesMs?: number;
+      retryCondition?: (error: unknown) => boolean;
+    } = {},
+  ): Promise<T> {
+    try {
+      return await fn();
+    } catch (error) {
+      if (maxRetries > 0) {
+        if (delayBetweenRetriesMs) {
+          await sleep(delayBetweenRetriesMs);
+        }
+
+        return retryOnError(fn, maxRetries - 1, { delayBetweenRetriesMs });
+      } else {
+        throw error;
       }
-
-      return retryOnError(fn, maxRetries - 1, { delayBetweenRetriesMs });
-    } else {
-      throw error;
     }
   }
-}
 `,
   [{ data: { propertyName: 'retryCondition' } }],
+
+  {
+    output: `
+      import { sleep } from '@utils/sleep';
+
+      export async function retryOnError<T>(
+        fn: () => Promise<T>,
+        maxRetries: number,
+        {
+          delayBetweenRetriesMs, retryCondition,
+          // retryCondition
+        }: {
+          delayBetweenRetriesMs?: number;
+          retryCondition?: (error: unknown) => boolean;
+        } = {},
+      ): Promise<T> {
+        try {
+          return await fn();
+        } catch (error) {
+          if (maxRetries > 0) {
+            if (delayBetweenRetriesMs) {
+              await sleep(delayBetweenRetriesMs);
+            }
+
+            return retryOnError(fn, maxRetries - 1, { delayBetweenRetriesMs });
+          } else {
+            throw error;
+          }
+        }
+      }
+    `,
+  },
 )
 
 tests.addInvalid(
@@ -299,6 +426,21 @@ tests.addInvalid(
   };
 `,
   [{ data: { propertyName: 'onClose' } }],
+  {
+    output: `
+      export type Props = {
+        title: ReactNode;
+        onClose: () => void;
+      };
+
+
+      export const Component: FC<Props> = ({
+        title, onClose,
+      }) => {
+        return null;
+      };
+    `,
+  },
 )
 
 tests.addInvalid(
@@ -320,6 +462,21 @@ tests.addInvalid(
     { data: { propertyName: 'onClose' } },
     { data: { propertyName: 'otherType' } },
   ],
+  {
+    output: `
+      export type Props = {
+        onClose: () => void;
+      };
+
+      export const Component: FC<Props & {
+        otherType?: string;
+      }> = ({
+        title, onClose, otherType,
+      }) => {
+        return null;
+      };
+    `,
+  },
 )
 
 tests.addInvalid(
@@ -357,6 +514,46 @@ tests.addInvalid(
       },
     },
   ],
+  {
+    output: `
+      type FormItemsInput = {
+        className?: string;
+        selected: FormItem[];
+        hint?: string;
+        label: string;
+        optional?: boolean;
+        errors: string[];
+        handleChange: (setter: (current: FormItem[]) => FormItem[]) => void;
+      };
+
+      export const FormItemsInput: FC<FormItemsInput> = ({
+        label,
+        hint,
+        errors,
+        selected,
+        handleChange, className, optional,
+      }) => {
+        return null
+      };
+    `,
+  },
+)
+
+tests.addInvalid(
+  'unused properties with empty destructed props',
+  `
+  function test({}: { unusedType?: string }) {
+    console.log('ok');
+  }
+`,
+  [{ data: { propertyName: 'unusedType' } }],
+  {
+    output: `
+      function test({unusedType}: { unusedType?: string }) {
+        console.log('ok');
+      }
+    `,
+  },
 )
 
 tests.run()

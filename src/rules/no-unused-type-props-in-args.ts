@@ -1,4 +1,9 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
+import {
+  AST_NODE_TYPES,
+  ESLintUtils,
+  TSESLint,
+  TSESTree,
+} from '@typescript-eslint/utils'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -43,6 +48,7 @@ const rule = createRule({
       unusedObjectTypeProperty: `Object type property '{{ propertyName }}' is defined but never used`,
     },
     schema: [],
+    fixable: 'code',
   },
   defaultOptions: [],
   create: function (context) {
@@ -127,7 +133,7 @@ const rule = createRule({
       }
     }
 
-    function checkParamsOfInferedDeclarations(params: TSESTree.Parameter[]) {
+    function checkParamsOfInferredDeclarations(params: TSESTree.Parameter[]) {
       for (const param of params) {
         if (param.type === 'ObjectPattern' && param.typeAnnotation) {
           const declaredProperties = new Map<string, TSESTree.Node>()
@@ -147,7 +153,7 @@ const rule = createRule({
           param.type === AST_NODE_TYPES.AssignmentPattern &&
           param.left.type === AST_NODE_TYPES.ObjectPattern
         ) {
-          checkParamsOfInferedDeclarations([param.left])
+          checkParamsOfInferredDeclarations([param.left])
         }
       }
     }
@@ -174,9 +180,14 @@ const rule = createRule({
         }
       }
 
+      const reports: TSESLint.ReportDescriptor<'unusedObjectTypeProperty'>[] =
+        []
+      const propertiesToAddInFix: string[] = []
+
       for (const [declaredProperty, node] of declaredProperties) {
         if (!destructuredProperties.includes(declaredProperty)) {
-          context.report({
+          propertiesToAddInFix.push(declaredProperty)
+          reports.push({
             node: node,
             messageId: 'unusedObjectTypeProperty',
             data: {
@@ -184,6 +195,36 @@ const rule = createRule({
             },
           })
         }
+      }
+
+      for (const [i, report] of reports.entries()) {
+        context.report({
+          ...report,
+          fix:
+            i === reports.length - 1
+              ? (fixer) => {
+                  const lastProperty = param.properties.at(-1)
+
+                  const propertiesText = propertiesToAddInFix.join(', ')
+
+                  if (!lastProperty) {
+                    return fixer.insertTextBeforeRange(
+                      [param.range[0] + 1, param.range[1]],
+                      `${propertiesText}`,
+                    )
+                  }
+
+                  if (lastProperty?.type === AST_NODE_TYPES.RestElement) {
+                    return null
+                  }
+
+                  return fixer.insertTextAfter(
+                    lastProperty,
+                    `, ${propertiesText}`,
+                  )
+                }
+              : undefined,
+        })
       }
     }
 
@@ -241,10 +282,10 @@ const rule = createRule({
         }
       },
       FunctionDeclaration: function (node) {
-        checkParamsOfInferedDeclarations(node.params)
+        checkParamsOfInferredDeclarations(node.params)
       },
       ArrowFunctionExpression: function (node) {
-        checkParamsOfInferedDeclarations(node.params)
+        checkParamsOfInferredDeclarations(node.params)
       },
     }
   },

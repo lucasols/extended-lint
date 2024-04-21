@@ -1,3 +1,4 @@
+import { dedent } from '@lucasols/utils/dedent'
 import { RuleTester } from '@typescript-eslint/rule-tester'
 import { TSESLint } from '@typescript-eslint/utils'
 import { fileURLToPath } from 'node:url'
@@ -121,29 +122,46 @@ export function createTester<
   function addInvalid(
     testName: string,
     code: string,
-    errors?:
+    errors:
       | {
           messageId?: string
           data?: Record<string, string>
         }[]
-      | number,
-    options?: O,
+      | number
+      | 'default-error',
+    {
+      output,
+      options,
+    }: {
+      output?: string
+      options?: O
+    } = {},
   ) {
+    const only = testName.startsWith('only:')
+
+    if (only && process.env.VITEST_MODE !== 'WATCH') {
+      throw new Error('Only tests are not allowed in production')
+    }
+
     invalid.push({
       name: testName,
-      code,
+      only: only,
+      code: dedent(code),
+      output: output ? dedent(output) : undefined,
       options: options || [],
       errors:
-        typeof errors === 'number'
+        errors === 'default-error'
+          ? [{ messageId: defaultErrorId || '?' }]
+          : typeof errors === 'number'
           ? Array.from({ length: errors }, () => ({
               messageId: defaultErrorId || '?',
             }))
-          : errors
-          ? errors.map((error) => ({
-              messageId: error.messageId || defaultErrorId || '?',
-              data: error.data,
-            })) || []
-          : [{ messageId: defaultErrorId || '?' }],
+          : errors.map(
+              (error): TSESLint.TestCaseError<string> => ({
+                messageId: error.messageId || defaultErrorId || '?',
+                data: error.data,
+              }),
+            ) || [],
     })
   }
 

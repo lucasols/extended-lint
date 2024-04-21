@@ -1,6 +1,5 @@
-import { test, describe } from 'vitest'
 import { noCommentedOutCode } from '../src/rules/no-commented-code'
-import { createOldTester, createTester } from './utils/createTester'
+import { createTester } from './utils/createTester'
 
 const tests = createTester(noCommentedOutCode, {
   defaultErrorId: 'commentedOutCode',
@@ -26,6 +25,7 @@ tests.addInvalid(
       // const answer = 54;
       const answer = 42;
     `,
+  'default-error',
 )
 
 tests.addInvalid(
