@@ -1,4 +1,4 @@
-import { dedent } from '@lucasols/utils/dedent'
+import { dedent } from '@ls-stack/utils/dedent'
 import { RuleTester } from '@typescript-eslint/rule-tester'
 import { TSESLint } from '@typescript-eslint/utils'
 import { fileURLToPath } from 'node:url'

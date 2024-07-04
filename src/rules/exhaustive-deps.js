@@ -1,4 +1,3 @@
-// @ts-check
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -12,7 +11,8 @@
 
 const __EXPERIMENTAL__ = false
 
-export default {
+/** @type {import('eslint').Rule.RuleModule} */
+export const exhaustiveDepsESLintRule = {
   meta: {
     type: 'suggestion',
     docs: {
@@ -39,8 +39,30 @@ export default {
       },
     ],
   },
-  // @ts-ignore
   create(context) {
+    /**
+     * SourceCode#getText that also works down to ESLint 3.0.0
+     */
+    const getSource =
+      typeof context.getSource === 'function'
+        ? (node) => {
+            return getSource(node)
+          }
+        : (node) => {
+            return context.sourceCode.getText(node)
+          }
+    /**
+     * SourceCode#getScope that also works down to ESLint 3.0.0
+     */
+    const getScope =
+      typeof context.getScope === 'function'
+        ? () => {
+            return getScope()
+          }
+        : (node) => {
+            return context.sourceCode.getScope(node)
+          }
+
     // Parse the `additionalHooks` regex.
     const additionalHooks =
       context.options &&
@@ -60,7 +82,6 @@ export default {
       enableDangerousAutofixThisMayCauseInfiniteLoops,
     }
 
-    // @ts-ignore
     function reportProblem(problem) {
       if (enableDangerousAutofixThisMayCauseInfiniteLoops) {
         // Used to enable legacy behavior. Dangerous.
@@ -80,9 +101,8 @@ export default {
     const stableKnownValueCache = new WeakMap()
     const functionWithoutCapturedValueCache = new WeakMap()
     const useEffectEventVariables = new WeakSet()
-    // @ts-ignore
+
     function memoizeWithWeakMap(fn, map) {
-      // @ts-ignore
       return function (arg) {
         if (map.has(arg)) {
           // to verify cache hits:
@@ -98,15 +118,14 @@ export default {
      * Visitor for both function expressions and arrow function expressions.
      */
     function visitFunctionWithDependencies(
-      // @ts-ignore
       node,
-      // @ts-ignore
+
       declaredDependenciesNode,
-      // @ts-ignore
+
       reactiveHook,
-      // @ts-ignore
+
       reactiveHookName,
-      // @ts-ignore
+
       isEffect,
     ) {
       if (isEffect && node.async) {
@@ -139,7 +158,7 @@ export default {
       // scope. We can't enforce this in a lint so we trust that all variables
       // declared outside of pure scope are indeed frozen.
       const pureScopes = new Set()
-      // @ts-ignore
+
       let componentScope = null
       {
         let currentScope = scope.upper
@@ -174,7 +193,7 @@ export default {
       // const onStuff = useEffectEvent(() => {})
       //       ^^^ true for this reference
       // False for everything else.
-      // @ts-ignore
+
       function isStableKnownHookValue(resolved) {
         if (!isArray(resolved.defs)) {
           return false
@@ -201,7 +220,7 @@ export default {
           // This might happen if variable is declared after the callback.
           // In that case ESLint won't set up .parent refs.
           // So we'll set them up manually.
-          // @ts-ignore
+
           fastFindReferenceWithParent(componentScope.block, def.node.id)
           declaration = def.node.parent
           if (declaration == null) {
@@ -309,7 +328,7 @@ export default {
       }
 
       // Some are just functions that don't reference anything dynamic.
-      // @ts-ignore
+
       function isFunctionWithoutCapturedValues(resolved) {
         if (!isArray(resolved.defs)) {
           return false
@@ -324,7 +343,7 @@ export default {
         // Search the direct component subscopes for
         // top-level function definitions matching this reference.
         const fnNode = def.node
-        // @ts-ignore
+
         const childScopes = componentScope.childScopes
         let fnScope = null
         let i
@@ -385,7 +404,7 @@ export default {
       // Is this reference inside a cleanup function for this effect node?
       // We can check by traversing scopes upwards from the reference, and checking
       // if the last "return () => " we encounter is located directly inside the effect.
-      // @ts-ignore
+
       function isInsideEffectCleanup(reference) {
         let curScope = reference.from
         let isInReturnedFunction = false
@@ -406,7 +425,6 @@ export default {
       const optionalChains = new Map()
       gatherDependenciesRecursively(scope)
 
-      // @ts-ignore
       function gatherDependenciesRecursively(currentScope) {
         for (const reference of currentScope.references) {
           // If this reference is not resolved or it is not declared in a pure
@@ -536,7 +554,7 @@ export default {
       // Warn about assigning to variables in the outer scope.
       // Those are usually bugs.
       const staleAssignments = new Set()
-      // @ts-ignore
+
       function reportStaleAssignment(writeExpr, key) {
         if (staleAssignments.has(key)) {
           return
@@ -546,11 +564,11 @@ export default {
           node: writeExpr,
           message:
             `Assignments to the '${key}' variable from inside React Hook ` +
-            `${context.getSource(reactiveHook)} will be lost after each ` +
+            `${getSource(reactiveHook)} will be lost after each ` +
             `render. To preserve the value over time, store it in a useRef ` +
             `Hook and keep the mutable value in the '.current' property. ` +
             `Otherwise, you can move this variable directly inside ` +
-            `${context.getSource(reactiveHook)}.`,
+            `${getSource(reactiveHook)}.`,
         })
       }
 
@@ -560,7 +578,7 @@ export default {
         if (isStable) {
           stableDependencies.add(key)
         }
-        // @ts-ignore
+
         references.forEach((reference) => {
           if (reference.writeExpr) {
             reportStaleAssignment(reference.writeExpr, key)
@@ -576,17 +594,15 @@ export default {
       if (!declaredDependenciesNode) {
         // Check if there are any top-level setState() calls.
         // Those tend to lead to infinite loops.
-        // @ts-ignore
+
         let setStateInsideEffectWithoutDeps = null
-        // @ts-ignore
+
         dependencies.forEach(({ isStable, references }, key) => {
-          // @ts-ignore
           if (setStateInsideEffectWithoutDeps) {
             return
           }
-          // @ts-ignore
+
           references.forEach((reference) => {
-            // @ts-ignore
             if (setStateInsideEffectWithoutDeps) {
               return
             }
@@ -629,7 +645,7 @@ export default {
                 desc: `Add dependencies array: [${suggestedDependencies.join(
                   ', ',
                 )}]`,
-                // @ts-ignore
+
                 fix(fixer) {
                   return fixer.insertTextAfter(
                     node,
@@ -643,7 +659,6 @@ export default {
         return
       }
 
-      // @ts-ignore
       const declaredDependencies = []
       const externalDependencies = new Set()
       if (declaredDependenciesNode.type !== 'ArrayExpression') {
@@ -653,13 +668,12 @@ export default {
         reportProblem({
           node: declaredDependenciesNode,
           message:
-            `React Hook ${context.getSource(reactiveHook)} was passed a ` +
+            `React Hook ${getSource(reactiveHook)} was passed a ` +
             'dependency list that is not an array literal. This means we ' +
             "can't statically verify whether you've passed the correct " +
             'dependencies.',
         })
       } else {
-        // @ts-ignore
         declaredDependenciesNode.elements.forEach((declaredDependencyNode) => {
           // Skip elided elements.
           if (declaredDependencyNode === null) {
@@ -670,7 +684,7 @@ export default {
             reportProblem({
               node: declaredDependencyNode,
               message:
-                `React Hook ${context.getSource(reactiveHook)} has a spread ` +
+                `React Hook ${getSource(reactiveHook)} has a spread ` +
                 "element in its dependency array. This means we can't " +
                 "statically verify whether you've passed the " +
                 'correct dependencies.',
@@ -682,15 +696,15 @@ export default {
               node: declaredDependencyNode,
               message:
                 'Functions returned from `useEffectEvent` must not be included in the dependency array. ' +
-                `Remove \`${context.getSource(
+                `Remove \`${getSource(
                   declaredDependencyNode,
                 )}\` from the list.`,
               suggest: [
                 {
-                  desc: `Remove the dependency \`${context.getSource(
+                  desc: `Remove the dependency \`${getSource(
                     declaredDependencyNode,
                   )}\``,
-                  // @ts-ignore
+
                   fix(fixer) {
                     return fixer.removeRange(declaredDependencyNode.range)
                   },
@@ -707,7 +721,6 @@ export default {
               optionalChains,
             )
           } catch (error) {
-            // @ts-ignore
             if (/Unsupported node type/.test(error.message)) {
               if (declaredDependencyNode.type === 'Literal') {
                 if (dependencies.has(declaredDependencyNode.value)) {
@@ -730,7 +743,7 @@ export default {
                 reportProblem({
                   node: declaredDependencyNode,
                   message:
-                    `React Hook ${context.getSource(reactiveHook)} has a ` +
+                    `React Hook ${getSource(reactiveHook)} has a ` +
                     `complex expression in the dependency array. ` +
                     'Extract it to a separate variable so it can be statically checked.',
                 })
@@ -750,9 +763,8 @@ export default {
           ) {
             maybeID = maybeID.object || maybeID.expression.object
           }
-          // @ts-ignore
+
           const isDeclaredInComponent = !componentScope.through.some(
-            // @ts-ignore
             (ref) => ref.identifier === maybeID,
           )
 
@@ -775,7 +787,7 @@ export default {
         duplicateDependencies,
       } = collectRecommendations({
         dependencies,
-        // @ts-ignore
+
         declaredDependencies,
         stableDependencies,
         externalDependencies,
@@ -793,14 +805,12 @@ export default {
         // If nothing else to report, check if some dependencies would
         // invalidate on every render.
         const constructions = scanForConstructions({
-          // @ts-ignore
           declaredDependencies,
           declaredDependenciesNode,
           componentScope,
           scope,
         })
         constructions.forEach(
-          // @ts-ignore
           ({ construction, isUsedOutsideOfHook, depType }) => {
             const wrapperHook =
               depType === 'function' ? 'useCallback' : 'useMemo'
@@ -838,7 +848,7 @@ export default {
               suggest = [
                 {
                   desc: `Wrap the ${constructionType} of '${construction.name.name}' in its own ${wrapperHook}() Hook.`,
-                  // @ts-ignore
+
                   fix(fixer) {
                     const [before, after] =
                       wrapperHook === 'useMemo'
@@ -891,7 +901,7 @@ export default {
         if (declaredDependencies.length === 0) {
           return true
         }
-        // @ts-ignore
+
         const declaredDepKeys = declaredDependencies.map((dep) => dep.key)
         const sortedDeclaredDepKeys = declaredDepKeys.slice().sort()
         return declaredDepKeys.join(',') === sortedDeclaredDepKeys.join(',')
@@ -904,7 +914,7 @@ export default {
       // This function is the last step before printing a dependency, so now is a good time to
       // check whether any members in our path are always used as optional-only. In that case,
       // we will use ?. instead of . to concatenate those parts of the path.
-      // @ts-ignore
+
       function formatDependency(path) {
         const members = path.split('.')
         let finalPath = ''
@@ -919,7 +929,6 @@ export default {
         return finalPath
       }
 
-      // @ts-ignore
       function getWarningMessage(deps, singlePrefix, label, fixVerb) {
         if (deps.size === 0) {
           return null
@@ -943,10 +952,8 @@ export default {
 
       let extraWarning = ''
       if (unnecessaryDependencies.size > 0) {
-        // @ts-ignore
         let badRef = null
         Array.from(unnecessaryDependencies.keys()).forEach((key) => {
-          // @ts-ignore
           if (badRef !== null) {
             return
           }
@@ -1011,22 +1018,21 @@ export default {
             ` However, 'props' will change when *any* prop changes, so the ` +
             `preferred fix is to destructure the 'props' object outside of ` +
             `the ${reactiveHookName} call and refer to those specific props ` +
-            `inside ${context.getSource(reactiveHook)}.`
+            `inside ${getSource(reactiveHook)}.`
         }
       }
 
       if (!extraWarning && missingDependencies.size > 0) {
         // See if the user is trying to avoid specifying a callable prop.
         // This usually means they're unaware of useCallback.
-        // @ts-ignore
+
         let missingCallbackDep = null
         missingDependencies.forEach((missingDep) => {
-          // @ts-ignore
           if (missingCallbackDep) {
             return
           }
           // Is this a variable from top scope?
-          // @ts-ignore
+
           const topScopeRef = componentScope.set.get(missingDep)
           const usedDep = dependencies.get(missingDep)
           if (usedDep.references[0].resolved !== topScopeRef) {
@@ -1070,10 +1076,8 @@ export default {
       }
 
       if (!extraWarning && missingDependencies.size > 0) {
-        // @ts-ignore
         let setStateRecommendation = null
         missingDependencies.forEach((missingDep) => {
-          // @ts-ignore
           if (setStateRecommendation !== null) {
             return
           }
@@ -1085,7 +1089,7 @@ export default {
             id = references[i].identifier
             maybeCall = id.parent
             // Try to see if we have setState(someExpr(missingDep)).
-            // @ts-ignore
+
             while (maybeCall != null && maybeCall !== componentScope.block) {
               if (maybeCall.type === 'CallExpression') {
                 const correspondingStateVariable = setStateCallSites.get(
@@ -1127,46 +1131,36 @@ export default {
               }
               maybeCall = maybeCall.parent
             }
-            // @ts-ignore
+
             if (setStateRecommendation !== null) {
               break
             }
           }
         })
         if (setStateRecommendation !== null) {
-          // @ts-ignore
           switch (setStateRecommendation.form) {
             case 'reducer':
               extraWarning =
                 ` You can also replace multiple useState variables with useReducer ` +
-                // @ts-ignore
                 `if '${setStateRecommendation.setter}' needs the ` +
-                // @ts-ignore
                 `current value of '${setStateRecommendation.missingDep}'.`
               break
             case 'inlineReducer':
               extraWarning =
-                // @ts-ignore
                 ` If '${setStateRecommendation.setter}' needs the ` +
-                // @ts-ignore
                 `current value of '${setStateRecommendation.missingDep}', ` +
                 `you can also switch to useReducer instead of useState and ` +
-                // @ts-ignore
                 `read '${setStateRecommendation.missingDep}' in the reducer.`
               break
             case 'updater':
               extraWarning =
                 ` You can also do a functional update '${
-                  // @ts-ignore
                   setStateRecommendation.setter
-                  // @ts-ignore
                 }(${setStateRecommendation.missingDep.slice(
                   0,
                   1,
                 )} => ...)' if you only need '${
-                  // @ts-ignore
                   setStateRecommendation.missingDep
-                  // @ts-ignore
                 }'` + ` in the '${setStateRecommendation.setter}' call.`
               break
             default:
@@ -1178,7 +1172,7 @@ export default {
       reportProblem({
         node: declaredDependenciesNode,
         message:
-          `React Hook ${context.getSource(reactiveHook)} has ` +
+          `React Hook ${getSource(reactiveHook)} has ` +
           // To avoid a long message, show the next actionable item.
           (getWarningMessage(missingDependencies, 'a', 'missing', 'include') ||
             getWarningMessage(
@@ -1199,7 +1193,7 @@ export default {
             desc: `Update the dependencies array to be: [${suggestedDeps
               .map(formatDependency)
               .join(', ')}]`,
-            // @ts-ignore
+
             fix(fixer) {
               // TODO: consider preserving the comments or formatting?
               return fixer.replaceText(
@@ -1212,7 +1206,6 @@ export default {
       })
     }
 
-    // @ts-ignore
     function visitCallExpression(node) {
       const callbackIndex = getReactiveHookCallbackIndex(node.callee, options)
       if (callbackIndex === -1) {
@@ -1280,7 +1273,6 @@ export default {
           if (
             declaredDependenciesNode.elements &&
             declaredDependenciesNode.elements.some(
-              // @ts-ignore
               (el) =>
                 el && el.type === 'Identifier' && el.name === callback.name,
             )
@@ -1290,7 +1282,7 @@ export default {
             return // Handled
           }
           // We'll do our best effort to find it, complain otherwise.
-          const variable = context.getScope().set.get(callback.name)
+          const variable = getScope().set.get(callback.name)
           if (variable == null || variable.defs == null) {
             // If it's not in scope, we don't care.
             return // Handled
@@ -1360,7 +1352,7 @@ export default {
         suggest: [
           {
             desc: `Update the dependencies array to be: [${callback.name}]`,
-            // @ts-ignore
+
             fix(fixer) {
               return fixer.replaceText(
                 declaredDependenciesNode,
@@ -1380,15 +1372,14 @@ export default {
 
 // The meat of the logic.
 function collectRecommendations({
-  // @ts-ignore
   dependencies,
-  // @ts-ignore
+
   declaredDependencies,
-  // @ts-ignore
+
   stableDependencies,
-  // @ts-ignore
+
   externalDependencies,
-  // @ts-ignore
+
   isEffect,
 }) {
   // Our primary data structure.
@@ -1412,11 +1403,11 @@ function collectRecommendations({
 
   // Mark all required nodes first.
   // Imagine exclamation marks next to each used deep property.
-  // @ts-ignore
+
   dependencies.forEach((_, key) => {
     const node = getOrCreateNodeByPath(depTree, key)
     node.isUsed = true
-    // @ts-ignore
+
     markAllParentsByPath(depTree, key, (parent) => {
       parent.isSubtreeUsed = true
     })
@@ -1424,19 +1415,19 @@ function collectRecommendations({
 
   // Mark all satisfied nodes.
   // Imagine checkmarks next to each declared dependency.
-  // @ts-ignore
+
   declaredDependencies.forEach(({ key }) => {
     const node = getOrCreateNodeByPath(depTree, key)
     node.isSatisfiedRecursively = true
   })
-  // @ts-ignore
+
   stableDependencies.forEach((key) => {
     const node = getOrCreateNodeByPath(depTree, key)
     node.isSatisfiedRecursively = true
   })
 
   // Tree manipulation helpers.
-  // @ts-ignore
+
   function getOrCreateNodeByPath(rootNode, path) {
     const keys = path.split('.')
     let node = rootNode
@@ -1450,7 +1441,7 @@ function collectRecommendations({
     }
     return node
   }
-  // @ts-ignore
+
   function markAllParentsByPath(rootNode, path, fn) {
     const keys = path.split('.')
     let node = rootNode
@@ -1471,12 +1462,11 @@ function collectRecommendations({
     depTree,
     missingDependencies,
     satisfyingDependencies,
-    // @ts-ignore
+
     (key) => key,
   )
-  // @ts-ignore
+
   function scanTreeRecursively(node, missingPaths, satisfyingPaths, keyToPath) {
-    // @ts-ignore
     node.children.forEach((child, key) => {
       const path = keyToPath(key)
       if (child.isSatisfiedRecursively) {
@@ -1500,22 +1490,21 @@ function collectRecommendations({
         child,
         missingPaths,
         satisfyingPaths,
-        // @ts-ignore
+
         (childKey) => path + '.' + childKey,
       )
     })
   }
 
   // Collect suggestions in the order they were originally specified.
-  // @ts-ignore
+
   const suggestedDependencies = []
   const unnecessaryDependencies = new Set()
   const duplicateDependencies = new Set()
-  // @ts-ignore
+
   declaredDependencies.forEach(({ key }) => {
     // Does this declared dep satisfy a real need?
     if (satisfyingDependencies.has(key)) {
-      // @ts-ignore
       if (suggestedDependencies.indexOf(key) === -1) {
         // Good one.
         suggestedDependencies.push(key)
@@ -1535,7 +1524,6 @@ function collectRecommendations({
   })
 
   return {
-    // @ts-ignore
     suggestedDependencies,
     unnecessaryDependencies,
     duplicateDependencies,
@@ -1545,7 +1533,7 @@ function collectRecommendations({
 
 // If the node will result in constructing a referentially unique value, return
 // its human readable type name, else return null.
-// @ts-ignore
+
 function getConstructionExpressionType(node) {
   switch (node.type) {
     case 'ObjectExpression':
@@ -1600,19 +1588,17 @@ function getConstructionExpressionType(node) {
 // Finds variables declared as dependencies
 // that would invalidate on every render.
 function scanForConstructions({
-  // @ts-ignore
   declaredDependencies,
-  // @ts-ignore
+
   declaredDependenciesNode,
-  // @ts-ignore
+
   componentScope,
-  // @ts-ignore
+
   scope,
 }) {
   const constructions = declaredDependencies
-    // @ts-ignore
+
     .map(({ key }) => {
-      // @ts-ignore
       const ref = componentScope.variables.find((v) => v.name === key)
       if (ref == null) {
         return null
@@ -1656,7 +1642,6 @@ function scanForConstructions({
     })
     .filter(Boolean)
 
-  // @ts-ignore
   function isUsedOutsideOfHook(ref) {
     let foundWriteExpr = false
     for (let i = 0; i < ref.references.length; i++) {
@@ -1686,7 +1671,6 @@ function scanForConstructions({
     return false
   }
 
-  // @ts-ignore
   return constructions.map(([ref, depType]) => ({
     construction: ref.defs[0],
     depType,
@@ -1701,7 +1685,7 @@ function scanForConstructions({
  * props.foo.(bar) => (props).foo.bar
  * props.foo.bar.(baz) => (props).foo.bar.baz
  */
-// @ts-ignore
+
 function getDependency(node) {
   if (
     (node.parent.type === 'MemberExpression' ||
@@ -1736,7 +1720,7 @@ function getDependency(node) {
  * It just means there is an optional member somewhere inside.
  * This particular node might still represent a required member, so check .optional field.
  */
-// @ts-ignore
+
 function markNode(node, optionalChains, result) {
   if (optionalChains) {
     if (node.optional) {
@@ -1761,7 +1745,7 @@ function markNode(node, optionalChains, result) {
  * foo.bar(.)baz -> 'foo.bar.baz'
  * Otherwise throw.
  */
-// @ts-ignore
+
 function analyzePropertyChain(node, optionalChains) {
   if (node.type === 'Identifier' || node.type === 'JSXIdentifier') {
     const result = node.name
@@ -1771,20 +1755,18 @@ function analyzePropertyChain(node, optionalChains) {
     }
     return result
   } else if (node.type === 'MemberExpression' && !node.computed) {
-    // @ts-ignore
     const object = analyzePropertyChain(node.object, optionalChains)
-    // @ts-ignore
+
     const property = analyzePropertyChain(node.property, null)
-    // @ts-ignore
+
     const result = `${object}.${property}`
     markNode(node, optionalChains, result)
     return result
   } else if (node.type === 'OptionalMemberExpression' && !node.computed) {
-    // @ts-ignore
     const object = analyzePropertyChain(node.object, optionalChains)
-    // @ts-ignore
+
     const property = analyzePropertyChain(node.property, null)
-    // @ts-ignore
+
     const result = `${object}.${property}`
     markNode(node, optionalChains, result)
     return result
@@ -1795,11 +1777,10 @@ function analyzePropertyChain(node, optionalChains) {
       throw new Error(`Unsupported node type: ${expression.type}`)
     }
 
-    // @ts-ignore
     const object = analyzePropertyChain(expression.object, optionalChains)
-    // @ts-ignore
+
     const property = analyzePropertyChain(expression.property, null)
-    // @ts-ignore
+
     const result = `${object}.${property}`
     markNode(expression, optionalChains, result)
     return result
@@ -1808,7 +1789,6 @@ function analyzePropertyChain(node, optionalChains) {
   }
 }
 
-// @ts-ignore
 function getNodeWithoutReactNamespace(node, options) {
   if (
     node.type === 'MemberExpression' &&
@@ -1827,7 +1807,7 @@ function getNodeWithoutReactNamespace(node, options) {
 // 0 for useEffect/useMemo/useCallback(fn).
 // 1 for useImperativeHandle(ref, fn).
 // For additionally configured Hooks, assume that they're like useEffect (0).
-// @ts-ignore
+
 function getReactiveHookCallbackIndex(calleeNode, options) {
   const node = getNodeWithoutReactNamespace(calleeNode)
   if (node.type !== 'Identifier') {
@@ -1851,7 +1831,6 @@ function getReactiveHookCallbackIndex(calleeNode, options) {
         try {
           name = analyzePropertyChain(node, null)
         } catch (error) {
-          // @ts-ignore
           if (/Unsupported node type/.test(error.message)) {
             return 0
           } else {
@@ -1866,7 +1845,7 @@ function getReactiveHookCallbackIndex(calleeNode, options) {
 }
 
 /**
- * ESLint won't assign node.parent to references from context.getScope()
+ * ESLint won't assign node.parent to references from getScope()
  *
  * So instead we search for the node from an ancestor assigning node.parent
  * as we go. This mutates the AST.
@@ -1875,10 +1854,10 @@ function getReactiveHookCallbackIndex(calleeNode, options) {
  * - optimized by only searching nodes with a range surrounding our target node
  * - agnostic to AST node types, it looks for `{ type: string, ... }`
  */
-// @ts-ignore
+
 function fastFindReferenceWithParent(start, target) {
   const queue = [start]
-  // @ts-ignore
+
   let item = null
 
   while (queue.length) {
@@ -1902,7 +1881,6 @@ function fastFindReferenceWithParent(start, target) {
       } else if (Array.isArray(value)) {
         value.forEach((val) => {
           if (isNodeLike(val)) {
-            // @ts-ignore
             val.parent = item
             queue.push(val)
           }
@@ -1914,7 +1892,6 @@ function fastFindReferenceWithParent(start, target) {
   return null
 }
 
-// @ts-ignore
 function joinEnglish(arr) {
   let s = ''
   for (let i = 0; i < arr.length; i++) {
@@ -1930,7 +1907,6 @@ function joinEnglish(arr) {
   return s
 }
 
-// @ts-ignore
 function isNodeLike(val) {
   return (
     typeof val === 'object' &&
@@ -1940,7 +1916,6 @@ function isNodeLike(val) {
   )
 }
 
-// @ts-ignore
 function isSameIdentifier(a, b) {
   return (
     (a.type === 'Identifier' || a.type === 'JSXIdentifier') &&
@@ -1951,12 +1926,10 @@ function isSameIdentifier(a, b) {
   )
 }
 
-// @ts-ignore
 function isAncestorNodeOf(a, b) {
   return a.range[0] <= b.range[0] && a.range[1] >= b.range[1]
 }
 
-// @ts-ignore
 function isUseEffectEventIdentifier(node) {
   if (__EXPERIMENTAL__) {
     return node.type === 'Identifier' && node.name === 'useEffectEvent'

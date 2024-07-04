@@ -1,6 +1,6 @@
 {
-  "name": "@lucasols/eslint-plugin-extended-lint",
-  "version": "1.6.0",
+  "name": "@ls-stack/eslint-plugin",
+  "version": "0.0.0",
   "license": "MIT",
   "scripts": {
     "test": "vitest run",
@@ -25,27 +25,27 @@
     "node": ">=14.6.0"
   },
   "devDependencies": {
-    "@lucasols/utils": "^4.23.2",
+    "@ls-stack/utils": "^1.1.0",
     "@types/eslint": "^8.56.10",
-    "@types/node": "^20.12.7",
-    "@typescript-eslint/parser": "^7.7.0",
-    "@typescript-eslint/rule-tester": "^7.7.0",
-    "@vitest/ui": "^1.5.0",
-    "esbuild": "^0.20.2",
-    "eslint": "^8.57.0",
+    "@types/node": "^20.14.9",
+    "@typescript-eslint/parser": "^7.15.0",
+    "@typescript-eslint/rule-tester": "^7.15.0",
+    "@vitest/ui": "^1.6.0",
+    "esbuild": "^0.23.0",
+    "eslint": "^9.6.0",
     "tsm": "^2.3.0",
-    "typescript": "^5.4.5",
-    "vite": "^5.2.10",
-    "vitest": "^1.5.0"
+    "typescript": "^5.5.3",
+    "vite": "^5.3.3",
+    "vitest": "^1.6.0"
   },
   "dependencies": {
-    "@typescript-eslint/utils": "^7.7.0",
+    "@typescript-eslint/utils": "^7.15.0",
     "escape-string-regexp": "^5.0.0",
-    "espree": "^10.0.1",
+    "espree": "^10.1.0",
     "esutils": "^2.0.3",
     "magic-string": "^0.30.10"
   },
   "peerDependencies": {
-    "eslint": "^9.1.0"
+    "eslint": "^9.6.0"
   }
 }
