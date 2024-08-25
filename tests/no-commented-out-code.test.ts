@@ -80,4 +80,31 @@ tests.addInvalid(
   4,
 )
 
+tests.addInvalid(
+  'invalid jsx commented component',
+  `
+    /* <Component /> */
+  `,
+  4,
+)
+
+tests.addValid(
+  'valid jsx commented component',
+  `
+    /* This is a comment
+      <Component />
+    */
+  `,
+)
+
+tests.addValid(
+  'ingore jsdocs comments',
+  `
+    /**
+     * This is a comment
+     * <Component />
+     */
+  `,
+)
+
 tests.run()
