@@ -799,6 +799,7 @@ const tests = {
       `,
     },
     {
+      name: `${getCodeLine()}`,
       // Valid because the ref is captured.
       code: normalizeIndent`
         function MyComponent() {
@@ -814,6 +815,7 @@ const tests = {
       `,
     },
     {
+      name: `${getCodeLine()}`,
       // Valid because the ref is captured.
       code: normalizeIndent`
         function useMyThing(myRef) {
@@ -4475,6 +4477,7 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function MyComponent() {
           const myRef = useRef();
@@ -4521,6 +4524,7 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function MyComponent() {
           const myRef = useRef();
@@ -4544,6 +4548,7 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function useMyThing(myRef) {
           useEffect(() => {
@@ -4592,6 +4597,7 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function useMyThing(myRef, active) {
           useEffect(() => {
@@ -4619,18 +4625,8 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: `
-        function MyComponent() {
-          const myRef = useRef();
-          useLayoutEffect_SAFE_FOR_SSR(() => {
-            const handleMove = () => {};
-            myRef.current.addEventListener('mousemove', handleMove);
-            return () => myRef.current.removeEventListener('mousemove', handleMove);
-          });
-          return <div ref={myRef} />;
-        }
-      `,
-      output: `
         function MyComponent() {
           const myRef = useRef();
           useLayoutEffect_SAFE_FOR_SSR(() => {
@@ -7034,6 +7030,7 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function MyComponent() {
           const local = {};
@@ -7056,6 +7053,19 @@ const tests = {
           message:
             "React Hook useEffect has a missing dependency: 'local'. " +
             'Either include it or remove the dependency array.',
+          suggestions: [
+            {
+              desc: 'Update the dependencies array to be: [local]',
+              output: normalizeIndent`
+                function MyComponent() {
+                  const local = {};
+                  useEffect(() => {
+                    console.log(local);
+                  }, [local]);
+                }
+              `,
+            },
+          ],
         },
       ],
       // Keep this until major IDEs and VS Code FB ESLint plugin support Suggestions API.
