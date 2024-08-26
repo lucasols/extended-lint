@@ -1,5 +1,5 @@
 {
-  "name": "@ls-stack/eslint-plugin",
+  "name": "@ls-stack/extended-lint",
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
