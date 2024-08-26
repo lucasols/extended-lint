@@ -44,7 +44,6 @@ const rule = createRule({
     type: 'problem',
     docs: {
       description: 'Disallow commented code',
-      recommended: 'recommended',
     },
     messages: {
       commentedOutCode:
@@ -65,10 +64,10 @@ const rule = createRule({
 
       if (
         comment.startsWith('*') ||
-        comment.startsWith('INFO:') ||
-        comment.startsWith('TODO:') ||
-        comment.startsWith('FIX:') ||
-        comment.startsWith('eslint-disable') ||
+        commentWithTrimmedStart.startsWith('INFO:') ||
+        commentWithTrimmedStart.startsWith('TODO:') ||
+        commentWithTrimmedStart.startsWith('FIX:') ||
+        commentWithTrimmedStart.startsWith('eslint-disable') ||
         comment.includes('@deprecated') ||
         comment.includes('@example')
       ) {
@@ -98,11 +97,14 @@ const rule = createRule({
 
     return {
       Program() {
-        const sourceCode = context.getSourceCode()
+        const sourceCode = context.sourceCode
         const comments = sourceCode.getAllComments()
 
         for (const comment of comments) {
-          if (comment.type === TSESTree.AST_TOKEN_TYPES.Line) {
+          if (
+            comment.type === TSESTree.AST_TOKEN_TYPES.Line ||
+            comment.type === TSESTree.AST_TOKEN_TYPES.Block
+          ) {
             const commentedCode = isCommentedCode(comment.value)
 
             if (commentedCode) {

@@ -42,7 +42,6 @@ const rule = createRule({
     type: 'problem',
     docs: {
       description: 'Disallow unused undestructured object type properties',
-      recommended: 'recommended',
     },
     messages: {
       unusedObjectTypeProperty: `Object type property '{{ propertyName }}' is defined but never used`,
@@ -53,14 +52,15 @@ const rule = createRule({
   defaultOptions: [],
   create: function (context) {
     function extendFromTypeReference(
+      scope: TSESTree.Node,
       reference: TSESTree.Identifier,
       declaredProperties: Map<string, TSESTree.Node>,
       ignoreExported = true,
     ) {
       const typeName = reference.name
 
-      const resolved = context
-        .getScope()
+      const resolved = context.sourceCode
+        .getScope(scope)
         .references.find(
           (reference) => reference.identifier.name === typeName,
         )?.resolved
@@ -83,17 +83,23 @@ const rule = createRule({
       }
 
       if (type?.type === AST_NODE_TYPES.TSTypeAliasDeclaration) {
-        extendDeclaredTypeParams(declaredProperties, type.typeAnnotation, true)
+        extendDeclaredTypeParams(
+          scope,
+          declaredProperties,
+          type.typeAnnotation,
+          true,
+        )
         return
       }
 
       if (type?.type === AST_NODE_TYPES.TSInterfaceDeclaration) {
-        extendDeclaredTypeParams(declaredProperties, type.body, true)
+        extendDeclaredTypeParams(scope, declaredProperties, type.body, true)
         return
       }
     }
 
     function extendDeclaredTypeParams(
+      scope: TSESTree.Node,
       declaredProperties: Map<string, TSESTree.Node>,
       typeNode: TSESTree.TypeNode | TSESTree.TSInterfaceBody,
       ignoreReferences: boolean,
@@ -118,7 +124,7 @@ const rule = createRule({
 
       if (typeNode.type === AST_NODE_TYPES.TSIntersectionType) {
         for (const type of typeNode.types) {
-          extendDeclaredTypeParams(declaredProperties, type, true)
+          extendDeclaredTypeParams(scope, declaredProperties, type, true)
         }
         return
       }
@@ -128,17 +134,21 @@ const rule = createRule({
           typeNode.type === AST_NODE_TYPES.TSTypeReference &&
           typeNode.typeName.type === AST_NODE_TYPES.Identifier
         ) {
-          extendFromTypeReference(typeNode.typeName, declaredProperties)
+          extendFromTypeReference(scope, typeNode.typeName, declaredProperties)
         }
       }
     }
 
-    function checkParamsOfInferredDeclarations(params: TSESTree.Parameter[]) {
+    function checkParamsOfInferredDeclarations(
+      scope: TSESTree.Node,
+      params: TSESTree.Parameter[],
+    ) {
       for (const param of params) {
         if (param.type === 'ObjectPattern' && param.typeAnnotation) {
           const declaredProperties = new Map<string, TSESTree.Node>()
 
           extendDeclaredTypeParams(
+            scope,
             declaredProperties,
             param.typeAnnotation.typeAnnotation,
             false,
@@ -153,7 +163,7 @@ const rule = createRule({
           param.type === AST_NODE_TYPES.AssignmentPattern &&
           param.left.type === AST_NODE_TYPES.ObjectPattern
         ) {
-          checkParamsOfInferredDeclarations([param.left])
+          checkParamsOfInferredDeclarations(scope, [param.left])
         }
       }
     }
@@ -252,6 +262,7 @@ const rule = createRule({
           fcPropsParam.typeName.type === AST_NODE_TYPES.Identifier
         ) {
           extendFromTypeReference(
+            node,
             fcPropsParam.typeName,
             declaredProperties,
             false,
@@ -264,9 +275,14 @@ const rule = createRule({
               type.type === AST_NODE_TYPES.TSTypeReference &&
               type.typeName.type === AST_NODE_TYPES.Identifier
             ) {
-              extendFromTypeReference(type.typeName, declaredProperties, false)
+              extendFromTypeReference(
+                node,
+                type.typeName,
+                declaredProperties,
+                false,
+              )
             } else {
-              extendDeclaredTypeParams(declaredProperties, type, true)
+              extendDeclaredTypeParams(node, declaredProperties, type, true)
             }
           }
         }
@@ -282,10 +298,10 @@ const rule = createRule({
         }
       },
       FunctionDeclaration: function (node) {
-        checkParamsOfInferredDeclarations(node.params)
+        checkParamsOfInferredDeclarations(node, node.params)
       },
       ArrowFunctionExpression: function (node) {
-        checkParamsOfInferredDeclarations(node.params)
+        checkParamsOfInferredDeclarations(node, node.params)
       },
     }
   },

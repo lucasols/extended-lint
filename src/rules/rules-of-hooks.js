@@ -664,14 +664,14 @@ export const rulesOfHooksESLintRule = {
       FunctionDeclaration(node) {
         // function MyComponent() { const onClick = useEffectEvent(...) }
         if (isInsideComponentOrHook(node)) {
-          recordAllUseEffectEventFunctions(getScope())
+          recordAllUseEffectEventFunctions(getScope(node))
         }
       },
 
       ArrowFunctionExpression(node) {
         // const MyComponent = () => { const onClick = useEffectEvent(...) }
         if (isInsideComponentOrHook(node)) {
-          recordAllUseEffectEventFunctions(getScope())
+          recordAllUseEffectEventFunctions(getScope(node))
         }
       },
     }

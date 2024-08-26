@@ -8,11 +8,10 @@
 'use strict'
 
 import { RuleTester } from '@typescript-eslint/rule-tester'
-import ReactHooksESLintRule from '../src/rules/exhaustive-deps'
-import { dedent } from './utils/dedent'
-import { describe } from 'vitest'
 import { fileURLToPath } from 'node:url'
 import { getCodeLine } from 'virtual:get-code-line'
+import { describe } from 'vitest'
+import { exhaustiveDepsESLintRule } from '../src/rules/exhaustive-deps'
 
 const __EXPERIMENTAL__ = false
 
@@ -8167,25 +8166,24 @@ if (!process.env.CI) {
 }
 
 describe('react-hooks', () => {
-  const parserOptions = {
-    tsconfigRootDir: fileURLToPath(new URL('./fixture', import.meta.url)),
-    project: './tsconfig.json',
-    ecmaFeatures: {
-      jsx: true,
-    },
-    ecmaVersion: 2020,
-    sourceType: 'module',
-  }
-
   const testsTypescriptEslintParser = {
     valid: [...testsTypescript.valid, ...tests.valid],
     invalid: [...testsTypescript.invalid, ...tests.invalid],
   }
 
   new RuleTester({
-    parser: '@typescript-eslint/parser',
-    parserOptions,
-  }).run('parser: @typescript-eslint/parser@^5.0.0-0', ReactHooksESLintRule, {
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: fileURLToPath(new URL('./fixture', import.meta.url)),
+        project: './tsconfig.json',
+        ecmaFeatures: {
+          jsx: true,
+        },
+        ecmaVersion: 2020,
+        sourceType: 'module',
+      },
+    },
+  }).run('exhaustive-deps', exhaustiveDepsESLintRule, {
     valid: [
       ...testsTypescriptEslintParserV4.valid,
       ...testsTypescriptEslintParser.valid,

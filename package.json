@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@ls-stack/utils": "^1.8.0",
-    "@types/eslint": "^9.6.0",
+    "@types/eslint": "^9.6.1",
     "@types/node": "^22.5.0",
     "@typescript-eslint/parser": "^8.2.0",
     "@typescript-eslint/rule-tester": "^8.2.0",
