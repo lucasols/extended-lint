@@ -18,13 +18,15 @@ export type Options = [
   },
 ]
 
-const rule = createRule({
+const rule = createRule<
+  Options,
+  'missingGenericDeclaration' | 'anyUsedInGenerics'
+>({
   name,
   meta: {
     type: 'problem',
     docs: {
       description: 'Disable calling configured functions with infered generics',
-      recommended: 'recommended',
     },
     messages: {
       missingGenericDeclaration: `Function '{{ functionName }}' should be called with at least {{ minGenerics }} generic(s) (ex: \`fn<Generic>()\`) defined`,
@@ -53,9 +55,9 @@ const rule = createRule({
       },
     ],
   },
-  defaultOptions: [],
+  defaultOptions: [{ functions: [] }],
   create(context) {
-    const options = context.options[0] as unknown as Options[0]
+    const options = context.options[0]
 
     const functionConfigMap = new Map<string, Options[0]['functions'][0]>(
       options.functions.map((config) => [config.name, config]),

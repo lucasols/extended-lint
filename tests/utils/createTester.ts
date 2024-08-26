@@ -1,9 +1,17 @@
 import { dedent } from '@ls-stack/utils/dedent'
-import { RuleTester } from '@typescript-eslint/rule-tester'
+import {
+  InvalidTestCase,
+  RuleTester,
+  TestCaseError,
+  ValidTestCase,
+} from '@typescript-eslint/rule-tester'
 import { TSESLint } from '@typescript-eslint/utils'
 import { fileURLToPath } from 'node:url'
 
 const ruleTester = new RuleTester({
+  linterOptions: {
+    reportUnusedDisableDirectives: 'off',
+  },
   languageOptions: {
     parserOptions: {
       tsconfigRootDir: fileURLToPath(new URL('../fixture', import.meta.url)),
@@ -17,80 +25,7 @@ const ruleTester = new RuleTester({
   },
 })
 
-export function createOldTester<
-  T extends TSESLint.RuleModule<string, any[]>,
-  O extends any[],
->(
-  rule: {
-    name: string
-    rule: T
-  },
-  {
-    defaultErrorId,
-    ignoreError,
-  }: {
-    defaultErrorId?: string
-    optionsType?: O
-    ignoreError: TSESLint.InvalidTestCase<string, any[]>
-  },
-) {
-  return {
-    valid(code: string, options?: O) {
-      ruleTester.run(rule.name, rule.rule, {
-        valid: [
-          {
-            code,
-            options: options || [],
-          },
-        ],
-        invalid: [ignoreError],
-      })
-    },
-    invalid(
-      code: string,
-      errors?:
-        | {
-            messageId?: string
-            data?: Record<string, string>
-          }[]
-        | number,
-      options?: O,
-    ) {
-      ruleTester.run(rule.name, rule.rule, {
-        valid: [
-          {
-            code: 'const a = 1',
-            name: 'ignore',
-            options: options || [],
-          },
-        ],
-        invalid: [
-          {
-            name: 'test',
-            code,
-            options: options || [],
-            errors:
-              typeof errors === 'number'
-                ? Array.from({ length: errors }, () => ({
-                    messageId: defaultErrorId || '?',
-                  }))
-                : errors
-                ? errors.map((error) => ({
-                    messageId: error.messageId || defaultErrorId || '?',
-                    data: error.data,
-                  })) || []
-                : [{ messageId: defaultErrorId || '?' }],
-          },
-        ],
-      })
-    },
-  }
-}
-
-export function createTester<
-  T extends TSESLint.RuleModule<string, any[]>,
-  O extends any[],
->(
+export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
   rule: {
     name: string
     rule: T
@@ -99,11 +34,10 @@ export function createTester<
     defaultErrorId,
   }: {
     defaultErrorId?: string
-    optionsType?: O
   } = {},
 ) {
-  const valid: TSESLint.ValidTestCase<any[]>[] = []
-  const invalid: TSESLint.InvalidTestCase<string, any[]>[] = []
+  const valid: ValidTestCase<any[]>[] = []
+  const invalid: InvalidTestCase<string, any[]>[] = []
 
   function run() {
     ruleTester.run(rule.name, rule.rule, {
@@ -112,11 +46,14 @@ export function createTester<
     })
   }
 
-  function addValid(testName: string, code: string, options?: O) {
+  type Options = T extends TSESLint.RuleModule<string, infer O> ? O : never
+
+  function addValid(testName: string, code: string, options?: Options) {
     valid.push({
       name: testName,
       code,
       options: options || [],
+      only: testName.startsWith('only:'),
     })
   }
 
@@ -135,7 +72,7 @@ export function createTester<
       options,
     }: {
       output?: string
-      options?: O
+      options?: Options
     } = {},
   ) {
     const only = testName.startsWith('only:')
@@ -158,7 +95,7 @@ export function createTester<
               messageId: defaultErrorId || '?',
             }))
           : errors.map(
-              (error): TSESLint.TestCaseError<string> => ({
+              (error): TestCaseError<string> => ({
                 messageId: error.messageId || defaultErrorId || '?',
                 data: error.data,
               }),
