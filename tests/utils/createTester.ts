@@ -4,15 +4,16 @@ import { TSESLint } from '@typescript-eslint/utils'
 import { fileURLToPath } from 'node:url'
 
 const ruleTester = new RuleTester({
-  parser: '@typescript-eslint/parser',
-  parserOptions: {
-    tsconfigRootDir: fileURLToPath(new URL('../fixture', import.meta.url)),
-    project: './tsconfig.json',
-    ecmaFeatures: {
-      jsx: true,
+  languageOptions: {
+    parserOptions: {
+      tsconfigRootDir: fileURLToPath(new URL('../fixture', import.meta.url)),
+      project: './tsconfig.json',
+      ecmaFeatures: {
+        jsx: true,
+      },
+      ecmaVersion: 2020,
+      sourceType: 'module',
     },
-    ecmaVersion: 2020,
-    sourceType: 'module',
   },
 })
 
