@@ -66,6 +66,7 @@ const rule = createRule({
         comment.startsWith('*') ||
         commentWithTrimmedStart.startsWith('INFO:') ||
         commentWithTrimmedStart.startsWith('TODO:') ||
+        commentWithTrimmedStart.startsWith('DOCS:') ||
         commentWithTrimmedStart.startsWith('FIX:') ||
         commentWithTrimmedStart.startsWith('eslint-disable') ||
         comment.includes('@deprecated') ||
