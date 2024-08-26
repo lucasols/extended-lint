@@ -1,5 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
-import { RuleContext } from '@typescript-eslint/utils/dist/ts-eslint'
+import { ESLintUtils, TSESTree } from '@typescript-eslint/utils'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -45,11 +44,10 @@ const rule = createRule({
     type: 'problem',
     docs: {
       description: 'Disallow commented code',
-      recommended: 'recommended',
     },
     messages: {
       commentedOutCode:
-        'Commented code is not allowed. Detected pattern: `{{ wrongPattern }}` Use a block comment `\\* *\\` if you want to keep this code commented out.',
+        'Commented code is not allowed. Detected pattern: `{{ wrongPattern }}` Use a comment starting with `INFO:` if you want to keep this code commented out.',
     },
     schema: [],
   },
@@ -65,9 +63,13 @@ const rule = createRule({
       const commentWithTrimmedStart = comment.trimStart()
 
       if (
-        comment.startsWith('TODO:') ||
-        comment.startsWith('FIX:') ||
-        comment.startsWith('eslint-disable')
+        comment.startsWith('*') ||
+        commentWithTrimmedStart.startsWith('INFO:') ||
+        commentWithTrimmedStart.startsWith('TODO:') ||
+        commentWithTrimmedStart.startsWith('FIX:') ||
+        commentWithTrimmedStart.startsWith('eslint-disable') ||
+        comment.includes('@deprecated') ||
+        comment.includes('@example')
       ) {
         return false
       }
@@ -95,11 +97,14 @@ const rule = createRule({
 
     return {
       Program() {
-        const sourceCode = context.getSourceCode()
+        const sourceCode = context.sourceCode
         const comments = sourceCode.getAllComments()
 
         for (const comment of comments) {
-          if (comment.type === TSESTree.AST_TOKEN_TYPES.Line) {
+          if (
+            comment.type === TSESTree.AST_TOKEN_TYPES.Line ||
+            comment.type === TSESTree.AST_TOKEN_TYPES.Block
+          ) {
             const commentedCode = isCommentedCode(comment.value)
 
             if (commentedCode) {

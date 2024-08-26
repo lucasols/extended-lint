@@ -8,11 +8,10 @@
 'use strict'
 
 import { RuleTester } from '@typescript-eslint/rule-tester'
-import ReactHooksESLintRule from '../src/rules/exhaustive-deps'
-import { dedent } from './utils/dedent'
-import { describe } from 'vitest'
 import { fileURLToPath } from 'node:url'
 import { getCodeLine } from 'virtual:get-code-line'
+import { describe } from 'vitest'
+import { exhaustiveDepsESLintRule } from '../src/rules/exhaustive-deps'
 
 const __EXPERIMENTAL__ = false
 
@@ -800,6 +799,7 @@ const tests = {
       `,
     },
     {
+      name: `${getCodeLine()}`,
       // Valid because the ref is captured.
       code: normalizeIndent`
         function MyComponent() {
@@ -815,6 +815,7 @@ const tests = {
       `,
     },
     {
+      name: `${getCodeLine()}`,
       // Valid because the ref is captured.
       code: normalizeIndent`
         function useMyThing(myRef) {
@@ -4476,6 +4477,7 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function MyComponent() {
           const myRef = useRef();
@@ -4522,6 +4524,7 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function MyComponent() {
           const myRef = useRef();
@@ -4545,6 +4548,7 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function useMyThing(myRef) {
           useEffect(() => {
@@ -4593,6 +4597,7 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function useMyThing(myRef, active) {
           useEffect(() => {
@@ -4620,18 +4625,8 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: `
-        function MyComponent() {
-          const myRef = useRef();
-          useLayoutEffect_SAFE_FOR_SSR(() => {
-            const handleMove = () => {};
-            myRef.current.addEventListener('mousemove', handleMove);
-            return () => myRef.current.removeEventListener('mousemove', handleMove);
-          });
-          return <div ref={myRef} />;
-        }
-      `,
-      output: `
         function MyComponent() {
           const myRef = useRef();
           useLayoutEffect_SAFE_FOR_SSR(() => {
@@ -7035,6 +7030,7 @@ const tests = {
       ],
     },
     {
+      name: `${getCodeLine()}`,
       code: normalizeIndent`
         function MyComponent() {
           const local = {};
@@ -7057,6 +7053,19 @@ const tests = {
           message:
             "React Hook useEffect has a missing dependency: 'local'. " +
             'Either include it or remove the dependency array.',
+          suggestions: [
+            {
+              desc: 'Update the dependencies array to be: [local]',
+              output: normalizeIndent`
+                function MyComponent() {
+                  const local = {};
+                  useEffect(() => {
+                    console.log(local);
+                  }, [local]);
+                }
+              `,
+            },
+          ],
         },
       ],
       // Keep this until major IDEs and VS Code FB ESLint plugin support Suggestions API.
@@ -8167,25 +8176,24 @@ if (!process.env.CI) {
 }
 
 describe('react-hooks', () => {
-  const parserOptions = {
-    tsconfigRootDir: fileURLToPath(new URL('./fixture', import.meta.url)),
-    project: './tsconfig.json',
-    ecmaFeatures: {
-      jsx: true,
-    },
-    ecmaVersion: 2020,
-    sourceType: 'module',
-  }
-
   const testsTypescriptEslintParser = {
     valid: [...testsTypescript.valid, ...tests.valid],
     invalid: [...testsTypescript.invalid, ...tests.invalid],
   }
 
   new RuleTester({
-    parser: '@typescript-eslint/parser',
-    parserOptions,
-  }).run('parser: @typescript-eslint/parser@^5.0.0-0', ReactHooksESLintRule, {
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: fileURLToPath(new URL('./fixture', import.meta.url)),
+        project: './tsconfig.json',
+        ecmaFeatures: {
+          jsx: true,
+        },
+        ecmaVersion: 2020,
+        sourceType: 'module',
+      },
+    },
+  }).run('exhaustive-deps', exhaustiveDepsESLintRule, {
     valid: [
       ...testsTypescriptEslintParserV4.valid,
       ...testsTypescriptEslintParser.valid,

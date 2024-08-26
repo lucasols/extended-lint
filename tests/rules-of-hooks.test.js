@@ -5,26 +5,25 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { test } from 'vitest'
-
 const __EXPERIMENTAL__ = false
 
 // const ESLintTester = require('eslint').RuleTester
-import ReactHooksESLintRule from '../src/rules/rules-of-hooks'
-import { fileURLToPath } from 'node:url'
 import { RuleTester } from '@typescript-eslint/rule-tester'
+import { fileURLToPath } from 'node:url'
+import { rulesOfHooksESLintRule } from '../src/rules/rules-of-hooks'
 import { dedent } from './utils/dedent'
 
 const eslintTester = new RuleTester({
-  parser: '@typescript-eslint/parser',
-  parserOptions: {
-    tsconfigRootDir: fileURLToPath(new URL('./fixture', import.meta.url)),
-    project: './tsconfig.json',
-    ecmaFeatures: {
-      jsx: true,
+  languageOptions: {
+    parserOptions: {
+      tsconfigRootDir: fileURLToPath(new URL('./fixture', import.meta.url)),
+      project: './tsconfig.json',
+      ecmaFeatures: {
+        jsx: true,
+      },
+      ecmaVersion: 2020,
+      sourceType: 'module',
     },
-    ecmaVersion: 2020,
-    sourceType: 'module',
   },
 })
 
@@ -1452,4 +1451,4 @@ function asyncComponentHookError(fn) {
   }
 }
 
-eslintTester.run('react-hooks', ReactHooksESLintRule, tests)
+eslintTester.run('react-hooks', rulesOfHooksESLintRule, tests)

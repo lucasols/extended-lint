@@ -11,7 +11,7 @@
 
 const __EXPERIMENTAL__ = false
 
-/** @type {import('eslint').Rule.RuleModule} */
+/** @type {import('@typescript-eslint/utils').TSESLint.RuleModule<string, any[]>} */
 export const exhaustiveDepsESLintRule = {
   meta: {
     type: 'suggestion',
@@ -1282,7 +1282,7 @@ export const exhaustiveDepsESLintRule = {
             return // Handled
           }
           // We'll do our best effort to find it, complain otherwise.
-          const variable = getScope().set.get(callback.name)
+          const variable = getScope(node).set.get(callback.name)
           if (variable == null || variable.defs == null) {
             // If it's not in scope, we don't care.
             return // Handled

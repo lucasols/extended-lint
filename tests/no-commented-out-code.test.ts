@@ -1,4 +1,4 @@
-import { noCommentedOutCode } from '../src/rules/no-commented-code'
+import { noCommentedOutCode } from '../src/rules/no-commented-out-code'
 import { createTester } from './utils/createTester'
 
 const tests = createTester(noCommentedOutCode, {
@@ -78,6 +78,33 @@ tests.addInvalid(
       // },
   `,
   4,
+)
+
+tests.addInvalid(
+  'invalid jsx commented component',
+  `
+    /* <Component /> */
+  `,
+  1,
+)
+
+tests.addValid(
+  'valid jsx commented component',
+  `
+    /* INFO: This is a comment
+      <Component />
+    */
+  `,
+)
+
+tests.addValid(
+  'ingore jsdocs comments',
+  `
+    /**
+     * This is a comment
+     * <Component />
+     */
+  `,
 )
 
 tests.run()
