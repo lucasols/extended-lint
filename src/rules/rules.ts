@@ -7,12 +7,12 @@ import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
 import { requireDescription } from './require-description'
 import { rulesOfHooksESLintRule } from './rules-of-hooks'
 
-export const rules: Record<string, LooseRuleDefinition> | undefined = {
+export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
   [noCommentedOutCode.name]: noCommentedOutCode.rule,
   [noCallWithInferedGenerics.name]: noCallWithInferedGenerics.rule,
   ['rules-of-hooks']: rulesOfHooksESLintRule as any,
   ['exhaustive-deps']: exhaustiveDepsESLintRule as any,
   ['require-description']: requireDescription.rule,
-  [noDefaultExport.name]: noDefaultExport,
+  [noDefaultExport.name]: noDefaultExport.rule,
 }
