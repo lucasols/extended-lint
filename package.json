@@ -5,9 +5,10 @@
   "scripts": {
     "test": "vitest run",
     "test:ui": "vitest --ui",
-    "build": "vitest run && pnpm run build:no-test",
+    "build": "pnpm test && pnpm run build:no-test",
     "build:no-test": "tsup --minify --dts",
-    "npm-publish": "scripts/check-if-is-sync.sh && pnpm build && npm publish --access=public"
+    "pre-publish": "./scripts/check-if-is-sync.sh && pnpm build",
+    "npm-publish": "pnpm publish --access=public"
   },
   "files": [
     "dist"

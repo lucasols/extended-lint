@@ -8,6 +8,20 @@
       "script": "test:ui",
       "problemMatcher": [],
       "label": "Start test UI"
+    },
+    {
+      "label": "bump version and deploy",
+      "type": "shell",
+      "command": "pnpm pre-publish && pnpm version ${input:version} && pnpm npm-publish",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "version",
+      "type": "pickString",
+      "description": "Select version type",
+      "options": ["minor", "patch", "major"]
     }
   ]
 }

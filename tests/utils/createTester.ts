@@ -66,7 +66,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
           data?: Record<string, string>
         }[]
       | number
-      | 'default-error',
+      | 'default-error' = 'default-error',
     {
       output,
       options,
