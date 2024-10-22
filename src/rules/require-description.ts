@@ -21,7 +21,7 @@ const rule = createRule<Options, 'missingDescription'>({
   meta: {
     type: 'problem',
     docs: {
-      description: 'Require descriptions for exported functions',
+      description: 'Require descriptions for eslint directives.',
     },
     messages: {
       missingDescription:
