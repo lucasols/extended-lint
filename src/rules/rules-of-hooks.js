@@ -116,6 +116,9 @@ function isUseIdentifier(node) {
   return false
 }
 
+const hasEnableCompilerDirectiveRegex =
+  /eslint +react-compiler\/react-compiler: +\["error/
+
 /** @type {import('eslint').Rule.RuleModule} */
 export const rulesOfHooksESLintRule = {
   meta: {
@@ -125,8 +128,27 @@ export const rulesOfHooksESLintRule = {
       recommended: true,
       url: 'https://reactjs.org/docs/hooks-rules.html',
     },
+    schema: [
+      {
+        type: 'object',
+        ignoreIfReactCompilerIsEnabled: false,
+        properties: {
+          ignoreIfReactCompilerIsEnabled: {
+            type: 'boolean',
+          },
+        },
+      },
+    ],
   },
   create(context) {
+    if (context.options[0]?.ignoreIfReactCompilerIsEnabled) {
+      for (const comment of context.sourceCode.getAllComments()) {
+        if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
+          return {}
+        }
+      }
+    }
+
     /**
      * SourceCode#getText that also works down to ESLint 3.0.0
      */

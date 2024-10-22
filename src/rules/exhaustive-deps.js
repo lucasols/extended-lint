@@ -11,6 +11,9 @@
 
 const __EXPERIMENTAL__ = false
 
+const hasEnableCompilerDirectiveRegex =
+  /eslint +react-compiler\/react-compiler: +\["error/
+
 /** @type {import('@typescript-eslint/utils').TSESLint.RuleModule<string, any[]>} */
 export const exhaustiveDepsESLintRule = {
   meta: {
@@ -27,10 +30,14 @@ export const exhaustiveDepsESLintRule = {
       {
         type: 'object',
         additionalProperties: false,
+        ignoreIfReactCompilerIsEnabled: false,
         enableDangerousAutofixThisMayCauseInfiniteLoops: false,
         properties: {
           additionalHooks: {
             type: 'string',
+          },
+          ignoreIfReactCompilerIsEnabled: {
+            type: 'boolean',
           },
           enableDangerousAutofixThisMayCauseInfiniteLoops: {
             type: 'boolean',
@@ -40,6 +47,14 @@ export const exhaustiveDepsESLintRule = {
     ],
   },
   create(context) {
+    if (context.options[0]?.ignoreIfReactCompilerIsEnabled) {
+      for (const comment of context.sourceCode.getAllComments()) {
+        if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
+          return {}
+        }
+      }
+    }
+
     /**
      * SourceCode#getText that also works down to ESLint 3.0.0
      */

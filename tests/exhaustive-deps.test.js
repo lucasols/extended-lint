@@ -1420,6 +1420,20 @@ const tests = {
         }
       `,
     },
+
+    {
+      name: 'ignoreIfReactCompilerIsEnabled option',
+      options: [{ ignoreIfReactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        /* test-eslint react-compiler/react-compiler: ["error"] */
+
+        function MyComponent(props) {
+          useCallback(() => {
+            console.log(props.foo?.toString());
+          }, []);
+        }
+      `,
+    },
   ],
   invalid: [
     {
