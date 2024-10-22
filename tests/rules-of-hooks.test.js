@@ -1127,6 +1127,48 @@ const tests = {
       `,
       errors: [genericError('useHook'), genericError('useHook2')],
     },
+
+    {
+      name: 'ignoreIfCompilerIsEnabled option disable useMemo',
+      options: [{ ignoreIfReactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        /* test-eslint react-compiler/react-compiler: ["error"] */
+
+        // Invalid because it's dangerous and might not warn otherwise.
+        // This *must* be invalid.
+        function ComponentWithConditionalHook(props) {
+          const memoizedVar = useMemo(() => props.foo, [props.foo]);
+
+          return null;
+        }
+      `,
+      errors: [
+        {
+          message: '"useMemo" is not necessary when using React Compiler.',
+        },
+      ],
+    },
+
+    {
+      name: 'ignoreIfCompilerIsEnabled option disable useCallback',
+      options: [{ ignoreIfReactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        /* test-eslint react-compiler/react-compiler: ["error"] */
+
+        // Invalid because it's dangerous and might not warn otherwise.
+        // This *must* be invalid.
+        function ComponentWithConditionalHook(props) {
+          const cb = useCallback(() => props.foo, []);
+
+          return null;
+        }
+      `,
+      errors: [
+        {
+          message: '"useCallback" is not necessary when using React Compiler.',
+        },
+      ],
+    },
   ],
 }
 
