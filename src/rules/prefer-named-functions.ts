@@ -75,7 +75,7 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
           }
 
           context.report({
-            node,
+            node: node.id,
             messageId: ignoreRegex ? 'withIgnoreRegex' : 'default',
             data: {
               functionName,
