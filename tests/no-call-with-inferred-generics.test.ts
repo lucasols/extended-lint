@@ -1,12 +1,7 @@
-import {
-  Options,
-  noCallWithInferedGenerics,
-} from '../src/rules/no-call-with-infered-generics'
+import { noCallWithInferredGenerics } from '../src/rules/no-call-with-inferred-generics'
 import { createTester } from './utils/createTester'
 
-const tests = createTester(noCallWithInferedGenerics, {
-  optionsType: {} as Options,
-})
+const tests = createTester(noCallWithInferredGenerics)
 
 tests.addValid(
   'valid code',

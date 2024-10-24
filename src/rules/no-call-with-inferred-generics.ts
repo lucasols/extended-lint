@@ -4,7 +4,7 @@ const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
 )
 
-const name = 'no-call-with-infered-generics'
+const name = 'no-call-with-inferred-generics'
 
 export type Options = [
   {
@@ -117,7 +117,7 @@ const rule = createRule<
   },
 })
 
-export const noCallWithInferedGenerics = {
+export const noCallWithInferredGenerics = {
   name,
   rule,
 }
