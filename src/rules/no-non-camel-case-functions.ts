@@ -6,6 +6,8 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'no-non-camel-case-functions'
 
+const camelCaseRegex = /^[a-z][a-zA-Z0-9]*$/
+
 const rule = createRule({
   name,
   meta: {
@@ -22,15 +24,9 @@ const rule = createRule({
   },
   defaultOptions: [],
   create(context) {
-    function isCamelCase(name: string): boolean {
-      // Matches camelCase format: first character lowercase, followed by any characters,
-      // no special characters or underscores allowed except for numbers
-      return /^[a-z][a-zA-Z0-9]*$/.test(name)
-    }
-
     return {
       FunctionDeclaration(node) {
-        if (node.id && !isCamelCase(node.id.name)) {
+        if (node.id && !camelCaseRegex.test(node.id.name)) {
           context.report({
             node: node.id,
             messageId: 'nonCamelCaseFunction',

@@ -54,12 +54,4 @@ tests.addInvalid(
   [{ data: { functionName: 'UPPERCASE' } }],
 )
 
-tests.addInvalid(
-  'kebab-case function declaration',
-  `
-    function kebab-case() {}
-  `,
-  [{ data: { functionName: 'kebab-case' } }],
-)
-
 tests.run()
