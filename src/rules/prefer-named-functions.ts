@@ -9,7 +9,7 @@ const name = 'prefer-named-functions'
 type Options = [
   {
     ignoreRegex?: string
-    disallowOneLiners?: boolean
+    disallowArrowFnWithImplicitReturns?: boolean
   },
 ]
 
@@ -30,7 +30,7 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
           ignoreRegex: {
             type: 'string',
           },
-          disallowOneLiners: {
+          disallowArrowFnWithImplicitReturns: {
             type: 'boolean',
           },
         },
@@ -79,10 +79,9 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
             return
           }
 
-          if (!options.disallowOneLiners) {
-            // Skip one-line arrow functions
-            const functionText = sourceCode.getText(node.init)
-            if (!functionText.includes('\n')) {
+          if (!options.disallowArrowFnWithImplicitReturns) {
+            // Skip if the arrow function has an implicit return (no curly braces)
+            if (node.init.body.type !== 'BlockStatement') {
               return
             }
           }

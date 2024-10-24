@@ -58,9 +58,17 @@ tests.addValid(
 )
 
 tests.addValid(
-  'one line arrow function',
+  'one line arrow function with implicit return',
   `
-    const test = () => {}
+    const test = () => true
+  `,
+)
+
+tests.addValid(
+  'arrow function with implicit return in multiple lines',
+  `
+    const test = (a: number, b: string) =>
+      a + b;
   `,
 )
 
