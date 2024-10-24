@@ -8,16 +8,20 @@ const tests = createTester(preferNamedFunction, {
 tests.addValid(
   'named function exports',
   `
-    export function test() {}
-    export function anotherTest() {}
+    export function test() {
+    }
+    export function anotherTest() {
+    }
   `,
 )
 
 tests.addValid(
   'exported function expressions',
   `
-    export const test = function() {}
-    export const anotherTest = function namedFn() {}
+    export const test = function() {
+    }
+    export const anotherTest = function namedFn() {
+    }
   `,
 )
 
@@ -35,14 +39,16 @@ tests.addValid(
 tests.addValid(
   'allow typed arrow functions',
   `
-    export const test: VoidFunction = () => {}
+    export const test: VoidFunction = () => {
+    }
   `,
 )
 
 tests.addValid(
   'allow arrow functions matching ignoreRegex',
   `
-    export const testFn = (a: T) => {}
+    export const testFn = (a: T) => {
+    }
   `,
   [
     {
@@ -51,12 +57,20 @@ tests.addValid(
   ],
 )
 
+tests.addValid(
+  'one line arrow function',
+  `
+    const test = () => {}
+  `,
+)
+
 // invalid
 
 tests.addInvalid(
   'exported arrow function',
   `
-    export const test = () => {}
+    export const test = () => {
+    }
   `,
   [{ data: { functionName: 'test' } }],
 )
@@ -64,8 +78,10 @@ tests.addInvalid(
 tests.addInvalid(
   'multiple exported arrow functions',
   `
-    export const test = () => {}
-    export const anotherTest = () => {}
+    export const test = () => {
+    }
+    export const anotherTest = () => {
+    }
   `,
   [
     { data: { functionName: 'test' } },
@@ -76,7 +92,8 @@ tests.addInvalid(
 tests.addInvalid(
   'exported arrow function with parameters',
   `
-    export const test = (a: number, b: string) => {}
+    export const test = (a: number, b: string) => {
+    }
   `,
   [{ data: { functionName: 'test' } }],
 )
@@ -84,7 +101,8 @@ tests.addInvalid(
 tests.addInvalid(
   'exported async arrow function',
   `
-    export const test = async () => {}
+    export const test = async () => {
+    }
   `,
   [
     {
@@ -96,7 +114,8 @@ tests.addInvalid(
 tests.addInvalid(
   'allow arrow functions matching ignoreRegex',
   `
-    export const test = (a: T) => {}
+    export const test = (a: T) => {
+    }
   `,
   [
     {
@@ -119,8 +138,10 @@ tests.addInvalid(
 tests.addInvalid(
   'arrow function',
   `
-    const test = () => {}
-    const anotherTest = () => {}
+    const test = () => {
+    }
+    const anotherTest = () => {
+    }
   `,
   [
     { data: { functionName: 'test' } },
@@ -131,7 +152,8 @@ tests.addInvalid(
 tests.addInvalid(
   'async arrow function',
   `
-    const test = async () => {}
+    const test = async () => {
+    }
   `,
   [
     {

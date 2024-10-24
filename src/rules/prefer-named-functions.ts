@@ -9,6 +9,7 @@ const name = 'prefer-named-functions'
 type Options = [
   {
     ignoreRegex?: string
+    disallowOneLiners?: boolean
   },
 ]
 
@@ -29,6 +30,9 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
           ignoreRegex: {
             type: 'string',
           },
+          disallowOneLiners: {
+            type: 'boolean',
+          },
         },
       },
     ],
@@ -39,9 +43,10 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
         'Function {{functionName}} should be defined as a named function "function {{functionName}} () {}" or have a name that matches the regex "{{ignoreRegex}}"',
     },
   },
-  defaultOptions: [{ ignoreRegex: undefined }],
+  defaultOptions: [{}],
   create(context) {
     const options = context.options[0] || {}
+    const sourceCode = context.getSourceCode()
 
     let ignoreRegex: RegExp | null = null
 
@@ -72,6 +77,14 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
           // Check if the function name matches the ignore regex
           if (ignoreRegex && ignoreRegex.test(functionName)) {
             return
+          }
+
+          if (!options.disallowOneLiners) {
+            // Skip one-line arrow functions
+            const functionText = sourceCode.getText(node.init)
+            if (!functionText.includes('\n')) {
+              return
+            }
           }
 
           context.report({
