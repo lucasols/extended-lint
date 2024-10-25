@@ -29,7 +29,7 @@ const rule = createRule({
     schema: [],
     messages: {
       nonCamelCaseFunction:
-        'Function name "{{functionName}}" should be in camelCase format',
+        'Function name "{{functionName}}" should be in camelCase format. If this fn is a React component and can\'t use the `FC` type, add a explicit "JSX.Element" return type to it',
     },
   },
   defaultOptions: [],
