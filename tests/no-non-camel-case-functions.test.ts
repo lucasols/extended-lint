@@ -30,6 +30,14 @@ tests.addValid(
   `,
 )
 
+tests.addValid(
+  'function with JSX.Element return type should be ignored',
+  `
+    function PascalCase(): JSX.Element {}
+    function snake_case(): JSX.Element | null {}
+  `,
+)
+
 tests.addInvalid(
   'PascalCase function declaration',
   `
