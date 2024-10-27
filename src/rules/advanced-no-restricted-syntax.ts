@@ -7,11 +7,7 @@ const createRule = ESLintUtils.RuleCreator(
 
 export type Options = [
   {
-    disallow?: {
-      selector: string
-      message: string
-    }[]
-    mustMatch?: {
+    disallow: {
       selector: string
       message: string
     }[]
@@ -20,7 +16,7 @@ export type Options = [
 
 const name = 'advanced-no-restricted-syntax'
 
-const rule = createRule<Options, 'restrictedSyntax'>({
+const rule = createRule<Options, 'default'>({
   name,
   meta: {
     type: 'suggestion',
@@ -39,18 +35,7 @@ const rule = createRule<Options, 'restrictedSyntax'>({
                 selector: { type: 'string' },
                 message: { type: 'string' },
               },
-              required: ['selector'],
-            },
-          },
-          mustMatch: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                selector: { type: 'string' },
-                message: { type: 'string' },
-              },
-              required: ['selector'],
+              required: ['selector', 'message'],
             },
           },
         },
@@ -58,10 +43,10 @@ const rule = createRule<Options, 'restrictedSyntax'>({
       },
     ],
     messages: {
-      restrictedSyntax: '{{message}}',
+      default: '{{message}}',
     },
   },
-  defaultOptions: [{ disallow: [], mustMatch: [] }],
+  defaultOptions: [{ disallow: [] }],
   create(context) {
     const result: Record<
       string,
@@ -72,7 +57,7 @@ const rule = createRule<Options, 'restrictedSyntax'>({
       result[selector] = (node) => {
         context.report({
           node,
-          messageId: 'restrictedSyntax',
+          messageId: 'default',
           data: { message },
         })
       }

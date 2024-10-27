@@ -1,7 +1,9 @@
 import { advancedNoRestrictedSyntax } from '../src/rules/advanced-no-restricted-syntax'
 import { createTester } from './utils/createTester'
 
-const tests = createTester(advancedNoRestrictedSyntax)
+const tests = createTester(advancedNoRestrictedSyntax, {
+  defaultErrorId: 'default',
+})
 
 tests.describe('disallow', () => {
   // valid
@@ -72,7 +74,6 @@ tests.describe('disallow', () => {
     'var foo = 41;',
     [
       {
-        messageId: 'restrictedSyntax',
         data: { message: "Using 'VariableDeclaration' is not allowed." },
       },
     ],
@@ -93,7 +94,6 @@ tests.describe('disallow', () => {
     ';function lol(a) { return 42; }',
     [
       {
-        messageId: 'restrictedSyntax',
         data: { message: "Using 'EmptyStatement' is not allowed." },
       },
     ],
@@ -114,19 +114,15 @@ tests.describe('disallow', () => {
     'try { voila(); } catch (e) { oops(); }',
     [
       {
-        messageId: 'restrictedSyntax',
         data: { message: "Using 'TryStatement' is not allowed." },
       },
       {
-        messageId: 'restrictedSyntax',
         data: { message: "Using 'CallExpression' is not allowed." },
       },
       {
-        messageId: 'restrictedSyntax',
         data: { message: "Using 'CatchClause' is not allowed." },
       },
       {
-        messageId: 'restrictedSyntax',
         data: { message: "Using 'CallExpression' is not allowed." },
       },
     ],
@@ -155,7 +151,6 @@ tests.describe('disallow', () => {
     'function foo(bar, baz, qux) {}',
     [
       {
-        messageId: 'restrictedSyntax',
         data: { message: 'custom error message.' },
       },
     ],
@@ -176,7 +171,6 @@ tests.describe('disallow', () => {
     'var foo = foo?.bar?.();',
     [
       {
-        messageId: 'restrictedSyntax',
         data: { message: "Using 'ChainExpression' is not allowed." },
       },
     ],
@@ -197,11 +191,9 @@ tests.describe('disallow', () => {
     'var foo = foo?.bar?.();',
     [
       {
-        messageId: 'restrictedSyntax',
         data: { message: "Using '[optional=true]' is not allowed." },
       },
       {
-        messageId: 'restrictedSyntax',
         data: { message: "Using '[optional=true]' is not allowed." },
       },
     ],
@@ -214,22 +206,6 @@ tests.describe('disallow', () => {
           },
         ],
       },
-    },
-  )
-})
-
-tests.describe('mustMatch', () => {
-  tests.addValid(
-    'should have a if statement',
-    `
-    if (foo) {
-      bar();
-    }
-  `,
-    {
-      mustMatch: [
-        { selector: 'IfStatement', message: 'If statements should be used' },
-      ],
     },
   )
 })

@@ -51,12 +51,22 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
   function addValid(
     testName: string,
     code: string,
-    options?: Options extends [infer O] ? O | Options : Options,
+    ruleOptions?: Options extends [infer O] ? O | Options : Options,
+    {
+      fileName,
+    }: {
+      fileName?: string
+    } = {},
   ) {
     valid.push({
       name: testName,
       code,
-      options: options ? (Array.isArray(options) ? options : [options]) : [],
+      filename: fileName,
+      options: ruleOptions
+        ? Array.isArray(ruleOptions)
+          ? ruleOptions
+          : [ruleOptions]
+        : [],
       only: testName.startsWith('only:'),
     })
   }
@@ -107,6 +117,51 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
     })
   }
 
+  function addInvalidWithOptions(
+    testName: string,
+    code: string,
+    options: Options extends [infer O] ? O | Options : Options,
+    errors:
+      | {
+          messageId?: string
+          data?: Record<string, string>
+        }[]
+      | number
+      | 'default-error' = 'default-error',
+    {
+      output,
+    }: {
+      output?: string
+    } = {},
+  ) {
+    const only = testName.startsWith('only:')
+
+    if (only && process.env.VITEST_MODE !== 'WATCH') {
+      throw new Error('Only tests are not allowed in production')
+    }
+
+    invalid.push({
+      name: testName,
+      only: only,
+      code: dedent(code),
+      output: output ? dedent(output) : undefined,
+      options: options ? (Array.isArray(options) ? options : [options]) : [],
+      errors:
+        errors === 'default-error'
+          ? [{ messageId: defaultErrorId || '?' }]
+          : typeof errors === 'number'
+          ? Array.from({ length: errors }, () => ({
+              messageId: defaultErrorId || '?',
+            }))
+          : errors.map(
+              (error): TestCaseError<string> => ({
+                messageId: error.messageId || defaultErrorId || '?',
+                data: error.data,
+              }),
+            ) || [],
+    })
+  }
+
   function describe(name: string, fn: () => void) {
     fn()
   }
@@ -115,6 +170,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
     run,
     addValid,
     addInvalid,
+    addInvalidWithOptions,
     describe,
   }
 }
