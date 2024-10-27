@@ -1,4 +1,5 @@
 import { ESLintUtils } from '@typescript-eslint/utils'
+import { ReportFixFunction } from '../../node_modules/.pnpm/@typescript-eslint+utils@8.2.0_eslint@9.9.1_typescript@5.5.4/node_modules/@typescript-eslint/utils/dist/ts-eslint/Rule.d.ts'
 import { TSESTree } from '../../node_modules/.pnpm/@typescript-eslint+utils@8.2.0_eslint@9.9.1_typescript@5.5.4/node_modules/@typescript-eslint/utils/dist/ts-estree'
 
 const createRule = ESLintUtils.RuleCreator(
@@ -16,6 +17,7 @@ export type Options = [
             regex: string
             with: string
           }
+      replaceType?: 'suggestion' | 'autofix'
     }[]
   },
 ]
@@ -54,6 +56,10 @@ const rule = createRule<Options, 'default'>({
                     },
                   ],
                 },
+                replaceType: {
+                  type: 'string',
+                  enum: ['suggestion', 'autofix'],
+                },
               },
               required: ['selector', 'message'],
               additionalProperties: false,
@@ -67,6 +73,7 @@ const rule = createRule<Options, 'default'>({
       default: '{{message}}',
     },
     fixable: 'code',
+    hasSuggestions: true,
   },
   defaultOptions: [{ disallow: [] }],
   create(context) {
@@ -75,29 +82,49 @@ const rule = createRule<Options, 'default'>({
       (node: TSESTree.Node | TSESTree.Token) => void
     > = {}
 
-    for (const { selector, message, replace } of context.options[0].disallow ??
-      []) {
+    for (const {
+      selector,
+      message,
+      replace,
+      replaceType = 'suggestion',
+    } of context.options[0].disallow ?? []) {
       result[selector] = (node) => {
+        const fixFn: ReportFixFunction = (fixer) => {
+          if (!replace) return null
+
+          if (typeof replace === 'string') {
+            return fixer.replaceText(node, replace)
+          } else {
+            const replaceRegex = new RegExp(replace.regex)
+
+            const nodeText = context.sourceCode.getText(node)
+
+            return fixer.replaceText(
+              node,
+              nodeText.replace(replaceRegex, replace.with),
+            )
+          }
+        }
+
         context.report({
           node,
           messageId: 'default',
           data: { message },
-          fix: replace
-            ? (fixer) => {
-                if (typeof replace === 'string') {
-                  return fixer.replaceText(node, replace)
-                } else {
-                  const replaceRegex = new RegExp(replace.regex)
-
-                  const nodeText = context.sourceCode.getText(node)
-
-                  return fixer.replaceText(
-                    node,
-                    nodeText.replace(replaceRegex, replace.with),
-                  )
-                }
-              }
-            : undefined,
+          fix: replace && replaceType === 'autofix' ? fixFn : undefined,
+          suggest:
+            replace && replaceType === 'suggestion'
+              ? [
+                  {
+                    messageId: 'default',
+                    data: {
+                      message: `Replace with "${
+                        typeof replace === 'string' ? replace : replace.with
+                      }"`,
+                    },
+                    fix: fixFn,
+                  },
+                ]
+              : undefined,
         })
       }
     }

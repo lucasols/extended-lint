@@ -212,7 +212,7 @@ tests.describe('disallow', () => {
 
 tests.describe('replaceWith fix', () => {
   tests.addInvalidWithOptions(
-    'replace fn name',
+    'replace fn name suggestion',
     `
       invalidFnName();
     `,
@@ -225,16 +225,22 @@ tests.describe('replaceWith fix', () => {
         },
       ],
     },
-    [{ data: { message: 'invalidFnName is not allowed' } }],
-    {
-      output: `
-        validFnName();
-      `,
-    },
+    [
+      {
+        data: { message: 'invalidFnName is not allowed' },
+        suggestions: [
+          {
+            messageId: 'default',
+            data: { message: 'Replace with "validFnName()"' },
+            output: 'validFnName();',
+          },
+        ],
+      },
+    ],
   )
 
   tests.addInvalidWithOptions(
-    'replace fn name with regex',
+    'replace fn name with regex autofix',
     `
       invalidFnName(validArg);
 
@@ -249,6 +255,7 @@ tests.describe('replaceWith fix', () => {
             regex: 'invalidFnName(.+)',
             with: 'validFnName$1',
           },
+          replaceType: 'autofix',
         },
       ],
     },
