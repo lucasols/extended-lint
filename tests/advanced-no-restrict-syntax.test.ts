@@ -139,24 +139,22 @@ tests.describe('disallow', () => {
       },
     ],
     {
-      options: [
-        {
-          disallow: [
-            {
-              selector: 'TryStatement',
-              message: "Using 'TryStatement' is not allowed.",
-            },
-            {
-              selector: 'CallExpression',
-              message: "Using 'CallExpression' is not allowed.",
-            },
-            {
-              selector: 'CatchClause',
-              message: "Using 'CatchClause' is not allowed.",
-            },
-          ],
-        },
-      ],
+      options: {
+        disallow: [
+          {
+            selector: 'TryStatement',
+            message: "Using 'TryStatement' is not allowed.",
+          },
+          {
+            selector: 'CallExpression',
+            message: "Using 'CallExpression' is not allowed.",
+          },
+          {
+            selector: 'CatchClause',
+            message: "Using 'CatchClause' is not allowed.",
+          },
+        ],
+      },
     },
   )
 
