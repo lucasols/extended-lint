@@ -1,4 +1,5 @@
 import { LooseRuleDefinition } from '@typescript-eslint/utils/ts-eslint'
+import { advancedNoRestrictedSyntax } from './advanced-no-restricted-syntax'
 import { exhaustiveDepsESLintRule } from './exhaustive-deps'
 import { noCallWithInferredGenerics } from './no-call-with-inferred-generics'
 import { noCommentedOutCode } from './no-commented-out-code'
@@ -19,4 +20,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noDefaultExport.name]: noDefaultExport.rule,
   [noNonCamelCaseFunctions.name]: noNonCamelCaseFunctions.rule,
   [preferNamedFunction.name]: preferNamedFunction.rule,
+  [advancedNoRestrictedSyntax.name]: advancedNoRestrictedSyntax.rule,
 }

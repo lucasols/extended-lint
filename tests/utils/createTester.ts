@@ -48,11 +48,15 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
 
   type Options = T extends TSESLint.RuleModule<string, infer O> ? O : never
 
-  function addValid(testName: string, code: string, options?: Options) {
+  function addValid(
+    testName: string,
+    code: string,
+    options?: Options extends [infer O] ? O | Options : Options,
+  ) {
     valid.push({
       name: testName,
       code,
-      options: options || [],
+      options: options ? (Array.isArray(options) ? options : [options]) : [],
       only: testName.startsWith('only:'),
     })
   }
@@ -72,7 +76,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       options,
     }: {
       output?: string
-      options?: Options
+      options?: Options extends [infer O] ? O | Options : Options
     } = {},
   ) {
     const only = testName.startsWith('only:')
@@ -86,7 +90,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       only: only,
       code: dedent(code),
       output: output ? dedent(output) : undefined,
-      options: options || [],
+      options: options ? (Array.isArray(options) ? options : [options]) : [],
       errors:
         errors === 'default-error'
           ? [{ messageId: defaultErrorId || '?' }]
@@ -103,9 +107,14 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
     })
   }
 
+  function describe(name: string, fn: () => void) {
+    fn()
+  }
+
   return {
     run,
     addValid,
     addInvalid,
+    describe,
   }
 }
