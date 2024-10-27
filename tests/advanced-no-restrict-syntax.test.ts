@@ -210,4 +210,60 @@ tests.describe('disallow', () => {
   )
 })
 
+tests.describe('replaceWith fix', () => {
+  tests.addInvalidWithOptions(
+    'replace fn name',
+    `
+      invalidFnName();
+    `,
+    {
+      disallow: [
+        {
+          selector: 'CallExpression[callee.name="invalidFnName"]',
+          message: 'invalidFnName is not allowed',
+          replace: 'validFnName()',
+        },
+      ],
+    },
+    [{ data: { message: 'invalidFnName is not allowed' } }],
+    {
+      output: `
+        validFnName();
+      `,
+    },
+  )
+
+  tests.addInvalidWithOptions(
+    'replace fn name with regex',
+    `
+      invalidFnName(validArg);
+
+      invalidFnName(invalidArg2);
+    `,
+    {
+      disallow: [
+        {
+          selector: 'CallExpression[callee.name="invalidFnName"]',
+          message: 'invalidFnName is not allowed',
+          replace: {
+            regex: 'invalidFnName(.+)',
+            with: 'validFnName$1',
+          },
+        },
+      ],
+    },
+    [
+      { data: { message: 'invalidFnName is not allowed' } },
+      { data: { message: 'invalidFnName is not allowed' } },
+    ],
+    {
+      output: `
+        validFnName(validArg);
+
+        validFnName(invalidArg2);
+      `,
+    },
+  )
+})
+
 tests.run()

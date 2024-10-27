@@ -10,6 +10,12 @@ export type Options = [
     disallow: {
       selector: string
       message: string
+      replace?:
+        | string
+        | {
+            regex: string
+            with: string
+          }
     }[]
   },
 ]
@@ -34,8 +40,23 @@ const rule = createRule<Options, 'default'>({
               properties: {
                 selector: { type: 'string' },
                 message: { type: 'string' },
+                replace: {
+                  oneOf: [
+                    { type: 'string' },
+                    {
+                      type: 'object',
+                      properties: {
+                        regex: { type: 'string' },
+                        with: { type: 'string' },
+                      },
+                      required: ['regex', 'with'],
+                      additionalProperties: false,
+                    },
+                  ],
+                },
               },
               required: ['selector', 'message'],
+              additionalProperties: false,
             },
           },
         },
@@ -45,6 +66,7 @@ const rule = createRule<Options, 'default'>({
     messages: {
       default: '{{message}}',
     },
+    fixable: 'code',
   },
   defaultOptions: [{ disallow: [] }],
   create(context) {
@@ -53,12 +75,29 @@ const rule = createRule<Options, 'default'>({
       (node: TSESTree.Node | TSESTree.Token) => void
     > = {}
 
-    for (const { selector, message } of context.options[0].disallow ?? []) {
+    for (const { selector, message, replace } of context.options[0].disallow ??
+      []) {
       result[selector] = (node) => {
         context.report({
           node,
           messageId: 'default',
           data: { message },
+          fix: replace
+            ? (fixer) => {
+                if (typeof replace === 'string') {
+                  return fixer.replaceText(node, replace)
+                } else {
+                  const replaceRegex = new RegExp(replace.regex)
+
+                  const nodeText = context.sourceCode.getText(node)
+
+                  return fixer.replaceText(
+                    node,
+                    nodeText.replace(replaceRegex, replace.with),
+                  )
+                }
+              }
+            : undefined,
         })
       }
     }
