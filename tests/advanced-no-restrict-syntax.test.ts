@@ -5,22 +5,18 @@ const tests = createTester(advancedNoRestrictedSyntax)
 
 tests.describe('disallow', () => {
   // valid
-  tests.addValid('basic valid code', 'doSomething();', [
-    {
-      disallow: [{ selector: 'ConditionalExpression', message: 'noop' }],
-    },
-  ])
+  tests.addValid('basic valid code', 'doSomething();', {
+    disallow: [{ selector: 'ConditionalExpression', message: 'noop' }],
+  })
 
-  tests.addValid('conditional expression', 'var foo = 42;', [
-    {
-      disallow: [
-        {
-          selector: 'ConditionalExpression',
-          message: 'Conditional expressions are not allowed',
-        },
-      ],
-    },
-  ])
+  tests.addValid('conditional expression', 'var foo = 42;', {
+    disallow: [
+      {
+        selector: 'ConditionalExpression',
+        message: 'Conditional expressions are not allowed',
+      },
+    ],
+  })
 
   tests.addValid('multiple selectors', 'foo += 42;', [
     {
@@ -81,16 +77,14 @@ tests.describe('disallow', () => {
       },
     ],
     {
-      options: [
-        {
-          disallow: [
-            {
-              selector: 'VariableDeclaration',
-              message: "Using 'VariableDeclaration' is not allowed.",
-            },
-          ],
-        },
-      ],
+      options: {
+        disallow: [
+          {
+            selector: 'VariableDeclaration',
+            message: "Using 'VariableDeclaration' is not allowed.",
+          },
+        ],
+      },
     },
   )
 
@@ -104,16 +98,14 @@ tests.describe('disallow', () => {
       },
     ],
     {
-      options: [
-        {
-          disallow: [
-            {
-              selector: 'EmptyStatement',
-              message: "Using 'EmptyStatement' is not allowed.",
-            },
-          ],
-        },
-      ],
+      options: {
+        disallow: [
+          {
+            selector: 'EmptyStatement',
+            message: "Using 'EmptyStatement' is not allowed.",
+          },
+        ],
+      },
     },
   )
 
