@@ -40,7 +40,7 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
       default:
         'Function {{functionName}} should be defined as a named function "function {{functionName}} () {}" instead of an arrow function',
       withIgnoreRegex:
-        'Function {{functionName}} should be defined as a named function "function {{functionName}} () {}", if not possible to use `function` or have a name that matches the rule ignore regex',
+        'Function {{functionName}} should be defined as a named function "function {{functionName}} () {}", if not possible to use `function` you can also use a name that matches the rule ignore regex',
     },
   },
   defaultOptions: [{}],
