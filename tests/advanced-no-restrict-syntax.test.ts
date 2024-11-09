@@ -372,6 +372,25 @@ tests.describe('mustCallFn', () => {
     },
   )
 
+  tests.addValid(
+    'with fileNameVars capitalize modifier on literal',
+    `
+      function foo(bar) {
+        shouldCallFn('stringType');
+      }
+    `,
+    {
+      __dev_simulateFileName: 'StringTypeFile.ts',
+      mustCallFn: {
+        shouldCallFn: {
+          getFileNameVarsRegex: '(.+)File',
+          args: [{ pos: 0, literal: '$1_uncapitalize' }],
+          message: 'shouldCallFn should be called with "$1_uncapitalize"',
+        },
+      },
+    },
+  )
+
   tests.addInvalidWithOptions(
     'with fileNameVars',
     `

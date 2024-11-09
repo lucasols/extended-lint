@@ -219,16 +219,28 @@ function getFileNameVarsRegex(
   const [fullMatch, ...groups] = match
 
   vars.push({ name: '$0_lowercase', value: fullMatch.toLowerCase() })
+  vars.push({ name: '$0_capitalize', value: capitalize(fullMatch) })
+  vars.push({ name: '$0_uncapitalize', value: uncapitalize(fullMatch) })
   vars.push({ name: '$0', value: fullMatch })
 
   for (let i = 0; i < groups.length; i++) {
     const name = `$${i + 1}`
     const value = groups[i]!
     vars.push({ name: `${name}_lowercase`, value: value.toLowerCase() })
+    vars.push({ name: `${name}_capitalize`, value: capitalize(value) })
+    vars.push({ name: `${name}_uncapitalize`, value: uncapitalize(value) })
     vars.push({ name: name, value: value })
   }
 
   return vars
+}
+
+function capitalize(str: string) {
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+function uncapitalize(str: string) {
+  return str.charAt(0).toLowerCase() + str.slice(1)
 }
 
 export const advancedNoRestrictedSyntax = {
