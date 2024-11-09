@@ -273,4 +273,131 @@ tests.describe('replaceWith fix', () => {
   )
 })
 
+tests.describe('mustCallFn', () => {
+  tests.addValid(
+    'calling with correct argument',
+    `
+      function foo(bar) {
+        shouldCallFn('foo');
+      }
+    `,
+    {
+      mustCallFn: {
+        shouldCallFn: {
+          args: [{ pos: 0, literal: 'foo' }],
+          message: 'shouldCallFn should be called with "foo"',
+        },
+      },
+    },
+  )
+
+  tests.addInvalidWithOptions(
+    'wrong argument',
+    `
+      function foo(bar) {
+        shouldCallFn('bar');
+      }
+    `,
+    {
+      mustCallFn: {
+        shouldCallFn: {
+          args: [{ pos: 0, literal: 'foo' }],
+          message: 'shouldCallFn should be called with "foo"',
+        },
+      },
+    },
+    [
+      {
+        data: {
+          message:
+            'Invalid argument value: shouldCallFn should be called with "foo"',
+        },
+      },
+    ],
+  )
+
+  tests.addInvalidWithOptions(
+    'missing argument',
+    `
+      function foo(bar) {
+        shouldCallFn();
+      }
+    `,
+    {
+      mustCallFn: {
+        shouldCallFn: {
+          args: [{ pos: 0, literal: 'foo' }],
+          message:
+            "Missing required argument at position 0: shouldCallFn should be called with 'foo'",
+        },
+      },
+    },
+  )
+
+  tests.addValid(
+    'with fileNameVars',
+    `
+      function foo(bar) {
+        shouldCallFn('string');
+      }
+    `,
+    {
+      __dev_simulateFileName: 'stringFile.ts',
+      mustCallFn: {
+        shouldCallFn: {
+          getFileNameVarsRegex: '(.+)File',
+          args: [{ pos: 0, literal: '$1' }],
+          message: 'shouldCallFn should be called with "$1"',
+        },
+      },
+    },
+  )
+
+  tests.addValid(
+    'with fileNameVars lowercase modifier',
+    `
+      function foo(bar) {
+        shouldCallFn('string');
+      }
+    `,
+    {
+      __dev_simulateFileName: 'StringFile.ts',
+      mustCallFn: {
+        shouldCallFn: {
+          getFileNameVarsRegex: '(.+)File',
+          args: [{ pos: 0, literal: '$1_lowercase' }],
+          message: 'shouldCallFn should be called with "$1_lowercase"',
+        },
+      },
+    },
+  )
+
+  tests.addInvalidWithOptions(
+    'with fileNameVars',
+    `
+      function foo(bar) {
+        shouldCallFn('number');
+      }
+    `,
+    {
+      __dev_simulateFileName: 'stringFile.ts',
+      mustCallFn: {
+        shouldCallFn: {
+          getFileNameVarsRegex: '(.+)File.ts',
+          args: [{ pos: 0, literal: '$1' }],
+          message: 'shouldCallFn should be called with "$1"',
+        },
+      },
+    },
+    [
+      {
+        data: {
+          message:
+            'Invalid argument value: shouldCallFn should be called with "string"',
+        },
+      },
+    ],
+  )
+})
+
 tests.run()

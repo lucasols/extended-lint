@@ -34,6 +34,7 @@
     "@typescript-eslint/rule-tester": "^8.2.0",
     "@vitest/ui": "^2.0.5",
     "eslint": "^9.9.1",
+    "tschema": "^3.2.0",
     "tsm": "^2.3.0",
     "tsup": "^8.2.4",
     "typescript": "^5.5.4",
