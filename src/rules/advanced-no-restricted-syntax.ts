@@ -20,17 +20,26 @@ const optionSchema = t.object({
     ),
   ),
   __dev_simulateFileName: t.optional(t.string()),
-  mustCallFn: t.optional(
-    t.dict(
+  mustMatchSyntax: t.optional(
+    t.array(
       t.object({
-        getFileNameVarsRegex: t.optional(t.string()),
-        args: t.array(
+        includeRegex: t.string(),
+        mustCallFn: t.array(
           t.object({
-            pos: t.integer(),
-            literal: t.any(t.string(), t.number(), t.boolean()),
+            anyCall: t.array(
+              t.object({
+                fn: t.string(),
+                withArgs: t.array(
+                  t.object({
+                    pos: t.integer(),
+                    literal: t.any(t.string(), t.number(), t.boolean()),
+                  }),
+                ),
+              }),
+            ),
+            message: t.string(),
           }),
         ),
-        message: t.string(),
       }),
     ),
   ),
@@ -61,97 +70,96 @@ const rule = createRule<[Options], 'default'>({
       (node: TSESTree.Node | TSESTree.Token) => void
     > = {}
 
-    const options = context.options[0]
+    const { mustMatchSyntax, __dev_simulateFileName, disallow } =
+      context.options[0]
 
-    const mustCallFn = options.mustCallFn
+    const fileName = __dev_simulateFileName ?? context.filename
 
-    if (mustCallFn) {
-      result['CallExpression'] = (node) => {
-        if (node.type !== AST_NODE_TYPES.CallExpression) return
+    const callExpressionSelectors: ((node: TSESTree.CallExpression) => void)[] =
+      []
+    const programSelectors: ((node: TSESTree.Node | TSESTree.Token) => void)[] =
+      []
 
-        const { callee } = node
+    const mustMatchSomeCallRemaining = new Set<string>()
 
-        if (callee.type !== AST_NODE_TYPES.Identifier) return
+    for (const { includeRegex, mustCallFn } of mustMatchSyntax ?? []) {
+      const fileNameVars = getFileNameVarsRegex(
+        fileName,
+        new RegExp(includeRegex),
+      )
 
-        const calleeName = callee.name
+      if (!fileNameVars) continue
 
-        const callFn = mustCallFn[calleeName]
-
-        if (!callFn) return
-
-        const fileName = options.__dev_simulateFileName ?? context.filename
-
-        let replaceVars: { name: string; value: string }[] | null = null
-
-        if (callFn.getFileNameVarsRegex) {
-          const fileNameVars = getFileNameVarsRegex(
-            fileName,
-            new RegExp(callFn.getFileNameVarsRegex),
-          )
-
-          if (!fileNameVars) return
-
-          replaceVars = fileNameVars
+      const replaceStringWithVars = (str: string) => {
+        let newStr = str
+        for (const { name, value } of fileNameVars) {
+          newStr = newStr.replaceAll(name, value)
         }
+        return newStr
+      }
 
-        function replaceStringWithVars(str: string) {
-          if (!replaceVars) return str
+      for (const { anyCall, message } of mustCallFn) {
+        mustMatchSomeCallRemaining.add(message)
 
-          let newStr = str
-          for (const { name, value } of replaceVars) {
-            newStr = newStr.replaceAll(name, value)
+        callExpressionSelectors.push((node) => {
+          const { callee } = node
+
+          if (callee.type !== AST_NODE_TYPES.Identifier) return
+
+          for (const { fn, withArgs } of anyCall) {
+            if (callee.name !== fn) continue
+
+            mustMatchSomeCallRemaining.delete(message)
+
+            for (const arg of withArgs) {
+              const calledArg = node.arguments[arg.pos]
+
+              if (!calledArg) {
+                context.report({
+                  node,
+                  messageId: 'default',
+                  data: {
+                    message: `Missing required argument at position ${
+                      arg.pos
+                    }: ${replaceStringWithVars(message)}`,
+                  },
+                })
+                continue
+              }
+
+              if (calledArg.type !== AST_NODE_TYPES.Literal) {
+                context.report({
+                  node: calledArg,
+                  messageId: 'default',
+                  data: {
+                    message: `Argument at position ${
+                      arg.pos
+                    } should be a literal: ${replaceStringWithVars(message)}`,
+                  },
+                })
+                continue
+              }
+
+              const normalizedValue =
+                typeof arg.literal === 'string'
+                  ? replaceStringWithVars(arg.literal)
+                  : arg.literal
+
+              if (calledArg.value !== normalizedValue) {
+                context.report({
+                  node: calledArg,
+                  messageId: 'default',
+                  data: {
+                    message: `Invalid argument value: ${replaceStringWithVars(
+                      message,
+                    )}`,
+                  },
+                })
+              }
+            }
+            break
           }
-          return newStr
-        }
-
-        for (const arg of callFn.args) {
-          const calledArg = node.arguments[arg.pos]
-
-          if (!calledArg) {
-            context.report({
-              node,
-              messageId: 'default',
-              data: {
-                message: `Missing required argument at position ${
-                  arg.pos
-                }: ${replaceStringWithVars(callFn.message)}`,
-              },
-            })
-            continue
-          }
-
-          if (calledArg.type !== AST_NODE_TYPES.Literal) {
-            context.report({
-              node: calledArg,
-              messageId: 'default',
-              data: {
-                message: `Argument at position ${
-                  arg.pos
-                } should be a literal: ${replaceStringWithVars(
-                  callFn.message,
-                )}`,
-              },
-            })
-            continue
-          }
-
-          const normalizedValue =
-            typeof arg.literal === 'string'
-              ? replaceStringWithVars(arg.literal)
-              : arg.literal
-
-          if (calledArg.value !== normalizedValue) {
-            context.report({
-              node: calledArg,
-              messageId: 'default',
-              data: {
-                message: `Invalid argument value: ${replaceStringWithVars(
-                  callFn.message,
-                )}`,
-              },
-            })
-          }
-        }
+        })
       }
     }
 
@@ -160,49 +168,86 @@ const rule = createRule<[Options], 'default'>({
       message,
       replace,
       replaceType = 'suggestion',
-    } of context.options[0].disallow ?? []) {
+    } of disallow ?? []) {
+      if (selector === 'CallExpression') {
+        callExpressionSelectors.push((node) => {
+          reportInvalidNode(replace, node, message, replaceType)
+        })
+
+        continue
+      }
+
       result[selector] = (node) => {
-        const fixFn: ReportFixFunction = (fixer) => {
-          if (!replace) return null
+        reportInvalidNode(replace, node, message, replaceType)
+      }
+    }
 
-          if (typeof replace === 'string') {
-            return fixer.replaceText(node, replace)
-          } else {
-            const replaceRegex = new RegExp(replace.regex)
+    if (callExpressionSelectors.length > 0) {
+      result['CallExpression'] = (node) => {
+        if (node.type !== AST_NODE_TYPES.CallExpression) return
 
-            const nodeText = context.sourceCode.getText(node)
-
-            return fixer.replaceText(
-              node,
-              nodeText.replace(replaceRegex, replace.with),
-            )
-          }
+        for (const checkCallFn of callExpressionSelectors) {
+          checkCallFn(node)
         }
+      }
+    }
 
+    result['Program:exit'] = (node) => {
+      for (const message of mustMatchSomeCallRemaining) {
         context.report({
           node,
           messageId: 'default',
-          data: { message },
-          fix: replace && replaceType === 'autofix' ? fixFn : undefined,
-          suggest:
-            replace && replaceType === 'suggestion'
-              ? [
-                  {
-                    messageId: 'default',
-                    data: {
-                      message: `Replace with "${
-                        typeof replace === 'string' ? replace : replace.with
-                      }"`,
-                    },
-                    fix: fixFn,
-                  },
-                ]
-              : undefined,
+          data: { message: `Missing required call: ${message}` },
         })
       }
     }
 
     return result
+
+    function reportInvalidNode(
+      replace: string | { regex: string; with: string } | undefined,
+      node: TSESTree.Node | TSESTree.Token,
+      message: string,
+      replaceType: 'suggestion' | 'autofix',
+    ) {
+      const fixFn: ReportFixFunction = (fixer) => {
+        if (!replace) return null
+
+        if (typeof replace === 'string') {
+          return fixer.replaceText(node, replace)
+        } else {
+          const replaceRegex = new RegExp(replace.regex)
+
+          const nodeText = context.sourceCode.getText(node)
+
+          return fixer.replaceText(
+            node,
+            nodeText.replace(replaceRegex, replace.with),
+          )
+        }
+      }
+
+      context.report({
+        node,
+        messageId: 'default',
+        data: { message },
+        fix: replace && replaceType === 'autofix' ? fixFn : undefined,
+        suggest:
+          replace && replaceType === 'suggestion'
+            ? [
+                {
+                  messageId: 'default',
+                  data: {
+                    message: `Replace with "${
+                      typeof replace === 'string' ? replace : replace.with
+                    }"`,
+                  },
+                  fix: fixFn,
+                },
+              ]
+            : undefined,
+      })
+    }
   },
 })
 

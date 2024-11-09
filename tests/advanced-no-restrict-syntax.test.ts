@@ -282,12 +282,22 @@ tests.describe('mustCallFn', () => {
       }
     `,
     {
-      mustCallFn: {
-        shouldCallFn: {
-          args: [{ pos: 0, literal: 'foo' }],
-          message: 'shouldCallFn should be called with "foo"',
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ pos: 0, literal: 'foo' }],
+                },
+              ],
+              message: 'shouldCallFn should be called with "foo"',
+            },
+          ],
         },
-      },
+      ],
     },
   )
 
@@ -299,12 +309,22 @@ tests.describe('mustCallFn', () => {
       }
     `,
     {
-      mustCallFn: {
-        shouldCallFn: {
-          args: [{ pos: 0, literal: 'foo' }],
-          message: 'shouldCallFn should be called with "foo"',
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ pos: 0, literal: 'foo' }],
+                },
+              ],
+              message: 'shouldCallFn should be called with "foo"',
+            },
+          ],
         },
-      },
+      ],
     },
     [
       {
@@ -324,14 +344,66 @@ tests.describe('mustCallFn', () => {
       }
     `,
     {
-      mustCallFn: {
-        shouldCallFn: {
-          args: [{ pos: 0, literal: 'foo' }],
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ pos: 0, literal: 'foo' }],
+                },
+              ],
+              message: "shouldCallFn should be called with 'foo'",
+            },
+          ],
+        },
+      ],
+    },
+    [
+      {
+        data: {
           message:
             "Missing required argument at position 0: shouldCallFn should be called with 'foo'",
         },
       },
+    ],
+  )
+
+  tests.addInvalidWithOptions(
+    'missing function call',
+    `
+      function foo(bar) {
+        const test = 1;
+      }
+    `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ pos: 0, literal: 'foo' }],
+                },
+              ],
+              message: "shouldCallFn should be called with 'foo'",
+            },
+          ],
+        },
+      ],
     },
+    [
+      {
+        data: {
+          message:
+            "Missing required call: shouldCallFn should be called with 'foo'",
+        },
+      },
+    ],
   )
 
   tests.addValid(
@@ -343,13 +415,22 @@ tests.describe('mustCallFn', () => {
     `,
     {
       __dev_simulateFileName: 'stringFile.ts',
-      mustCallFn: {
-        shouldCallFn: {
-          getFileNameVarsRegex: '(.+)File',
-          args: [{ pos: 0, literal: '$1' }],
-          message: 'shouldCallFn should be called with "$1"',
+      mustMatchSyntax: [
+        {
+          includeRegex: '(.+)File',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ pos: 0, literal: '$1' }],
+                },
+              ],
+              message: 'shouldCallFn should be called with "$1"',
+            },
+          ],
         },
-      },
+      ],
     },
   )
 
@@ -362,13 +443,22 @@ tests.describe('mustCallFn', () => {
     `,
     {
       __dev_simulateFileName: 'StringFile.ts',
-      mustCallFn: {
-        shouldCallFn: {
-          getFileNameVarsRegex: '(.+)File',
-          args: [{ pos: 0, literal: '$1_lowercase' }],
-          message: 'shouldCallFn should be called with "$1_lowercase"',
+      mustMatchSyntax: [
+        {
+          includeRegex: '(.+)File',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ pos: 0, literal: '$1_lowercase' }],
+                },
+              ],
+              message: 'shouldCallFn should be called with "$1_lowercase"',
+            },
+          ],
         },
-      },
+      ],
     },
   )
 
@@ -381,13 +471,22 @@ tests.describe('mustCallFn', () => {
     `,
     {
       __dev_simulateFileName: 'StringTypeFile.ts',
-      mustCallFn: {
-        shouldCallFn: {
-          getFileNameVarsRegex: '(.+)File',
-          args: [{ pos: 0, literal: '$1_uncapitalize' }],
-          message: 'shouldCallFn should be called with "$1_uncapitalize"',
+      mustMatchSyntax: [
+        {
+          includeRegex: '(.+)File',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ pos: 0, literal: '$1_uncapitalize' }],
+                },
+              ],
+              message: 'shouldCallFn should be called with "$1_uncapitalize"',
+            },
+          ],
         },
-      },
+      ],
     },
   )
 
@@ -400,13 +499,22 @@ tests.describe('mustCallFn', () => {
     `,
     {
       __dev_simulateFileName: 'stringFile.ts',
-      mustCallFn: {
-        shouldCallFn: {
-          getFileNameVarsRegex: '(.+)File.ts',
-          args: [{ pos: 0, literal: '$1' }],
-          message: 'shouldCallFn should be called with "$1"',
+      mustMatchSyntax: [
+        {
+          includeRegex: '(.+)File.ts',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ pos: 0, literal: '$1' }],
+                },
+              ],
+              message: 'shouldCallFn should be called with "$1"',
+            },
+          ],
         },
-      },
+      ],
     },
     [
       {
@@ -416,6 +524,73 @@ tests.describe('mustCallFn', () => {
         },
       },
     ],
+  )
+
+  tests.addInvalidWithOptions(
+    'multiple calls with some invalid',
+    `
+      function foo(bar) {
+        shouldCallFn('string');
+        shouldCallFn('number');
+      }
+    `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ pos: 0, literal: 'string' }],
+                },
+              ],
+              message: 'shouldCallFn should be called with "string"',
+            },
+          ],
+        },
+      ],
+    },
+    [
+      {
+        data: {
+          message:
+            'Invalid argument value: shouldCallFn should be called with "string"',
+        },
+      },
+    ],
+  )
+
+  tests.addValid(
+    'multiple allowed calls',
+    `
+      function foo(bar) {
+        shouldCallFn2(true, 'string');
+      }
+     `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ pos: 0, literal: 'string' }],
+                },
+                {
+                  fn: 'shouldCallFn2',
+                  withArgs: [{ pos: 1, literal: 'string' }],
+                },
+              ],
+              message: 'shouldCallFn should be called with "string"',
+            },
+          ],
+        },
+      ],
+    },
   )
 })
 
