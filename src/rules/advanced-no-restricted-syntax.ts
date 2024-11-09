@@ -77,8 +77,6 @@ const rule = createRule<[Options], 'default'>({
 
     const callExpressionSelectors: ((node: TSESTree.CallExpression) => void)[] =
       []
-    const programSelectors: ((node: TSESTree.Node | TSESTree.Token) => void)[] =
-      []
 
     const mustMatchSomeCallRemaining = new Set<string>()
 
