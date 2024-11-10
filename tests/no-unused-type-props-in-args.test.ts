@@ -618,4 +618,26 @@ tests.addInvalidWithOptions(
   },
 )
 
+tests.addValid(
+  'props used in non fc functions with the matched name should not be checked even if referenced more than once',
+  `
+  type Props = {
+    title: ReactNode;
+    onClose: () => void;
+  };
+
+  export const Component = ({
+    title,
+  }: Props) => {
+    return null;
+  };
+
+  const usedProps: Props = {
+    title,
+    onClose,
+  };
+  `,
+  { forceCheckOnFCPropTypesWithName: ['Props$'] },
+)
+
 tests.run()

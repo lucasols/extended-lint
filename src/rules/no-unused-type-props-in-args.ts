@@ -76,6 +76,7 @@ const rule = createRule<
     }
 
     function extendFromTypeReference(
+      isFC: boolean,
       scope: TSESTree.Node,
       reference: TSESTree.Identifier,
       declaredProperties: Map<string, TSESTree.Node>,
@@ -89,9 +90,11 @@ const rule = createRule<
           (reference) => reference.identifier.name === typeName,
         )?.resolved
 
-      const forceCheck = forceCheckOnFCPropTypesWithNameRegexps?.some(
-        (regexp) => regexp.test(typeName),
-      )
+      const forceCheck =
+        isFC &&
+        forceCheckOnFCPropTypesWithNameRegexps?.some((regexp) =>
+          regexp.test(typeName),
+        )
 
       if (
         !resolved ||
@@ -113,6 +116,7 @@ const rule = createRule<
 
       if (type?.type === AST_NODE_TYPES.TSTypeAliasDeclaration) {
         extendDeclaredTypeParams(
+          isFC,
           scope,
           declaredProperties,
           type.typeAnnotation,
@@ -122,12 +126,19 @@ const rule = createRule<
       }
 
       if (type?.type === AST_NODE_TYPES.TSInterfaceDeclaration) {
-        extendDeclaredTypeParams(scope, declaredProperties, type.body, true)
+        extendDeclaredTypeParams(
+          isFC,
+          scope,
+          declaredProperties,
+          type.body,
+          true,
+        )
         return
       }
     }
 
     function extendDeclaredTypeParams(
+      isFC: boolean,
       scope: TSESTree.Node,
       declaredProperties: Map<string, TSESTree.Node>,
       typeNode: TSESTree.TypeNode | TSESTree.TSInterfaceBody,
@@ -153,7 +164,7 @@ const rule = createRule<
 
       if (typeNode.type === AST_NODE_TYPES.TSIntersectionType) {
         for (const type of typeNode.types) {
-          extendDeclaredTypeParams(scope, declaredProperties, type, true)
+          extendDeclaredTypeParams(isFC, scope, declaredProperties, type, true)
         }
         return
       }
@@ -163,12 +174,18 @@ const rule = createRule<
           typeNode.type === AST_NODE_TYPES.TSTypeReference &&
           typeNode.typeName.type === AST_NODE_TYPES.Identifier
         ) {
-          extendFromTypeReference(scope, typeNode.typeName, declaredProperties)
+          extendFromTypeReference(
+            isFC,
+            scope,
+            typeNode.typeName,
+            declaredProperties,
+          )
         }
       }
     }
 
     function checkParamsOfInferredDeclarations(
+      isFC: boolean,
       scope: TSESTree.Node,
       params: TSESTree.Parameter[],
     ) {
@@ -177,6 +194,7 @@ const rule = createRule<
           const declaredProperties = new Map<string, TSESTree.Node>()
 
           extendDeclaredTypeParams(
+            isFC,
             scope,
             declaredProperties,
             param.typeAnnotation.typeAnnotation,
@@ -192,7 +210,7 @@ const rule = createRule<
           param.type === AST_NODE_TYPES.AssignmentPattern &&
           param.left.type === AST_NODE_TYPES.ObjectPattern
         ) {
-          checkParamsOfInferredDeclarations(scope, [param.left])
+          checkParamsOfInferredDeclarations(isFC, scope, [param.left])
         }
       }
     }
@@ -291,6 +309,7 @@ const rule = createRule<
           fcPropsParam.typeName.type === AST_NODE_TYPES.Identifier
         ) {
           extendFromTypeReference(
+            true,
             node,
             fcPropsParam.typeName,
             declaredProperties,
@@ -305,13 +324,20 @@ const rule = createRule<
               type.typeName.type === AST_NODE_TYPES.Identifier
             ) {
               extendFromTypeReference(
+                true,
                 node,
                 type.typeName,
                 declaredProperties,
                 false,
               )
             } else {
-              extendDeclaredTypeParams(node, declaredProperties, type, true)
+              extendDeclaredTypeParams(
+                true,
+                node,
+                declaredProperties,
+                type,
+                true,
+              )
             }
           }
         }
@@ -335,10 +361,10 @@ const rule = createRule<
         }
       },
       FunctionDeclaration: function (node) {
-        checkParamsOfInferredDeclarations(node, node.params)
+        checkParamsOfInferredDeclarations(false, node, node.params)
       },
       ArrowFunctionExpression: function (node) {
-        checkParamsOfInferredDeclarations(node, node.params)
+        checkParamsOfInferredDeclarations(false, node, node.params)
       },
     }
   },
