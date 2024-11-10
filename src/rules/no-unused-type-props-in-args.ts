@@ -4,6 +4,7 @@ import {
   TSESLint,
   TSESTree,
 } from '@typescript-eslint/utils'
+import * as t from 'tschema'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -34,9 +35,20 @@ function extendMap<K, V>(map: Map<K, V>, ...entries: [K, V][]): Map<K, V> {
   return map
 }
 
+const optionsSchema = t.object({
+  forceCheckOnFCPropTypesWithName: t.optional(t.array(t.string())),
+})
+
+type Options = t.Infer<typeof optionsSchema>
+
 const name = 'no-unused-type-props-in-args'
 
-const rule = createRule({
+let forceCheckOnFCPropTypesWithNameRegexps: RegExp[] | null = null
+
+const rule = createRule<
+  [Options],
+  'unusedObjectTypeProperty' | 'missingComponentParam'
+>({
   name,
   meta: {
     type: 'problem',
@@ -48,11 +60,21 @@ const rule = createRule({
       missingComponentParam:
         'Component has declared props but no props are used',
     },
-    schema: [],
+    schema: [optionsSchema as any],
     fixable: 'code',
   },
-  defaultOptions: [],
+  defaultOptions: [{}],
   create: function (context) {
+    const { forceCheckOnFCPropTypesWithName } = context.options[0] || {}
+
+    if (
+      forceCheckOnFCPropTypesWithName &&
+      !forceCheckOnFCPropTypesWithNameRegexps
+    ) {
+      forceCheckOnFCPropTypesWithNameRegexps =
+        forceCheckOnFCPropTypesWithName.map((pattern) => new RegExp(pattern))
+    }
+
     function extendFromTypeReference(
       scope: TSESTree.Node,
       reference: TSESTree.Identifier,
@@ -67,10 +89,15 @@ const rule = createRule({
           (reference) => reference.identifier.name === typeName,
         )?.resolved
 
+      const forceCheck = forceCheckOnFCPropTypesWithNameRegexps?.some(
+        (regexp) => regexp.test(typeName),
+      )
+
       if (
         !resolved ||
-        resolved.references.filter((reference) => reference.isTypeReference)
-          .length > 1
+        (!forceCheck &&
+          resolved.references.filter((reference) => reference.isTypeReference)
+            .length > 1)
       ) {
         return
       }

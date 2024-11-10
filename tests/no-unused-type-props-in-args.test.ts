@@ -571,7 +571,7 @@ tests.addInvalid(
   [{ messageId: 'missingComponentParam' }],
 )
 
-tests.addInvalid(
+tests.addInvalidWithOptions(
   'props used in FC should still be checked even if referenced more than once',
   `
   type Props = {
@@ -590,28 +590,32 @@ tests.addInvalid(
     onClose,
   };
   `,
-)
+  { forceCheckOnFCPropTypesWithName: ['Props$'] },
+  [
+    {
+      messageId: 'unusedObjectTypeProperty',
+      data: { propertyName: 'onClose' },
+    },
+  ],
+  {
+    output: `
+      type Props = {
+        title: ReactNode;
+        onClose: () => void;
+      };
 
-tests.addValid(
-  'props used in FC should not be checked if referenced more than once and used in intersection',
-  `
-  type Props = {
-    title: ReactNode;
-    onClose: () => void;
-  };
+      export const Component: FC<Props> = ({
+        title, onClose,
+      }) => {
+        return null;
+      };
 
-  export const Component: FC<Props & { bar: string }> = ({
-    title,
-    bar,
-  }) => {
-    return null;
-  };
-
-  const usedProps: Props = {
-    title,
-    onClose,
-  };
-  `,
+      const usedProps: Props = {
+        title,
+        onClose,
+      };
+    `,
+  },
 )
 
 tests.run()
