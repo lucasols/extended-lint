@@ -97,7 +97,7 @@ const rule = createRule<[Options], 'default'>({
       }
 
       for (const { anyCall, message } of mustCallFn) {
-        mustMatchSomeCallRemaining.add(message)
+        mustMatchSomeCallRemaining.add(replaceStringWithVars(message))
 
         callExpressionSelectors.push((node) => {
           const { callee } = node
