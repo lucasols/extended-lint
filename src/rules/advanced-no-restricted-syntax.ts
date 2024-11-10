@@ -144,14 +144,6 @@ const rule = createRule<[Options], 'default'>({
                       message ? `: ${replaceStringWithVars(message)}` : ''
                     }`,
                   },
-                  fix: (fixer) => {
-                    return fixer.replaceText(
-                      calledArg,
-                      typeof normalizedValue === 'string'
-                        ? `'${normalizedValue}'`
-                        : String(normalizedValue),
-                    )
-                  },
                 })
                 continue
               }
