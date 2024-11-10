@@ -556,4 +556,62 @@ tests.addInvalid(
   },
 )
 
+tests.addInvalid(
+  'FC typed with props but not used',
+  `
+  type Props = {
+    title: ReactNode;
+    onClose: () => void;
+  };
+
+  export const Component: FC<Props> = () => {
+    return null;
+  };
+  `,
+  [{ messageId: 'missingComponentParam' }],
+)
+
+tests.addInvalid(
+  'props used in FC should still be checked even if referenced more than once',
+  `
+  type Props = {
+    title: ReactNode;
+    onClose: () => void;
+  };
+
+  export const Component: FC<Props> = ({
+    title,
+  }) => {
+    return null;
+  };
+
+  const usedProps: Props = {
+    title,
+    onClose,
+  };
+  `,
+)
+
+tests.addValid(
+  'props used in FC should not be checked if referenced more than once and used in intersection',
+  `
+  type Props = {
+    title: ReactNode;
+    onClose: () => void;
+  };
+
+  export const Component: FC<Props & { bar: string }> = ({
+    title,
+    bar,
+  }) => {
+    return null;
+  };
+
+  const usedProps: Props = {
+    title,
+    onClose,
+  };
+  `,
+)
+
 tests.run()

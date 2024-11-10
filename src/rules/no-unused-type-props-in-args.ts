@@ -45,6 +45,8 @@ const rule = createRule({
     },
     messages: {
       unusedObjectTypeProperty: `Object type property '{{ propertyName }}' is defined but never used`,
+      missingComponentParam:
+        'Component has declared props but no props are used',
     },
     schema: [],
     fixable: 'code',
@@ -292,7 +294,15 @@ const rule = createRule({
         if (declaration.init?.type === AST_NODE_TYPES.ArrowFunctionExpression) {
           const params = declaration.init.params[0]
 
-          if (params && params.type === AST_NODE_TYPES.ObjectPattern) {
+          if (!params) {
+            context.report({
+              node: declaration.init,
+              messageId: 'missingComponentParam',
+            })
+            return
+          }
+
+          if (params.type === AST_NODE_TYPES.ObjectPattern) {
             checkProperties(params, declaredProperties)
           }
         }
