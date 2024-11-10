@@ -31,13 +31,13 @@ const optionSchema = t.object({
                 fn: t.string(),
                 withArgs: t.array(
                   t.object({
-                    pos: t.integer(),
+                    atIndex: t.integer(),
                     literal: t.any(t.string(), t.number(), t.boolean()),
                   }),
                 ),
               }),
             ),
-            message: t.string(),
+            message: t.optional(t.string()),
           }),
         ),
       }),
@@ -97,7 +97,10 @@ const rule = createRule<[Options], 'default'>({
       }
 
       for (const { anyCall, message } of mustCallFn) {
-        mustMatchSomeCallRemaining.add(replaceStringWithVars(message))
+        const mustCallMessage = `Expected file to call the function: ${anyCall
+          .map(({ fn }) => fn)
+          .join(' or ')}`
+        mustMatchSomeCallRemaining.add(mustCallMessage)
 
         callExpressionSelectors.push((node) => {
           const { callee } = node
@@ -107,19 +110,24 @@ const rule = createRule<[Options], 'default'>({
           for (const { fn, withArgs } of anyCall) {
             if (callee.name !== fn) continue
 
-            mustMatchSomeCallRemaining.delete(message)
+            mustMatchSomeCallRemaining.delete(mustCallMessage)
 
             for (const arg of withArgs) {
-              const calledArg = node.arguments[arg.pos]
+              const calledArg = node.arguments[arg.atIndex]
+
+              const normalizedValue =
+                typeof arg.literal === 'string'
+                  ? replaceStringWithVars(arg.literal)
+                  : arg.literal
 
               if (!calledArg) {
                 context.report({
                   node,
                   messageId: 'default',
                   data: {
-                    message: `Missing required argument at position ${
-                      arg.pos
-                    }: ${replaceStringWithVars(message)}`,
+                    message: `Missing argument with value "${normalizedValue}" at index ${
+                      arg.atIndex
+                    }${message ? `: ${replaceStringWithVars(message)}` : ''}`,
                   },
                 })
                 continue
@@ -131,26 +139,39 @@ const rule = createRule<[Options], 'default'>({
                   messageId: 'default',
                   data: {
                     message: `Argument at position ${
-                      arg.pos
-                    } should be a literal: ${replaceStringWithVars(message)}`,
+                      arg.atIndex
+                    } should the literal "${normalizedValue}"${
+                      message ? `: ${replaceStringWithVars(message)}` : ''
+                    }`,
+                  },
+                  fix: (fixer) => {
+                    return fixer.replaceText(
+                      calledArg,
+                      typeof normalizedValue === 'string'
+                        ? `'${normalizedValue}'`
+                        : String(normalizedValue),
+                    )
                   },
                 })
                 continue
               }
-
-              const normalizedValue =
-                typeof arg.literal === 'string'
-                  ? replaceStringWithVars(arg.literal)
-                  : arg.literal
 
               if (calledArg.value !== normalizedValue) {
                 context.report({
                   node: calledArg,
                   messageId: 'default',
                   data: {
-                    message: `Invalid argument value: ${replaceStringWithVars(
-                      message,
-                    )}`,
+                    message: `Argument should have the value "${normalizedValue}"${
+                      message ? `: ${replaceStringWithVars(message)}` : ''
+                    }`,
+                  },
+                  fix: (fixer) => {
+                    return fixer.replaceText(
+                      calledArg,
+                      typeof normalizedValue === 'string'
+                        ? `'${normalizedValue}'`
+                        : String(normalizedValue),
+                    )
                   },
                 })
               }
@@ -195,7 +216,7 @@ const rule = createRule<[Options], 'default'>({
         context.report({
           node,
           messageId: 'default',
-          data: { message: `Missing required call: ${message}` },
+          data: { message: `${message}` },
         })
       }
     }

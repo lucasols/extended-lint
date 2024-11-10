@@ -290,10 +290,9 @@ tests.describe('mustCallFn', () => {
               anyCall: [
                 {
                   fn: 'shouldCallFn',
-                  withArgs: [{ pos: 0, literal: 'foo' }],
+                  withArgs: [{ atIndex: 0, literal: 'foo' }],
                 },
               ],
-              message: 'shouldCallFn should be called with "foo"',
             },
           ],
         },
@@ -317,10 +316,9 @@ tests.describe('mustCallFn', () => {
               anyCall: [
                 {
                   fn: 'shouldCallFn',
-                  withArgs: [{ pos: 0, literal: 'foo' }],
+                  withArgs: [{ atIndex: 0, literal: 'foo' }],
                 },
               ],
-              message: 'shouldCallFn should be called with "foo"',
             },
           ],
         },
@@ -329,11 +327,17 @@ tests.describe('mustCallFn', () => {
     [
       {
         data: {
-          message:
-            'Invalid argument value: shouldCallFn should be called with "foo"',
+          message: 'Argument should have the value "foo"',
         },
       },
     ],
+    {
+      output: `
+        function foo(bar) {
+          shouldCallFn('foo');
+        }
+      `,
+    },
   )
 
   tests.addInvalidWithOptions(
@@ -352,10 +356,9 @@ tests.describe('mustCallFn', () => {
               anyCall: [
                 {
                   fn: 'shouldCallFn',
-                  withArgs: [{ pos: 0, literal: 'foo' }],
+                  withArgs: [{ atIndex: 0, literal: 'foo' }],
                 },
               ],
-              message: "shouldCallFn should be called with 'foo'",
             },
           ],
         },
@@ -364,8 +367,7 @@ tests.describe('mustCallFn', () => {
     [
       {
         data: {
-          message:
-            "Missing required argument at position 0: shouldCallFn should be called with 'foo'",
+          message: 'Missing argument with value "foo" at index 0',
         },
       },
     ],
@@ -387,10 +389,9 @@ tests.describe('mustCallFn', () => {
               anyCall: [
                 {
                   fn: 'shouldCallFn',
-                  withArgs: [{ pos: 0, literal: 'foo' }],
+                  withArgs: [{ atIndex: 0, literal: 'foo' }],
                 },
               ],
-              message: "shouldCallFn should be called with 'foo'",
             },
           ],
         },
@@ -399,8 +400,7 @@ tests.describe('mustCallFn', () => {
     [
       {
         data: {
-          message:
-            "Missing required call: shouldCallFn should be called with 'foo'",
+          message: 'Expected file to call the function: shouldCallFn',
         },
       },
     ],
@@ -423,10 +423,9 @@ tests.describe('mustCallFn', () => {
               anyCall: [
                 {
                   fn: 'shouldCallFn',
-                  withArgs: [{ pos: 0, literal: '$1' }],
+                  withArgs: [{ atIndex: 0, literal: '$1' }],
                 },
               ],
-              message: 'shouldCallFn should be called with "$1"',
             },
           ],
         },
@@ -451,10 +450,9 @@ tests.describe('mustCallFn', () => {
               anyCall: [
                 {
                   fn: 'shouldCallFn',
-                  withArgs: [{ pos: 0, literal: '$1_lowercase' }],
+                  withArgs: [{ atIndex: 0, literal: '$1_lowercase' }],
                 },
               ],
-              message: 'shouldCallFn should be called with "$1_lowercase"',
             },
           ],
         },
@@ -479,10 +477,9 @@ tests.describe('mustCallFn', () => {
               anyCall: [
                 {
                   fn: 'shouldCallFn',
-                  withArgs: [{ pos: 0, literal: '$1_uncapitalize' }],
+                  withArgs: [{ atIndex: 0, literal: '$1_uncapitalize' }],
                 },
               ],
-              message: 'shouldCallFn should be called with "$1_uncapitalize"',
             },
           ],
         },
@@ -507,10 +504,9 @@ tests.describe('mustCallFn', () => {
               anyCall: [
                 {
                   fn: 'shouldCallFn',
-                  withArgs: [{ pos: 0, literal: '$1' }],
+                  withArgs: [{ atIndex: 0, literal: '$1' }],
                 },
               ],
-              message: 'shouldCallFn should be called with "$1"',
             },
           ],
         },
@@ -519,11 +515,17 @@ tests.describe('mustCallFn', () => {
     [
       {
         data: {
-          message:
-            'Invalid argument value: shouldCallFn should be called with "string"',
+          message: 'Argument should have the value "string"',
         },
       },
     ],
+    {
+      output: `
+        function foo(bar) {
+          shouldCallFn('string');
+        }
+      `,
+    },
   )
 
   tests.addInvalidWithOptions(
@@ -543,10 +545,9 @@ tests.describe('mustCallFn', () => {
               anyCall: [
                 {
                   fn: 'shouldCallFn',
-                  withArgs: [{ pos: 0, literal: 'string' }],
+                  withArgs: [{ atIndex: 0, literal: 'string' }],
                 },
               ],
-              message: 'shouldCallFn should be called with "string"',
             },
           ],
         },
@@ -555,11 +556,18 @@ tests.describe('mustCallFn', () => {
     [
       {
         data: {
-          message:
-            'Invalid argument value: shouldCallFn should be called with "string"',
+          message: 'Argument should have the value "string"',
         },
       },
     ],
+    {
+      output: `
+        function foo(bar) {
+          shouldCallFn('string');
+          shouldCallFn('string');
+        }
+      `,
+    },
   )
 
   tests.addValid(
@@ -578,14 +586,13 @@ tests.describe('mustCallFn', () => {
               anyCall: [
                 {
                   fn: 'shouldCallFn',
-                  withArgs: [{ pos: 0, literal: 'string' }],
+                  withArgs: [{ atIndex: 0, literal: 'string' }],
                 },
                 {
                   fn: 'shouldCallFn2',
-                  withArgs: [{ pos: 1, literal: 'string' }],
+                  withArgs: [{ atIndex: 1, literal: 'string' }],
                 },
               ],
-              message: 'shouldCallFn should be called with "string"',
             },
           ],
         },
