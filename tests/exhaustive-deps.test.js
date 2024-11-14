@@ -1420,20 +1420,6 @@ const tests = {
         }
       `,
     },
-
-    {
-      name: 'ignoreIfReactCompilerIsEnabled option',
-      options: [{ ignoreIfReactCompilerIsEnabled: true }],
-      code: normalizeIndent`
-        /* test-eslint react-compiler/react-compiler: ["error"] */
-
-        function MyComponent(props) {
-          useCallback(() => {
-            console.log(props.foo?.toString());
-          }, []);
-        }
-      `,
-    },
   ],
   invalid: [
     {
@@ -7664,62 +7650,6 @@ const tests = {
   ],
 }
 
-if (__EXPERIMENTAL__) {
-  tests.valid = [
-    ...tests.valid,
-    {
-      code: normalizeIndent`
-        function MyComponent({ theme }) {
-          const onStuff = useEffectEvent(() => {
-            showNotification(theme);
-          });
-          useEffect(() => {
-            onStuff();
-          }, []);
-        }
-      `,
-    },
-  ]
-
-  tests.invalid = [
-    ...tests.invalid,
-    {
-      code: normalizeIndent`
-        function MyComponent({ theme }) {
-          const onStuff = useEffectEvent(() => {
-            showNotification(theme);
-          });
-          useEffect(() => {
-            onStuff();
-          }, [onStuff]);
-        }
-      `,
-      errors: [
-        {
-          message:
-            'Functions returned from `useEffectEvent` must not be included in the dependency array. ' +
-            'Remove `onStuff` from the list.',
-          suggestions: [
-            {
-              desc: 'Remove the dependency `onStuff`',
-              output: normalizeIndent`
-                function MyComponent({ theme }) {
-                  const onStuff = useEffectEvent(() => {
-                    showNotification(theme);
-                  });
-                  useEffect(() => {
-                    onStuff();
-                  }, []);
-                }
-              `,
-            },
-          ],
-        },
-      ],
-    },
-  ]
-}
-
 // Tests that are only valid/invalid across parsers supporting TypeScript
 const testsTypescript = {
   valid: [
@@ -8116,35 +8046,129 @@ const testsTypescript = {
   ],
 }
 
-// Tests that are only valid/invalid for `@typescript-eslint/parser@4.x`
-const testsTypescriptEslintParserV4 = {
-  valid: [],
-  invalid: [
-    // TODO: Should also be invalid as part of the JS test suite i.e. be invalid with babel eslint parsers.
-    // It doesn't use any explicit types but any JS is still valid TS.
+const reactCompiler = {
+  valid: [
     {
+      name: 'ignore useCallback option',
+      options: [{ ignoreIfReactCompilerIsEnabled: true }],
       code: normalizeIndent`
-        function Foo({ Component }) {
-          React.useEffect(() => {
-            console.log(<Component />);
+        /* test-eslint react-compiler/react-compiler: ["error"] */
+
+        function MyComponent(props) {
+          useCallback(() => {
+            console.log(props.foo?.toString());
           }, []);
-        };
+        }
+      `,
+    },
+
+    {
+      name: 'ignore useMemo option',
+      options: [{ ignoreIfReactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        /* test-eslint react-compiler/react-compiler: ["error"] */
+
+        function MyComponent(props) {
+          const memoized = useMemo(() => {
+            console.log(props.foo?.toString());
+          }, []);
+        }
+      `,
+    },
+
+    {
+      name: 'missing useCallback in deps should not be reported',
+      options: [{ ignoreIfReactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        /* test-eslint react-compiler/react-compiler: ["error"] */
+
+
+        function MyComponent({ num }) {
+        const local2 = () => num;
+          const testObj = {
+            local,
+          }
+          useEffect(() => {
+            console.log(local2(), testObj);
+          }, [local2, testObj]);
+        }
+      `,
+    },
+  ],
+  invalid: [
+    {
+      name: 'useEffect deps should not be ignored',
+      options: [{ ignoreIfReactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        /* test-eslint react-compiler/react-compiler: ["error"] */
+
+        function MyComponent() {
+          const local = someFunc();
+          useEffect(() => {
+            console.log(local);
+          }, []);
+        }
       `,
       errors: [
         {
           message:
-            "React Hook React.useEffect has a missing dependency: 'Component'. " +
+            "React Hook useEffect has a missing dependency: 'local'. " +
             'Either include it or remove the dependency array.',
           suggestions: [
             {
-              desc: 'Update the dependencies array to be: [Component]',
+              desc: 'Update the dependencies array to be: [local]',
               output: normalizeIndent`
-              function Foo({ Component }) {
-                React.useEffect(() => {
-                  console.log(<Component />);
-                }, [Component]);
-              };
-            `,
+                /* test-eslint react-compiler/react-compiler: ["error"] */
+
+                function MyComponent() {
+                  const local = someFunc();
+                  useEffect(() => {
+                    console.log(local);
+                  }, [local]);
+                }
+              `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'missing array and obj in deps should be reported',
+      options: [{ ignoreIfReactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        /* test-eslint react-compiler/react-compiler: ["error"] */
+
+        function MyComponent({ num }) {
+          const local2 = () => num;
+          const testObj = {
+            someFunc,
+          }
+          useEffect(() => {
+            console.log(local2(), testObj);
+          }, []);
+        }
+      `,
+      errors: [
+        {
+          message:
+            "React Hook useEffect has missing dependencies: 'local2' and 'testObj'. " +
+            'Either include them or remove the dependency array.',
+          suggestions: [
+            {
+              desc: 'Update the dependencies array to be: [local2, testObj]',
+              output: normalizeIndent`
+                /* test-eslint react-compiler/react-compiler: ["error"] */
+
+                function MyComponent({ num }) {
+                  const local2 = () => num;
+                  const testObj = {
+                    someFunc,
+                  }
+                  useEffect(() => {
+                    console.log(local2(), testObj);
+                  }, [local2, testObj]);
+                }
+              `,
             },
           ],
         },
@@ -8162,8 +8186,8 @@ if (!process.env.CI) {
     ...tests.invalid,
     ...testsTypescript.valid,
     ...testsTypescript.invalid,
-    ...testsTypescriptEslintParserV4.valid,
-    ...testsTypescriptEslintParserV4.invalid,
+    ...reactCompiler.valid,
+    ...reactCompiler.invalid,
   ].forEach((t) => {
     if (t.skip) {
       delete t.skip
@@ -8187,12 +8211,18 @@ if (!process.env.CI) {
   tests.invalid = tests.invalid.filter(predicate)
   testsTypescript.valid = testsTypescript.valid.filter(predicate)
   testsTypescript.invalid = testsTypescript.invalid.filter(predicate)
+  reactCompiler.valid = reactCompiler.valid.filter(predicate)
+  reactCompiler.invalid = reactCompiler.invalid.filter(predicate)
 }
 
 describe('react-hooks', () => {
   const testsTypescriptEslintParser = {
-    valid: [...testsTypescript.valid, ...tests.valid],
-    invalid: [...testsTypescript.invalid, ...tests.invalid],
+    valid: [...testsTypescript.valid, ...tests.valid, ...reactCompiler.valid],
+    invalid: [
+      ...testsTypescript.invalid,
+      ...tests.invalid,
+      ...reactCompiler.invalid,
+    ],
   }
 
   new RuleTester({
@@ -8208,13 +8238,7 @@ describe('react-hooks', () => {
       },
     },
   }).run('exhaustive-deps', exhaustiveDepsESLintRule, {
-    valid: [
-      ...testsTypescriptEslintParserV4.valid,
-      ...testsTypescriptEslintParser.valid,
-    ],
-    invalid: [
-      ...testsTypescriptEslintParserV4.invalid,
-      ...testsTypescriptEslintParser.invalid,
-    ],
+    valid: [...testsTypescriptEslintParser.valid],
+    invalid: [...testsTypescriptEslintParser.invalid],
   })
 })

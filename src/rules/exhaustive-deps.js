@@ -47,14 +47,7 @@ export const exhaustiveDepsESLintRule = {
     ],
   },
   create(context) {
-    if (context.options[0]?.ignoreIfReactCompilerIsEnabled) {
-      for (const comment of context.sourceCode.getAllComments()) {
-        if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
-          return {}
-        }
-      }
-    }
-
+    let reactCompilerIsEnabled = false
     /**
      * SourceCode#getText that also works down to ESLint 3.0.0
      */
@@ -817,6 +810,10 @@ export const exhaustiveDepsESLintRule = {
         unnecessaryDependencies.size
 
       if (problemCount === 0) {
+        if (reactCompilerIsEnabled) {
+          return
+        }
+
         // If nothing else to report, check if some dependencies would
         // invalidate on every render.
         const constructions = scanForConstructions({
@@ -1246,6 +1243,10 @@ export const exhaustiveDepsESLintRule = {
         return
       }
 
+      if (reactCompilerIsEnabled && !isEffect) {
+        return
+      }
+
       // Check the declared dependencies for this reactive hook. If there is no
       // second argument then the reactive callback will re-run on every render.
       // So no need to check for dependency inclusion.
@@ -1379,8 +1380,19 @@ export const exhaustiveDepsESLintRule = {
       })
     }
 
+    if (context.options[0]?.ignoreIfReactCompilerIsEnabled) {
+      for (const comment of context.sourceCode.getAllComments()) {
+        if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
+          reactCompilerIsEnabled = true
+          return {
+            CallExpression: (node) => visitCallExpression(node, true),
+          }
+        }
+      }
+    }
+
     return {
-      CallExpression: visitCallExpression,
+      CallExpression: (node) => visitCallExpression(node),
     }
   },
 }
