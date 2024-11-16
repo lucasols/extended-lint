@@ -1148,7 +1148,12 @@ const tests = {
         },
       ],
     },
+  ],
+}
 
+const reactCompilerTests = {
+  valid: [],
+  invalid: [
     {
       name: 'ignoreIfCompilerIsEnabled option disable useCallback',
       options: [{ ignoreIfReactCompilerIsEnabled: true }],
@@ -1166,6 +1171,24 @@ const tests = {
       errors: [
         {
           message: '"useCallback" is not necessary when using React Compiler.',
+        },
+      ],
+    },
+    {
+      name: '"using" syntax should throw an error',
+      options: [{ ignoreIfReactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        /* test-eslint react-compiler/react-compiler: ["error"] */
+
+        // Invalid because it's dangerous and might not warn otherwise.
+        // This *must* be invalid.
+        function ComponentWithConditionalHook() {
+          using test = fn();
+        }
+      `,
+      errors: [
+        {
+          message: '"using" syntax is not yet supported by React Compiler.',
         },
       ],
     },
@@ -1509,4 +1532,7 @@ function asyncComponentHookError(fn) {
   }
 }
 
-eslintTester.run('react-hooks', rulesOfHooksESLintRule, tests)
+eslintTester.run('react-hooks', rulesOfHooksESLintRule, {
+  invalid: [...tests.invalid, ...reactCompilerTests.invalid],
+  valid: [...tests.valid, ...reactCompilerTests.valid],
+})
