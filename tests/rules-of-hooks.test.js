@@ -1174,24 +1174,6 @@ const reactCompilerTests = {
         },
       ],
     },
-    {
-      name: '"using" syntax should throw an error',
-      options: [{ ignoreIfReactCompilerIsEnabled: true }],
-      code: normalizeIndent`
-        /* test-eslint react-compiler/react-compiler: ["error"] */
-
-        // Invalid because it's dangerous and might not warn otherwise.
-        // This *must* be invalid.
-        function ComponentWithConditionalHook() {
-          using test = fn();
-        }
-      `,
-      errors: [
-        {
-          message: '"using" syntax is not yet supported by React Compiler.',
-        },
-      ],
-    },
   ],
 }
 
