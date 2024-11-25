@@ -162,15 +162,6 @@ export const rulesOfHooksESLintRule = {
                 })
               }
             },
-
-            VariableDeclaration(node) {
-              if (node.kind === 'using') {
-                context.report({
-                  node,
-                  message: `"using" syntax is not yet supported by React Compiler.`,
-                })
-              }
-            },
           }
         }
       }
