@@ -16,6 +16,7 @@ const aliasPatternSchema = t.object({
 const optionsSchema = t.object({
   aliases: t.array(aliasPatternSchema),
   rootDir: t.optional(t.string()),
+  allowNotFoundAliases: t.optional(t.boolean()),
   _dev_simulateFileName: t.optional(t.string()),
 })
 
@@ -90,6 +91,8 @@ const rule = createRule<[Options], 'noRelativeImports'>({
           sourceFilePath,
         )
         const aliasMatch = findMatchingAlias(absolutePath)
+
+        if (!aliasMatch && !options.allowNotFoundAliases) return
 
         context.report({
           node,
