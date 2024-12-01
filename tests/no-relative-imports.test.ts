@@ -42,7 +42,7 @@ tests.addInvalidWithOptions(
     rootDir: '/Users/username/',
     _dev_simulateFileName: '/Users/username/src/components/Component.ts',
   },
-  [{ messageId: 'noRelativeImports' }],
+  [{ messageId: 'noRelativeImportsWithAlias', data: { alias: '@src' } }],
   {
     output: `
       import { Button } from '@src/components/Button';
@@ -60,7 +60,7 @@ tests.addInvalidWithOptions(
     rootDir: '/Users/username/',
     _dev_simulateFileName: '/Users/username/src/components/Component.ts',
   },
-  [{ messageId: 'noRelativeImports' }],
+  [{ messageId: 'noRelativeImportsWithAlias', data: { alias: '@utils' } }],
   {
     output: `
     import { helper } from '@utils/helper';
@@ -81,9 +81,9 @@ tests.addInvalidWithOptions(
     _dev_simulateFileName: '/Users/username/src/components/Component.ts',
   },
   [
-    { messageId: 'noRelativeImports' },
-    { messageId: 'noRelativeImports' },
-    { messageId: 'noRelativeImports' },
+    { messageId: 'noRelativeImportsWithAlias', data: { alias: '@src' } },
+    { messageId: 'noRelativeImportsWithAlias', data: { alias: '@utils' } },
+    { messageId: 'noRelativeImportsWithAlias', data: { alias: '@src' } },
   ],
   {
     output: `
@@ -91,6 +91,19 @@ tests.addInvalidWithOptions(
     import { helper } from '@utils/helper';
     import { something } from '@src/something';
   `,
+  },
+)
+
+tests.addValid(
+  'allow not found aliases',
+  `
+    import { something } from './components/Button';
+    import { utils } from './helpers';
+  `,
+  {
+    aliases,
+    allowNotFoundAliases: true,
+    _dev_simulateFileName: '/Users/username/tests/components/Component.ts',
   },
 )
 

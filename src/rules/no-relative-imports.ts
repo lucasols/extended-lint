@@ -22,7 +22,10 @@ const optionsSchema = t.object({
 
 type Options = t.Infer<typeof optionsSchema>
 
-const rule = createRule<[Options], 'noRelativeImports'>({
+const rule = createRule<
+  [Options],
+  'noRelativeImports' | 'noRelativeImportsWithAlias'
+>({
   name,
   meta: {
     type: 'problem',
@@ -33,7 +36,9 @@ const rule = createRule<[Options], 'noRelativeImports'>({
     },
     messages: {
       noRelativeImports:
-        'Relative imports are not allowed. Use import aliases instead.',
+        'Relative imports are not allowed. Use one of the valid aliases in tsconfig.json instead.',
+      noRelativeImportsWithAlias:
+        'Relative imports are not allowed. Use the "{{ alias }}" alias instead.',
     },
     schema: [optionsSchema as any],
   },
@@ -92,11 +97,16 @@ const rule = createRule<[Options], 'noRelativeImports'>({
         )
         const aliasMatch = findMatchingAlias(absolutePath)
 
-        if (!aliasMatch && !options.allowNotFoundAliases) return
+        if (!aliasMatch && options.allowNotFoundAliases) return
 
         context.report({
           node,
-          messageId: 'noRelativeImports',
+          messageId: aliasMatch
+            ? 'noRelativeImportsWithAlias'
+            : 'noRelativeImports',
+          data: {
+            alias: aliasMatch?.alias,
+          },
           fix: aliasMatch
             ? (fixer) => {
                 return fixer.replaceText(node.source, `'${aliasMatch.newPath}'`)
