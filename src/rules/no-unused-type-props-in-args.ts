@@ -64,8 +64,8 @@ const rule = createRule<
     fixable: 'code',
   },
   defaultOptions: [{}],
-  create: function (context) {
-    const { forceCheckOnFCPropTypesWithName } = context.options[0] || {}
+  create(context) {
+    const { forceCheckOnFCPropTypesWithName } = context.options[0]
 
     if (
       forceCheckOnFCPropTypesWithName &&
@@ -286,7 +286,7 @@ const rule = createRule<
     }
 
     return {
-      VariableDeclaration: function (node) {
+      VariableDeclaration(node) {
         const declaration = node.declarations[0]
 
         if (!declaration) return
@@ -363,7 +363,7 @@ const rule = createRule<
       FunctionDeclaration: function (node) {
         checkParamsOfInferredDeclarations(false, node, node.params)
       },
-      ArrowFunctionExpression: function (node) {
+      ArrowFunctionExpression(node) {
         checkParamsOfInferredDeclarations(false, node, node.params)
       },
     }

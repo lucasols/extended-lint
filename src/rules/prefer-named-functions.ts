@@ -1,4 +1,4 @@
-import { ESLintUtils } from '@typescript-eslint/utils'
+import { AST_NODE_TYPES, ESLintUtils } from '@typescript-eslint/utils'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -45,7 +45,7 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
   },
   defaultOptions: [{}],
   create(context) {
-    const options = context.options[0] || {}
+    const options = context.options[0]
 
     let ignoreRegex: RegExp | null = null
 
@@ -63,8 +63,8 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
       VariableDeclarator(node) {
         if (
           node.init &&
-          node.init.type === 'ArrowFunctionExpression' &&
-          node.id.type === 'Identifier'
+          node.init.type === AST_NODE_TYPES.ArrowFunctionExpression &&
+          node.id.type === AST_NODE_TYPES.Identifier
         ) {
           const functionName = node.id.name
 
@@ -80,7 +80,7 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
 
           if (!options.disallowArrowFnWithImplicitReturns) {
             // Skip if the arrow function has an implicit return (no curly braces)
-            if (node.init.body.type !== 'BlockStatement') {
+            if (node.init.body.type !== AST_NODE_TYPES.BlockStatement) {
               return
             }
           }

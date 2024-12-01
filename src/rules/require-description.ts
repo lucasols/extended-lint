@@ -110,7 +110,7 @@ function parseDirectiveComment(comment: TSESTree.Comment) {
 
   const lineCommentSupported = LINE_COMMENT_PATTERN.test(directiveText)
 
-  if (comment.type === 'Line' && !lineCommentSupported) {
+  if (comment.type === TSESTree.AST_TOKEN_TYPES.Line && !lineCommentSupported) {
     return null
   }
 

@@ -1,10 +1,12 @@
 import { LooseRuleDefinition } from '@typescript-eslint/utils/ts-eslint'
 import { advancedNoRestrictedSyntax } from './advanced-no-restricted-syntax'
 import { exhaustiveDepsESLintRule } from './exhaustive-deps'
+import { noCallWithExplicitGenerics } from './no-call-with-explicit-generics'
 import { noCallWithInferredGenerics } from './no-call-with-inferred-generics'
 import { noCommentedOutCode } from './no-commented-out-code'
 import { noDefaultExport } from './no-default-export'
 import { noNonCamelCaseFunctions } from './no-non-camel-case-functions'
+import { noRelativeImports } from './no-relative-imports'
 import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
 import { preferNamedFunction } from './prefer-named-functions'
 import { requireDescription } from './require-description'
@@ -21,4 +23,6 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noNonCamelCaseFunctions.name]: noNonCamelCaseFunctions.rule,
   [preferNamedFunction.name]: preferNamedFunction.rule,
   [advancedNoRestrictedSyntax.name]: advancedNoRestrictedSyntax.rule,
+  [noCallWithExplicitGenerics.name]: noCallWithExplicitGenerics.rule,
+  [noRelativeImports.name]: noRelativeImports.rule,
 }

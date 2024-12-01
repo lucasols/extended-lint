@@ -42,8 +42,8 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
 
   function run() {
     ruleTester.run(rule.name, rule.rule, {
-      valid: valid,
-      invalid: invalid,
+      valid,
+      invalid,
     })
   }
 
@@ -55,10 +55,18 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
     ruleOptions?: Options extends [infer O] ? O | Options : Options,
     {
       fileName,
+      skip = false,
+      only = false,
     }: {
       fileName?: string
+      skip?: boolean
+      only?: boolean
     } = {},
   ) {
+    if ((only || skip) && process.env.VITEST_MODE !== 'WATCH') {
+      throw new Error('Only tests are not allowed in production')
+    }
+
     valid.push({
       name: testName,
       code,
@@ -67,8 +75,9 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
         ? Array.isArray(ruleOptions)
           ? ruleOptions
           : [ruleOptions]
-        : [],
-      only: testName.startsWith('only:'),
+        : rule.rule.defaultOptions,
+      only: only || testName.startsWith('only:'),
+      skip,
     })
   }
 
@@ -85,23 +94,30 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
     {
       output,
       options,
+      skip = false,
+      only = false,
     }: {
+      skip?: boolean
+      only?: boolean
       output?: string
       options?: Options extends [infer O] ? O | Options : Options
     } = {},
   ) {
-    const only = testName.startsWith('only:')
-
-    if (only && process.env.VITEST_MODE !== 'WATCH') {
+    if ((only || skip) && process.env.VITEST_MODE !== 'WATCH') {
       throw new Error('Only tests are not allowed in production')
     }
 
     invalid.push({
       name: testName,
-      only: only,
+      only,
+      skip,
       code: dedent(code),
       output: output ? dedent(output) : undefined,
-      options: options ? (Array.isArray(options) ? options : [options]) : [],
+      options: options
+        ? Array.isArray(options)
+          ? options
+          : [options]
+        : rule.rule.defaultOptions,
       errors:
         errors === 'default-error'
           ? [{ messageId: defaultErrorId || '?' }]
@@ -114,7 +130,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
                 messageId: error.messageId || defaultErrorId || '?',
                 data: error.data,
               }),
-            ) || [],
+            ),
     })
   }
 
@@ -132,22 +148,29 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       | 'default-error' = 'default-error',
     {
       output,
+      skip = false,
+      only = false,
     }: {
       output?: string
+      skip?: boolean
+      only?: boolean
     } = {},
   ) {
-    const only = testName.startsWith('only:')
-
-    if (only && process.env.VITEST_MODE !== 'WATCH') {
+    if ((only || skip) && process.env.VITEST_MODE !== 'WATCH') {
       throw new Error('Only tests are not allowed in production')
     }
 
     invalid.push({
       name: testName,
-      only: only,
+      only,
+      skip,
       code: dedent(code),
       output: output ? dedent(output) : undefined,
-      options: options ? (Array.isArray(options) ? options : [options]) : [],
+      options: options
+        ? Array.isArray(options)
+          ? options
+          : [options]
+        : rule.rule.defaultOptions,
       errors:
         errors === 'default-error'
           ? [{ messageId: defaultErrorId || '?' }]
@@ -161,12 +184,86 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
                 data: error.data,
                 suggestions: error.suggestions,
               }),
-            ) || [],
+            ),
     })
   }
 
   function describe(name: string, fn: () => void) {
     fn()
+  }
+
+  const skipAddInvalid: typeof addInvalid = (
+    testName,
+    code,
+    errors,
+    options,
+  ) => {
+    addInvalid(testName, code, errors, {
+      skip: true,
+      ...options,
+    })
+  }
+
+  const skipAddInvalidWithOptions: typeof addInvalidWithOptions = (
+    testName,
+    code,
+    options,
+    errors,
+    testOptions,
+  ) => {
+    addInvalidWithOptions(testName, code, options, errors, {
+      skip: true,
+      ...testOptions,
+    })
+  }
+
+  const skipAddValid: typeof addValid = (
+    testName,
+    code,
+    ruleOptions,
+    options,
+  ) => {
+    addValid(testName, code, ruleOptions, {
+      ...options,
+      skip: true,
+    })
+  }
+
+  const onlyAddValid: typeof addValid = (
+    testName,
+    code,
+    ruleOptions,
+    options,
+  ) => {
+    addValid(testName, code, ruleOptions, {
+      ...options,
+      only: true,
+    })
+  }
+
+  const onlyAddInvalid: typeof addInvalid = (
+    testName,
+    code,
+    errors,
+    options,
+  ) => {
+    addInvalid(testName, code, errors, {
+      only: true,
+      ...options,
+    })
+  }
+
+  const onlyAddInvalidWithOptions: typeof addInvalidWithOptions = (
+    testName,
+    code,
+    options,
+    errors,
+    testOptions,
+  ) => {
+    addInvalidWithOptions(testName, code, options, errors, {
+      only: true,
+      ...testOptions,
+    })
   }
 
   return {
@@ -175,5 +272,15 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
     addInvalid,
     addInvalidWithOptions,
     describe,
+    skip: {
+      addValid: skipAddValid,
+      addInvalid: skipAddInvalid,
+      addInvalidWithOptions: skipAddInvalidWithOptions,
+    },
+    only: {
+      addValid: onlyAddValid,
+      addInvalid: onlyAddInvalid,
+      addInvalidWithOptions: onlyAddInvalidWithOptions,
+    },
   }
 }
