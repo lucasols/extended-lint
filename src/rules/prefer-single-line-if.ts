@@ -1,5 +1,6 @@
 import {
   AST_NODE_TYPES,
+  AST_TOKEN_TYPES,
   ESLintUtils,
   TSESLint,
   TSESTree,
@@ -25,11 +26,11 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
     fixable: 'code',
     docs: {
       description:
-        'Enforce single-line if statements when the body contains only one statement',
+        'Enforce single-line if return statements when the body contains only one statement',
     },
     messages: {
       noSingleLineCurly:
-        'If statement with single statement body should be written in a single line',
+        'If return statement with single statement body should be written in a single line',
     },
     schema: [optionsSchema as any],
   },
@@ -47,15 +48,38 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
 
         if (comments.length > 0) return
 
+        if (node.alternate) return
+
         // Only transform if there's exactly one statement
         if (node.consequent.body.length !== 1) return
 
-        const statement = node.consequent.body[0]
+        const statement = node.consequent.body[0]!
+
+        if (statement.type !== AST_NODE_TYPES.ReturnStatement) return
+
+        const statementArgCanBeInlined =
+          !statement.argument ||
+          statement.argument.type === AST_NODE_TYPES.Literal ||
+          statement.argument.type === AST_NODE_TYPES.TemplateLiteral ||
+          statement.argument.type === AST_NODE_TYPES.TaggedTemplateExpression ||
+          statement.argument.type === AST_NODE_TYPES.Identifier
+
+        if (!statementArgCanBeInlined) return
+
         const ifCondition = sourceCode.getText(node.test)
         const statementText = sourceCode.getText(statement)
 
         if (ifCondition.includes('\n')) return
-        if (statementText.includes('\n')) return
+
+        const nextToken = sourceCode.getTokenAfter(node)
+
+        if (
+          nextToken &&
+          nextToken.type === AST_TOKEN_TYPES.Punctuator &&
+          nextToken.value === '}'
+        ) {
+          return
+        }
 
         const ifIndent = getTokenIndent(sourceCode, node)
 

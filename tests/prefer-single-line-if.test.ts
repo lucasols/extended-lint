@@ -22,8 +22,8 @@ tests.addValid(
   `
     const foo = 42
     if (foo) {
-      bar();
-      baz();
+      return null;
+      return null;
     }
   `,
 )
@@ -73,11 +73,34 @@ tests.addInvalid(
   },
 )
 
+tests.addInvalid(
+  'literal return',
+  `
+    const foo = 42
+    if (foo) {
+      return 42;
+    }
+
+    if (foo) {
+      return '42';
+    }
+  `,
+  [{ messageId: 'noSingleLineCurly' }, { messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      const foo = 42
+      if (foo) return 42;
+
+      if (foo) return '42';
+    `,
+  },
+)
+
 tests.addValid(
   'very long return',
   `
     if (foo) {
-      return veryLongFunctionCallNameShouldThatNotFitInOneLine();
+      return veryLongFunctionCallNameShouldThatNotFitInOneLine;
     }
   `,
   { maxLineLength: 50 },
@@ -107,19 +130,13 @@ tests.addValid(
   { maxLineLength: 50 },
 )
 
-tests.addInvalid(
-  'if fn call',
+tests.addValid(
+  'fn call should be ignored',
   `
     if (foo) {
       foo();
     }
   `,
-  [{ messageId: 'noSingleLineCurly' }],
-  {
-    output: `
-      if (foo) foo();
-    `,
-  },
 )
 
 tests.addValid(
@@ -150,6 +167,30 @@ tests.addValid(
 }}}}}}}}}
   `,
   { maxLineLength: 25 },
+)
+
+tests.addValid(
+  'If with code starting with { in the next line',
+  `
+    if (test) {
+      if (test) {
+        return;
+      }
+    } else {
+      console.log('test');
+    }
+  `,
+)
+
+tests.addValid(
+  'If else',
+  `
+    if (test) {
+      return;
+    } else {
+      console.log('test');
+    }
+  `,
 )
 
 tests.run()
