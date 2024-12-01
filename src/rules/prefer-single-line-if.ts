@@ -15,6 +15,7 @@ const name = 'prefer-single-line-if'
 
 const optionsSchema = t.object({
   maxLineLength: t.optional(t.number()),
+  maxNonSimpleConditionLength: t.optional(t.number()),
 })
 
 type Options = t.Infer<typeof optionsSchema>
@@ -34,7 +35,7 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
     },
     schema: [optionsSchema as any],
   },
-  defaultOptions: [{ maxLineLength: undefined }],
+  defaultOptions: [{}],
   create(context) {
     const options = context.options[0]
     const sourceCode = context.sourceCode
@@ -60,13 +61,32 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
         const statementArgCanBeInlined =
           !statement.argument ||
           statement.argument.type === AST_NODE_TYPES.Literal ||
-          statement.argument.type === AST_NODE_TYPES.TemplateLiteral ||
-          statement.argument.type === AST_NODE_TYPES.TaggedTemplateExpression ||
           statement.argument.type === AST_NODE_TYPES.Identifier
 
         if (!statementArgCanBeInlined) return
 
         const ifCondition = sourceCode.getText(node.test)
+
+        if (statement.argument) {
+          if (
+            node.test.type === AST_NODE_TYPES.LogicalExpression ||
+            node.test.type === AST_NODE_TYPES.ConditionalExpression
+          ) {
+            return
+          }
+
+          if (
+            options.maxNonSimpleConditionLength &&
+            (node.test.type === AST_NODE_TYPES.CallExpression ||
+              node.test.type === AST_NODE_TYPES.BinaryExpression ||
+              node.test.type === AST_NODE_TYPES.MemberExpression)
+          ) {
+            if (ifCondition.length > options.maxNonSimpleConditionLength) {
+              return
+            }
+          }
+        }
+
         const statementText = sourceCode.getText(statement)
 
         if (ifCondition.includes('\n')) return

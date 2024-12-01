@@ -131,10 +131,32 @@ tests.addValid(
 )
 
 tests.addValid(
-  'fn call should be ignored',
+  'ignored returns or expressions',
   `
     if (foo) {
       foo();
+    }
+
+    if (foo) {
+      return \`foo \${foo}\`;
+    }
+  `,
+)
+
+tests.addValid(
+  'ignored conditions',
+  `
+    if (foo && bar) {
+      return foo;
+    }
+
+    if (foo && bar !== 42) {
+      return foo;
+    }
+
+    // with ternary
+    if (bar ? true : false) {
+      return foo;
     }
   `,
 )
@@ -192,5 +214,49 @@ tests.addValid(
     }
   `,
 )
+
+tests.describe('maxCallConditionLength', () => {
+  tests.addInvalidWithOptions(
+    'Max call condition length',
+    `
+    if (testShortCall()) {
+      return null;
+    }
+  `,
+    { maxNonSimpleConditionLength: 100 },
+    [{ messageId: 'noSingleLineCurly' }],
+    {
+      output: `
+        if (testShortCall()) return null;
+      `,
+    },
+  )
+
+  tests.addValid(
+    'Max call condition length',
+    `
+    if (testVeryLongCall(veryLongArgument)) {
+      return null;
+    }
+  `,
+    { maxNonSimpleConditionLength: 20 },
+  )
+
+  tests.addInvalidWithOptions(
+    'Long call with void return should not be ignored',
+    `
+    if (testVeryLongCall(veryLongArgument)) {
+      return;
+    }
+  `,
+    { maxNonSimpleConditionLength: 20 },
+    [{ messageId: 'noSingleLineCurly' }],
+    {
+      output: `
+        if (testVeryLongCall(veryLongArgument)) return;
+      `,
+    },
+  )
+})
 
 tests.run()
