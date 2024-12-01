@@ -9,6 +9,7 @@ import { noNonCamelCaseFunctions } from './no-non-camel-case-functions'
 import { noRelativeImports } from './no-relative-imports'
 import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
 import { preferNamedFunction } from './prefer-named-functions'
+import { preferSingleLineIf } from './prefer-single-line-if'
 import { requireDescription } from './require-description'
 import { rulesOfHooksESLintRule } from './rules-of-hooks'
 
@@ -25,4 +26,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [advancedNoRestrictedSyntax.name]: advancedNoRestrictedSyntax.rule,
   [noCallWithExplicitGenerics.name]: noCallWithExplicitGenerics.rule,
   [noRelativeImports.name]: noRelativeImports.rule,
+  [preferSingleLineIf.name]: preferSingleLineIf.rule,
 }
