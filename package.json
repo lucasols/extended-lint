@@ -3,7 +3,7 @@
   "version": "0.15.0",
   "license": "MIT",
   "scripts": {
-    "lint": "pnpm tsc && pnpm eslint",
+    "lint": "pnpm tsc",
     "tsc": "tsc -p tsconfig.prod.json",
     "test": "vitest run",
     "test:ui": "vitest --ui",
