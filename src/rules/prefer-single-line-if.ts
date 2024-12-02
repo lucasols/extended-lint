@@ -55,8 +55,6 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
 
         const statement = node.consequent.body[0]!
 
-        let ifCondition: string | undefined
-
         if (statement.type === AST_NODE_TYPES.ReturnStatement) {
           const statementArgCanBeInlined =
             !statement.argument ||
@@ -64,33 +62,33 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
             statement.argument.type === AST_NODE_TYPES.Identifier
 
           if (!statementArgCanBeInlined) return
-
-          if (statement.argument) {
-            if (
-              node.test.type === AST_NODE_TYPES.LogicalExpression ||
-              node.test.type === AST_NODE_TYPES.ConditionalExpression
-            ) {
-              return
-            }
-
-            if (
-              options.maxNonSimpleConditionLength &&
-              (node.test.type === AST_NODE_TYPES.CallExpression ||
-                node.test.type === AST_NODE_TYPES.BinaryExpression ||
-                node.test.type === AST_NODE_TYPES.MemberExpression)
-            ) {
-              ifCondition = sourceCode.getText(node.test)
-              if (ifCondition.length > options.maxNonSimpleConditionLength) {
-                return
-              }
-            }
-          }
         } else {
           const isValidStatement =
             statement.type === AST_NODE_TYPES.ContinueStatement ||
             statement.type === AST_NODE_TYPES.BreakStatement
 
           if (!isValidStatement) return
+        }
+
+        if (
+          node.test.type === AST_NODE_TYPES.LogicalExpression ||
+          node.test.type === AST_NODE_TYPES.ConditionalExpression
+        ) {
+          return
+        }
+
+        let ifCondition: string | undefined
+
+        if (
+          options.maxNonSimpleConditionLength &&
+          (node.test.type === AST_NODE_TYPES.CallExpression ||
+            node.test.type === AST_NODE_TYPES.BinaryExpression ||
+            node.test.type === AST_NODE_TYPES.MemberExpression)
+        ) {
+          ifCondition = sourceCode.getText(node.test)
+          if (ifCondition.length > options.maxNonSimpleConditionLength) {
+            return
+          }
         }
 
         if (!ifCondition) {

@@ -242,20 +242,14 @@ tests.describe('maxCallConditionLength', () => {
     { maxNonSimpleConditionLength: 20 },
   )
 
-  tests.addInvalidWithOptions(
-    'Long call with void return should not be ignored',
+  tests.addValid(
+    'Long call with void return should be ignored',
     `
     if (testVeryLongCall(veryLongArgument)) {
       return;
     }
   `,
     { maxNonSimpleConditionLength: 20 },
-    [{ messageId: 'noSingleLineCurly' }],
-    {
-      output: `
-        if (testVeryLongCall(veryLongArgument)) return;
-      `,
-    },
   )
 })
 
