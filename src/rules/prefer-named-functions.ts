@@ -15,9 +15,10 @@ type Options = [
 
 const regexpsCache = new Map<string, RegExp>()
 
-const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
+const rule = createRule<Options, 'default' | 'withIgnoreRegex' | 'suggestion'>({
   name,
   meta: {
+    hasSuggestions: true,
     type: 'suggestion',
     docs: {
       description:
@@ -37,6 +38,7 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
       },
     ],
     messages: {
+      suggestion: 'Convert to named function',
       default:
         'Function {{functionName}} should be defined as a named function "function {{functionName}} () {}" instead of an arrow function',
       withIgnoreRegex:
@@ -85,6 +87,12 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
             }
           }
 
+          const parent = node.parent
+
+          const params = node.init.params
+          const fnBody = node.init.body
+          const arrowExpression = node.init
+
           context.report({
             node: node.id,
             messageId: ignoreRegex ? 'withIgnoreRegex' : 'default',
@@ -92,6 +100,23 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex'>({
               functionName,
               ignoreRegex: options.ignoreRegex,
             },
+            suggest: [
+              {
+                messageId: 'suggestion',
+                fix: (fixer) => {
+                  return fixer.replaceText(
+                    parent,
+                    `${
+                      arrowExpression.async ? 'async ' : ''
+                    }function ${functionName}(${
+                      params
+                        .map((param) => context.sourceCode.getText(param))
+                        .join(', ') || ''
+                    }) ${context.sourceCode.getText(fnBody)}`,
+                  )
+                },
+              },
+            ],
           })
         }
       },

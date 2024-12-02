@@ -259,4 +259,26 @@ tests.describe('maxCallConditionLength', () => {
   )
 })
 
+tests.addInvalidWithOptions(
+  'Break and continue',
+  `
+    if (test) {
+      break;
+    }
+
+    if (test2) {
+      continue;
+    }
+  `,
+  { maxLineLength: 50 },
+  [{ messageId: 'noSingleLineCurly' }, { messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      if (test) break;
+
+      if (test2) continue;
+    `,
+  },
+)
+
 tests.run()

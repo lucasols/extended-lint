@@ -88,6 +88,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       | {
           messageId?: string
           data?: Record<string, string>
+          suggestions?: SuggestionOutput<string>[]
         }[]
       | number
       | 'default-error' = 'default-error',
@@ -129,6 +130,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
               (error): TestCaseError<string> => ({
                 messageId: error.messageId || defaultErrorId || '?',
                 data: error.data,
+                suggestions: error.suggestions,
               }),
             ),
     })

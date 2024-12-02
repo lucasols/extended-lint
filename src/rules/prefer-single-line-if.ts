@@ -26,8 +26,7 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
     type: 'suggestion',
     fixable: 'code',
     docs: {
-      description:
-        'Enforce single-line if return statements when the body contains only one statement',
+      description: 'Enforce single-line if in simple if statements',
     },
     messages: {
       noSingleLineCurly:
@@ -56,35 +55,46 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
 
         const statement = node.consequent.body[0]!
 
-        if (statement.type !== AST_NODE_TYPES.ReturnStatement) return
+        let ifCondition: string | undefined
 
-        const statementArgCanBeInlined =
-          !statement.argument ||
-          statement.argument.type === AST_NODE_TYPES.Literal ||
-          statement.argument.type === AST_NODE_TYPES.Identifier
+        if (statement.type === AST_NODE_TYPES.ReturnStatement) {
+          const statementArgCanBeInlined =
+            !statement.argument ||
+            statement.argument.type === AST_NODE_TYPES.Literal ||
+            statement.argument.type === AST_NODE_TYPES.Identifier
 
-        if (!statementArgCanBeInlined) return
+          if (!statementArgCanBeInlined) return
 
-        const ifCondition = sourceCode.getText(node.test)
-
-        if (statement.argument) {
-          if (
-            node.test.type === AST_NODE_TYPES.LogicalExpression ||
-            node.test.type === AST_NODE_TYPES.ConditionalExpression
-          ) {
-            return
-          }
-
-          if (
-            options.maxNonSimpleConditionLength &&
-            (node.test.type === AST_NODE_TYPES.CallExpression ||
-              node.test.type === AST_NODE_TYPES.BinaryExpression ||
-              node.test.type === AST_NODE_TYPES.MemberExpression)
-          ) {
-            if (ifCondition.length > options.maxNonSimpleConditionLength) {
+          if (statement.argument) {
+            if (
+              node.test.type === AST_NODE_TYPES.LogicalExpression ||
+              node.test.type === AST_NODE_TYPES.ConditionalExpression
+            ) {
               return
             }
+
+            if (
+              options.maxNonSimpleConditionLength &&
+              (node.test.type === AST_NODE_TYPES.CallExpression ||
+                node.test.type === AST_NODE_TYPES.BinaryExpression ||
+                node.test.type === AST_NODE_TYPES.MemberExpression)
+            ) {
+              ifCondition = sourceCode.getText(node.test)
+              if (ifCondition.length > options.maxNonSimpleConditionLength) {
+                return
+              }
+            }
           }
+        } else {
+          const isValidStatement =
+            statement.type === AST_NODE_TYPES.ContinueStatement ||
+            statement.type === AST_NODE_TYPES.BreakStatement
+
+          if (!isValidStatement) return
+        }
+
+        if (!ifCondition) {
+          ifCondition = sourceCode.getText(node.test)
         }
 
         const statementText = sourceCode.getText(statement)

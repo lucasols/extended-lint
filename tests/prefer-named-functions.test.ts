@@ -1,3 +1,4 @@
+import { dedent } from '@ls-stack/utils/dedent'
 import { preferNamedFunction } from '../src/rules/prefer-named-functions'
 import { createTester } from './utils/createTester'
 
@@ -77,10 +78,27 @@ tests.addValid(
 tests.addInvalid(
   'exported arrow function',
   `
-    export const test = () => {
+    export const test = (arg1: string) => {
+      console.log('test');
+      return null;
     }
   `,
-  [{ data: { functionName: 'test' } }],
+  [
+    {
+      data: { functionName: 'test' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: dedent`
+            export function test(arg1: string) {
+              console.log('test');
+              return null;
+            }
+          `,
+        },
+      ],
+    },
+  ],
 )
 
 tests.addInvalid(
@@ -92,8 +110,34 @@ tests.addInvalid(
     }
   `,
   [
-    { data: { functionName: 'test' } },
-    { data: { functionName: 'anotherTest' } },
+    {
+      data: { functionName: 'test' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: dedent`
+            export function test() {
+            }
+            export const anotherTest = () => {
+            }
+          `,
+        },
+      ],
+    },
+    {
+      data: { functionName: 'anotherTest' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: dedent`
+            export const test = () => {
+            }
+            export function anotherTest() {
+            }
+          `,
+        },
+      ],
+    },
   ],
 )
 
@@ -103,7 +147,20 @@ tests.addInvalid(
     export const test = (a: number, b: string) => {
     }
   `,
-  [{ data: { functionName: 'test' } }],
+  [
+    {
+      data: { functionName: 'test' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: dedent`
+          export function test(a: number, b: string) {
+          }
+        `,
+        },
+      ],
+    },
+  ],
 )
 
 tests.addInvalid(
@@ -115,6 +172,15 @@ tests.addInvalid(
   [
     {
       data: { functionName: 'test' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: dedent`
+            export async function test() {
+            }
+          `,
+        },
+      ],
     },
   ],
 )
@@ -132,6 +198,15 @@ tests.addInvalid(
         functionName: 'test',
         ignoreRegex: 'Fn$',
       },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: dedent`
+            export function test(a: T) {
+            }
+          `,
+        },
+      ],
     },
   ],
   {
@@ -152,8 +227,34 @@ tests.addInvalid(
     }
   `,
   [
-    { data: { functionName: 'test' } },
-    { data: { functionName: 'anotherTest' } },
+    {
+      data: { functionName: 'test' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: dedent`
+            function test() {
+            }
+            const anotherTest = () => {
+            }
+          `,
+        },
+      ],
+    },
+    {
+      data: { functionName: 'anotherTest' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: dedent`
+            const test = () => {
+            }
+            function anotherTest() {
+            }
+          `,
+        },
+      ],
+    },
   ],
 )
 
@@ -166,6 +267,15 @@ tests.addInvalid(
   [
     {
       data: { functionName: 'test' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: dedent`
+            async function test() {
+            }
+          `,
+        },
+      ],
     },
   ],
 )
