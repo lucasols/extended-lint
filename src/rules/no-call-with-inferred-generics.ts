@@ -56,9 +56,7 @@ const rule = createRule<
     ],
   },
   defaultOptions: [{ functions: [] }],
-  create(context) {
-    const options = context.options[0]
-
+  create(context, [options]) {
     const functionConfigMap = new Map<string, Options[0]['functions'][0]>(
       options.functions.map((config) => [config.name, config]),
     )

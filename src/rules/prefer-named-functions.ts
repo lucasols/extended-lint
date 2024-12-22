@@ -46,9 +46,7 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex' | 'suggestion'>({
     },
   },
   defaultOptions: [{}],
-  create(context) {
-    const options = context.options[0]
-
+  create(context, [options]) {
     let ignoreRegex: RegExp | null = null
 
     if (options.ignoreRegex) {

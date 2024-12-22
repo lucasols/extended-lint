@@ -43,8 +43,7 @@ const rule = createRule<
     schema: [optionsSchema as any],
   },
   defaultOptions: [{ aliases: [], rootDir: undefined }],
-  create(context) {
-    const options = context.options[0]
+  create(context, [options]) {
     const sourceFilePath = options._dev_simulateFileName ?? context.filename
 
     function isRelativePath(importPath: string): boolean {

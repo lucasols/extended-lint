@@ -56,11 +56,9 @@ const rule = createRule<Options, 'missingDescription'>({
     ],
   },
   defaultOptions: [{ ignore: [] }],
-  create(context) {
+  create(context, [options]) {
     const sourceCode = context.sourceCode
-    const ignores = new Set(
-      (context.options[0] && context.options[0].ignore) || [],
-    )
+    const ignores = new Set(options.ignore || [])
 
     return {
       Program() {

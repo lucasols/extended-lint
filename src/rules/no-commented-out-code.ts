@@ -52,7 +52,7 @@ const rule = createRule({
     schema: [],
   },
   defaultOptions: [],
-  create: function (context) {
+  create(context) {
     function isCommentedCode(
       comment: string,
     ): false | { wrongPattern: string } {

@@ -64,14 +64,13 @@ const rule = createRule<[Options], 'default'>({
     hasSuggestions: true,
   },
   defaultOptions: [{ disallow: [] }],
-  create(context) {
+  create(context, [options]) {
     const result: Record<
       string,
       (node: TSESTree.Node | TSESTree.Token) => void
     > = {}
 
-    const { mustMatchSyntax, __dev_simulateFileName, disallow } =
-      context.options[0]
+    const { mustMatchSyntax, __dev_simulateFileName, disallow } = options
 
     const fileName = __dev_simulateFileName ?? context.filename
 

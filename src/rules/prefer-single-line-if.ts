@@ -35,8 +35,7 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
     schema: [optionsSchema as any],
   },
   defaultOptions: [{}],
-  create(context) {
-    const options = context.options[0]
+  create(context, [options]) {
     const sourceCode = context.sourceCode
 
     return {

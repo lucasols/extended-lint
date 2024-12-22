@@ -64,8 +64,8 @@ const rule = createRule<
     fixable: 'code',
   },
   defaultOptions: [{}],
-  create(context) {
-    const { forceCheckOnFCPropTypesWithName } = context.options[0]
+  create(context, [options]) {
+    const { forceCheckOnFCPropTypesWithName } = options
 
     if (
       forceCheckOnFCPropTypesWithName &&

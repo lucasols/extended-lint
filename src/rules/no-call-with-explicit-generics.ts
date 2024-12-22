@@ -27,8 +27,7 @@ const rule = createRule<[Options], 'noExplicitGenerics'>({
     schema: [optionsSchema as any],
   },
   defaultOptions: [{ functions: [] }],
-  create(context) {
-    const options = context.options[0]
+  create(context, [options]) {
     const functionNames = new Set(options.functions)
 
     return {
