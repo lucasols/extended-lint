@@ -1,5 +1,5 @@
-import { noNonCamelCaseFunctions } from '../src/rules/no-non-camel-case-functions'
-import { createTester } from './utils/createTester'
+import { createTester } from '../../tests/utils/createTester'
+import { noNonCamelCaseFunctions } from './no-non-camel-case-functions'
 
 const tests = createTester(noNonCamelCaseFunctions, {
   defaultErrorId: 'nonCamelCaseFunction',

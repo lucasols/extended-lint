@@ -20,6 +20,12 @@
       "type": "npm",
       "script": "build:no-test",
       "problemMatcher": []
+    },
+    {
+      "label": "Run in test project",
+      "type": "npm",
+      "script": "run-in-test-project",
+      "problemMatcher": []
     }
   ],
   "inputs": [

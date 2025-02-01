@@ -6,6 +6,7 @@ import { noCallWithInferredGenerics } from './no-call-with-inferred-generics'
 import { noCommentedOutCode } from './no-commented-out-code'
 import { noDefaultExport } from './no-default-export'
 import { noNonCamelCaseFunctions } from './no-non-camel-case-functions'
+import { noOptionalRootProps } from './no-optional-root-props'
 import { noRelativeImports } from './no-relative-imports'
 import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
 import { preferNamedFunction } from './prefer-named-functions'
@@ -27,4 +28,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noCallWithExplicitGenerics.name]: noCallWithExplicitGenerics.rule,
   [noRelativeImports.name]: noRelativeImports.rule,
   [preferSingleLineIf.name]: preferSingleLineIf.rule,
+  [noOptionalRootProps.name]: noOptionalRootProps.rule,
 }

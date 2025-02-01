@@ -1,5 +1,5 @@
-import { noDefaultExport } from '../src/rules/no-default-export'
-import { createTester } from './utils/createTester'
+import { createTester } from '../../tests/utils/createTester'
+import { noDefaultExport } from './no-default-export'
 
 const tests = createTester(noDefaultExport, {
   defaultErrorId: 'noDefaultExport',

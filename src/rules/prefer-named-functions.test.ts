@@ -1,6 +1,6 @@
 import { dedent } from '@ls-stack/utils/dedent'
-import { preferNamedFunction } from '../src/rules/prefer-named-functions'
-import { createTester } from './utils/createTester'
+import { createTester } from '../../tests/utils/createTester'
+import { preferNamedFunction } from './prefer-named-functions'
 
 const tests = createTester(preferNamedFunction, {
   defaultErrorId: 'default',

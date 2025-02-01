@@ -7,7 +7,7 @@ const isDev =
 export default defineConfig({
   plugins: [ViteGetCodeLinePlugin()],
   test: {
-    include: ['tests/*.test.{ts,tsx,js}'],
+    include: ['tests/*.test.{ts,tsx,js}', 'src/**/*.test.{ts,tsx,js}'],
     testTimeout: 2_000,
     allowOnly: isDev,
     setupFiles: 'tests/fixture/setup.ts',

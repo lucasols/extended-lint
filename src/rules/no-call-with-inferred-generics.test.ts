@@ -1,5 +1,5 @@
-import { noCallWithInferredGenerics } from '../src/rules/no-call-with-inferred-generics'
-import { createTester } from './utils/createTester'
+import { createTester } from '../../tests/utils/createTester'
+import { noCallWithInferredGenerics } from './no-call-with-inferred-generics'
 
 const tests = createTester(noCallWithInferredGenerics)
 

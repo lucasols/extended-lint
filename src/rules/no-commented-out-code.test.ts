@@ -1,5 +1,5 @@
-import { noCommentedOutCode } from '../src/rules/no-commented-out-code'
-import { createTester } from './utils/createTester'
+import { createTester } from '../../tests/utils/createTester'
+import { noCommentedOutCode } from './no-commented-out-code'
 
 const tests = createTester(noCommentedOutCode, {
   defaultErrorId: 'commentedOutCode',

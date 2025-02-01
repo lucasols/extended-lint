@@ -1,5 +1,5 @@
-import { noCallWithExplicitGenerics } from '../src/rules/no-call-with-explicit-generics'
-import { createTester } from './utils/createTester'
+import { createTester } from '../../tests/utils/createTester'
+import { noCallWithExplicitGenerics } from './no-call-with-explicit-generics'
 
 const tests = createTester(noCallWithExplicitGenerics)
 

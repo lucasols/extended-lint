@@ -1,5 +1,5 @@
-import { noRelativeImports } from '../src/rules/no-relative-imports'
-import { createTester } from './utils/createTester'
+import { createTester } from '../../tests/utils/createTester'
+import { noRelativeImports } from './no-relative-imports'
 
 const tests = createTester(noRelativeImports)
 

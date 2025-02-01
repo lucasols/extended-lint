@@ -1,5 +1,5 @@
-import { preferSingleLineIf } from '../src/rules/prefer-single-line-if'
-import { createTester } from './utils/createTester'
+import { createTester } from '../../tests/utils/createTester'
+import { preferSingleLineIf } from './prefer-single-line-if'
 
 const tests = createTester(preferSingleLineIf)
 

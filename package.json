@@ -9,6 +9,7 @@
     "test:ui": "vitest --ui",
     "build": "pnpm test && pnpm lint && pnpm run build:no-test",
     "build:no-test": "tsup --minify --dts",
+    "run-in-test-project": "pnpm build && node --experimental-strip-types ./debug/runInTestProject.ts",
     "pre-publish": "./scripts/check-if-is-sync.sh && pnpm build",
     "npm-publish": "pnpm publish --access=public"
   },
@@ -30,24 +31,24 @@
   },
   "devDependencies": {
     "@ls-stack/eslint-cfg": "^0.1.3",
-    "@ls-stack/utils": "^1.8.0",
+    "@ls-stack/utils": "^2.4.0",
     "@types/eslint": "^9.6.1",
-    "@types/node": "^22.5.0",
-    "@typescript-eslint/parser": "^8.2.0",
-    "@typescript-eslint/rule-tester": "^8.2.0",
-    "@vitest/ui": "^2.0.5",
-    "eslint": "^9.16.0",
+    "@types/node": "^22.13.0",
+    "@typescript-eslint/parser": "^8.22.0",
+    "@typescript-eslint/rule-tester": "^8.22.0",
+    "@vitest/ui": "^3.0.4",
+    "eslint": "^9.19.0",
     "tschema": "^3.2.0",
     "tsm": "^2.3.0",
-    "tsup": "^8.2.4",
-    "typescript": "^5.5.4",
-    "vite": "^5.4.2",
-    "vitest": "^2.0.5"
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11",
+    "vitest": "^3.0.4"
   },
   "dependencies": {
-    "@typescript-eslint/utils": "^8.2.0",
+    "@typescript-eslint/utils": "^8.22.0",
     "escape-string-regexp": "^5.0.0",
-    "espree": "^10.1.0",
+    "espree": "^10.3.0",
     "esutils": "^2.0.3"
   },
   "peerDependencies": {

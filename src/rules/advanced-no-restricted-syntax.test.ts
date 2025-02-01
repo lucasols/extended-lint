@@ -1,5 +1,5 @@
-import { advancedNoRestrictedSyntax } from '../src/rules/advanced-no-restricted-syntax'
-import { createTester } from './utils/createTester'
+import { createTester } from '../../tests/utils/createTester'
+import { advancedNoRestrictedSyntax } from './advanced-no-restricted-syntax'
 
 const tests = createTester(advancedNoRestrictedSyntax, {
   defaultErrorId: 'default',

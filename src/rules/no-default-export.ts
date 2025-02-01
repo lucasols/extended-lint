@@ -1,4 +1,4 @@
-import { ESLintUtils } from '@typescript-eslint/utils'
+import { ESLintUtils, TSESTree } from '@typescript-eslint/utils'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -27,7 +27,10 @@ const rule = createRule({
       },
       ExportNamedDeclaration(node) {
         for (const specifier of node.specifiers) {
-          if (specifier.exported.name === 'default') {
+          if (
+            specifier.exported.type === TSESTree.AST_NODE_TYPES.Identifier &&
+            specifier.exported.name === 'default'
+          ) {
             context.report({ node, messageId: 'noDefaultExport' })
           }
         }

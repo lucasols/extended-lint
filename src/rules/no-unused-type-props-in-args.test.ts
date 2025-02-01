@@ -1,5 +1,5 @@
-import { noUnusedObjectTypeProperties } from '../src/rules/no-unused-type-props-in-args'
-import { createTester } from './utils/createTester'
+import { createTester } from '../../tests/utils/createTester'
+import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
 
 const tests = createTester(noUnusedObjectTypeProperties, {
   defaultErrorId: 'unusedObjectTypeProperty',
