@@ -5,6 +5,7 @@ import { noCallWithExplicitGenerics } from './no-call-with-explicit-generics'
 import { noCallWithInferredGenerics } from './no-call-with-inferred-generics'
 import { noCommentedOutCode } from './no-commented-out-code'
 import { noDefaultExport } from './no-default-export'
+import { noLeakedTextInJSX } from './no-leaked-text-in-jsx'
 import { noNonCamelCaseFunctions } from './no-non-camel-case-functions'
 import { noOptionalRootProps } from './no-optional-root-props'
 import { noRelativeImports } from './no-relative-imports'
@@ -29,4 +30,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noRelativeImports.name]: noRelativeImports.rule,
   [preferSingleLineIf.name]: preferSingleLineIf.rule,
   [noOptionalRootProps.name]: noOptionalRootProps.rule,
+  [noLeakedTextInJSX.name]: noLeakedTextInJSX.rule,
 }

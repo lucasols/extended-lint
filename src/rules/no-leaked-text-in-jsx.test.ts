@@ -1,7 +1,7 @@
 import { createTester } from '../../tests/utils/createTester'
-import { noLeakedTextInJS } from './no-leaked-text-in-jsx'
+import { noLeakedTextInJSX } from './no-leaked-text-in-jsx'
 
-const tests = createTester(noLeakedTextInJS)
+const tests = createTester(noLeakedTextInJSX)
 
 tests.addValid(
   'no leaked text in jsx',

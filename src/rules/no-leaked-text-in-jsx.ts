@@ -45,7 +45,7 @@ const rule = createRule<Options, 'leakedTextInJSX'>({
   },
 })
 
-export const noLeakedTextInJS = {
+export const noLeakedTextInJSX = {
   name,
   rule,
 }
