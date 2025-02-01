@@ -102,21 +102,45 @@ tests.addInvalid(
     }
   `,
   [
-    { messageId: 'optionalNotAllowed', data: { propertyName: 'a' } },
-    { messageId: 'optionalNotAllowed', data: { propertyName: 'b' } },
-  ],
-  {
-    output: `
-      interface Local {
-        a: undefined | number;
-        b: undefined | string;
-        c: boolean;
-      }
+    {
+      messageId: 'optionalNotAllowed',
+      data: { propertyName: 'a' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: `
+            interface Local {
+              a: undefined | number;
+              b?: string;
+              c: boolean;
+            }
 
-      function test(arg: Local) {
-      }
-    `,
-  },
+            function test(arg: Local) {
+            }
+          `,
+        },
+      ],
+    },
+    {
+      messageId: 'optionalNotAllowed',
+      data: { propertyName: 'b' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: `
+            interface Local {
+              a?: number;
+              b: undefined | string;
+              c: boolean;
+            }
+
+            function test(arg: Local) {
+            }
+          `,
+        },
+      ],
+    },
+  ],
 )
 
 tests.addValid(
@@ -149,13 +173,21 @@ tests.addInvalid(
     type Foo = { a?: number; b: string };
     function test(arg: Foo) {}
   `,
-  [{ messageId: 'optionalNotAllowed', data: { propertyName: 'a' } }],
-  {
-    output: `
-      type Foo = { a: undefined | number; b: string };
-      function test(arg: Foo) {}
-    `,
-  },
+  [
+    {
+      messageId: 'optionalNotAllowed',
+      data: { propertyName: 'a' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: `
+    type Foo = { a: undefined | number; b: string };
+    function test(arg: Foo) {}
+  `,
+        },
+      ],
+    },
+  ],
 )
 
 tests.addInvalid(
@@ -164,13 +196,21 @@ tests.addInvalid(
     type Foo = { a?: number; b: string };
     const test = (arg: Foo) => {};
   `,
-  [{ messageId: 'optionalNotAllowed', data: { propertyName: 'a' } }],
-  {
-    output: `
-      type Foo = { a: undefined | number; b: string };
-      const test = (arg: Foo) => {};
-    `,
-  },
+  [
+    {
+      messageId: 'optionalNotAllowed',
+      data: { propertyName: 'a' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: `
+    type Foo = { a: undefined | number; b: string };
+    const test = (arg: Foo) => {};
+  `,
+        },
+      ],
+    },
+  ],
 )
 
 tests.addValid(
@@ -260,18 +300,26 @@ tests.addInvalid(
       inner({})
     }
   `,
-  [{ messageId: 'optionalNotAllowed', data: { propertyName: 'a' } }],
-  {
-    output: `
-      export function test(arg: { a?: string }) {
-        type Test = { a: undefined | string }
+  [
+    {
+      messageId: 'optionalNotAllowed',
+      data: { propertyName: 'a' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: `
+            export function test(arg: { a?: string }) {
+              type Test = { a: undefined | string }
 
-        function inner(arg: Test) {}
+              function inner(arg: Test) {}
 
-        inner({})
-      }
-    `,
-  },
+              inner({})
+            }
+          `,
+        },
+      ],
+    },
+  ],
 )
 
 tests.addValid(
@@ -303,14 +351,22 @@ tests.addInvalid(
 
     const Component: FC<Props> = () => {}
   `,
-  [{ messageId: 'optionalNotAllowed', data: { propertyName: 'a' } }],
-  {
-    output: `
-      type Props = { a: undefined | number }
+  [
+    {
+      messageId: 'optionalNotAllowed',
+      data: { propertyName: 'a' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: `
+            type Props = { a: undefined | number }
 
-      const Component: FC<Props> = () => {}
-    `,
-  },
+            const Component: FC<Props> = () => {}
+          `,
+        },
+      ],
+    },
+  ],
 )
 
 tests.addValid(

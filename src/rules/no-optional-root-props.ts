@@ -13,7 +13,7 @@ type Declaration =
   | TSESTree.TSTypeAliasDeclaration
   | TSESTree.TSInterfaceDeclaration
 
-const rule = createRule<Options, 'optionalNotAllowed'>({
+const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
   name,
   meta: {
     type: 'problem',
@@ -24,9 +24,10 @@ const rule = createRule<Options, 'optionalNotAllowed'>({
     messages: {
       optionalNotAllowed:
         'Optional property "{{ propertyName }}" is not allowed on a local type used only once. Use `prop: undefined | ...` instead.',
+      suggestion: 'Use `prop: undefined | ...` instead.',
     },
+    hasSuggestions: true,
     schema: [],
-    fixable: 'code',
   },
   defaultOptions: [],
   create(context) {
@@ -135,21 +136,26 @@ const rule = createRule<Options, 'optionalNotAllowed'>({
         node: member.key,
         messageId: 'optionalNotAllowed',
         data: { propertyName: member.key.name },
-        fix: (fixer) => {
-          const parentProp = findParentNode(
-            member,
-            TSESTree.AST_NODE_TYPES.TSPropertySignature,
-          )
+        suggest: [
+          {
+            messageId: 'suggestion',
+            fix: (fixer) => {
+              const parentProp = findParentNode(
+                member,
+                TSESTree.AST_NODE_TYPES.TSPropertySignature,
+              )
 
-          if (!parentProp) return null
+              if (!parentProp) return null
 
-          const parentPropText = context.sourceCode.getText(parentProp)
+              const parentPropText = context.sourceCode.getText(parentProp)
 
-          return fixer.replaceText(
-            parentProp,
-            parentPropText.replace('?:', ': undefined |'),
-          )
-        },
+              return fixer.replaceText(
+                parentProp,
+                parentPropText.replace('?:', ': undefined |'),
+              )
+            },
+          },
+        ],
       })
     }
 

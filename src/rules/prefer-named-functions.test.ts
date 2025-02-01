@@ -89,7 +89,7 @@ tests.addInvalid(
       suggestions: [
         {
           messageId: 'suggestion',
-          output: dedent`
+          output: `
             export function test(arg1: string) {
               console.log('test');
               return null;
