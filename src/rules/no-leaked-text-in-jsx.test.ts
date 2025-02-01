@@ -19,14 +19,6 @@ tests.addInvalid(
     </div>
   `,
   [{ messageId: 'leakedTextInJSX', data: { text: ',' } }],
-  {
-    output: `
-      <div>
-        <p>Hello</p>
-        {","}
-      </div>
-    `,
-  },
 )
 
 tests.addInvalid(
@@ -38,14 +30,6 @@ tests.addInvalid(
     </div>
   `,
   [{ messageId: 'leakedTextInJSX', data: { text: ';' } }],
-  {
-    output: `
-      <div>
-        <p>Hello</p>
-        {";"}
-      </div>
-    `,
-  },
 )
 
 tests.addInvalid(
@@ -57,14 +41,6 @@ tests.addInvalid(
     </div>
   `,
   [{ messageId: 'leakedTextInJSX', data: { text: '[' } }],
-  {
-    output: `
-      <div>
-        <p>Hello</p>
-        {"["}
-      </div>
-    `,
-  },
 )
 
 tests.addValid(

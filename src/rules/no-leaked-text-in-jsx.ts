@@ -38,12 +38,6 @@ const rule = createRule<Options, 'leakedTextInJSX'>({
             node,
             messageId: 'leakedTextInJSX',
             data: { text },
-            fix: (fixer) => {
-              return fixer.replaceText(
-                node,
-                context.sourceCode.getText(node).replace(text, `{"${text}"}`),
-              )
-            },
           })
         }
       },
