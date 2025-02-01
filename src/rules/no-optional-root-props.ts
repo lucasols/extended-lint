@@ -34,7 +34,13 @@ const rule = createRule<Options, 'optionalNotAllowed'>({
       return decl.parent.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
     }
 
+    const visitedNodes = new Set<TSESTree.Node>()
+
     function isReferencedOnlyOnce(decl: Declaration): boolean {
+      if (visitedNodes.has(decl)) return false
+
+      visitedNodes.add(decl)
+
       const variables = context.sourceCode.getDeclaredVariables(decl)
       const variable = variables[0]
 
@@ -53,6 +59,13 @@ const rule = createRule<Options, 'optionalNotAllowed'>({
 
         if (node.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration) {
           return false
+        }
+
+        if (
+          node.type === TSESTree.AST_NODE_TYPES.TSTypeAliasDeclaration ||
+          node.type === TSESTree.AST_NODE_TYPES.TSInterfaceDeclaration
+        ) {
+          return isReferencedOnlyOnce(node)
         }
       }
 

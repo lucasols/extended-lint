@@ -193,4 +193,28 @@ tests.addValid(
   `,
 )
 
+tests.addValid(
+  'check all parent nodes for export',
+  `
+    export type Test = Intermediate;
+
+    type Intermediate = {
+      b: WithOptional;
+    }
+
+    type WithOptional = {
+      a?: number;
+      b: string;
+    }
+  `,
+)
+
+tests.addValid(
+  'not throw error on circular references',
+  `
+    type Circular = { a: Test };
+    type Test = Circular;
+  `,
+)
+
 tests.run()
