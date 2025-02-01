@@ -9,7 +9,7 @@
     "test:ui": "vitest --ui",
     "build": "pnpm test && pnpm lint && pnpm run build:no-test",
     "build:no-test": "tsup --minify --dts",
-    "run-in-test-project": "pnpm build && node --experimental-strip-types ./debug/runInTestProject.ts",
+    "run-in-test-project": "pnpm build:no-test && node --experimental-strip-types ./debug/runInTestProject.ts",
     "pre-publish": "./scripts/check-if-is-sync.sh && pnpm build",
     "npm-publish": "pnpm publish --access=public"
   },

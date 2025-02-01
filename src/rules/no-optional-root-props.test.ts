@@ -28,37 +28,20 @@ tests.addValid(
   `,
 )
 
-tests.addInvalid(
+tests.addValid(
   'local type alias referenced once with optional prop',
   `
     type Qux = { a?: number; b: string };
     const x: Qux = { b: "error" };
   `,
-  [{ messageId: 'optionalNotAllowed', data: { propertyName: 'a' } }],
-  {
-    output: `
-      type Qux = { a: undefined | number; b: string };
-      const x: Qux = { b: "error" };
-    `,
-  },
 )
 
-tests.addInvalid(
+tests.addValid(
   'local type alias with two optional props',
   `
     type Local = { a?: number; b?: string; c: boolean };
     const x: Local = { c: true };
   `,
-  [
-    { messageId: 'optionalNotAllowed', data: { propertyName: 'a' } },
-    { messageId: 'optionalNotAllowed', data: { propertyName: 'b' } },
-  ],
-  {
-    output: `
-      type Local = { a: undefined | number; b: undefined | string; c: boolean };
-      const x: Local = { c: true };
-    `,
-  },
 )
 
 tests.addValid(
@@ -95,7 +78,7 @@ tests.addValid(
   `,
 )
 
-tests.addInvalid(
+tests.addValid(
   'local interface referenced once with optional prop',
   `
     interface Qux {
@@ -104,27 +87,19 @@ tests.addInvalid(
     }
     const x: Qux = { b: "error" };
   `,
-  [{ messageId: 'optionalNotAllowed', data: { propertyName: 'a' } }],
-  {
-    output: `
-    interface Qux {
-      a: undefined | number;
-      b: string;
-    }
-    const x: Qux = { b: "error" };
-  `,
-  },
 )
 
 tests.addInvalid(
-  'local interface with two optional props',
+  'local interface arg with two optional props',
   `
     interface Local {
       a?: number;
       b?: string;
       c: boolean;
     }
-    const x: Local = { c: true };
+
+    function test(arg: Local) {
+    }
   `,
   [
     { messageId: 'optionalNotAllowed', data: { propertyName: 'a' } },
@@ -132,13 +107,15 @@ tests.addInvalid(
   ],
   {
     output: `
-    interface Local {
-      a: undefined | number;
-      b: undefined | string;
-      c: boolean;
-    }
-    const x: Local = { c: true };
-  `,
+      interface Local {
+        a: undefined | number;
+        b: undefined | string;
+        c: boolean;
+      }
+
+      function test(arg: Local) {
+      }
+    `,
   },
 )
 
@@ -164,6 +141,36 @@ tests.addValid(
     type Foo = { a?: number; b: string };
     export function test(arg: Foo) {}
   `,
+)
+
+tests.addInvalid(
+  'used once in function parameter',
+  `
+    type Foo = { a?: number; b: string };
+    function test(arg: Foo) {}
+  `,
+  [{ messageId: 'optionalNotAllowed', data: { propertyName: 'a' } }],
+  {
+    output: `
+      type Foo = { a: undefined | number; b: string };
+      function test(arg: Foo) {}
+    `,
+  },
+)
+
+tests.addInvalid(
+  'used once in arrow function parameter',
+  `
+    type Foo = { a?: number; b: string };
+    const test = (arg: Foo) => {};
+  `,
+  [{ messageId: 'optionalNotAllowed', data: { propertyName: 'a' } }],
+  {
+    output: `
+      type Foo = { a: undefined | number; b: string };
+      const test = (arg: Foo) => {};
+    `,
+  },
 )
 
 tests.addValid(
@@ -194,9 +201,25 @@ tests.addValid(
 )
 
 tests.addValid(
-  'check all parent nodes for export',
+  'not check all parent type nodes for export',
   `
     export type Test = Intermediate;
+
+    type Intermediate = {
+      b: WithOptional;
+    }
+
+    type WithOptional = {
+      a?: number;
+      b: string;
+    }
+  `,
+)
+
+tests.addValid(
+  'not check parent variable exports',
+  `
+    export const Test: Intermediate = {};
 
     type Intermediate = {
       b: WithOptional;
@@ -214,6 +237,143 @@ tests.addValid(
   `
     type Circular = { a: Test };
     type Test = Circular;
+  `,
+)
+
+tests.addValid(
+  'ignore nested references',
+  `
+    type Test = { a?: string }
+
+    const x: { a?: Test } = { a: {} }
+  `,
+)
+
+tests.addInvalid(
+  'check nested functions',
+  `
+    export function test(arg: { a?: string }) {
+      type Test = { a?: string }
+
+      function inner(arg: Test) {}
+
+      inner({})
+    }
+  `,
+  [{ messageId: 'optionalNotAllowed', data: { propertyName: 'a' } }],
+  {
+    output: `
+      export function test(arg: { a?: string }) {
+        type Test = { a: undefined | string }
+
+        function inner(arg: Test) {}
+
+        inner({})
+      }
+    `,
+  },
+)
+
+tests.addValid(
+  'check nested variables',
+  `
+    export function test(arg: { a?: string }) {
+      type Test = { a?: string }
+
+      const x: Test = {}
+    }
+  `,
+)
+
+tests.addValid(
+  'mutable object',
+  `
+    type Mutable = { a?: number }
+
+    const x: Mutable = {}
+
+    x.a = 2
+  `,
+)
+
+tests.addInvalid(
+  'FC component',
+  `
+    type Props = { a?: number }
+
+    const Component: FC<Props> = () => {}
+  `,
+  [{ messageId: 'optionalNotAllowed', data: { propertyName: 'a' } }],
+  {
+    output: `
+      type Props = { a: undefined | number }
+
+      const Component: FC<Props> = () => {}
+    `,
+  },
+)
+
+tests.addValid(
+  'exported FC component',
+  `
+    type Props = { a?: number }
+
+    export const Component: FC<Props> = () => {}
+  `,
+)
+
+tests.addValid(
+  'optional arg prop',
+  `
+    type Props = { a?: number }
+
+    function test({ a }: Props = {}) {}
+  `,
+)
+
+tests.addValid(
+  'optional arg prop in arrow function',
+  `
+    type CurrencyMaskConfig = {
+      currencySymbol?: string;
+      locale?: string;
+    };
+
+    export const currencyMask = (
+      value: string,
+      { currencySymbol = '', locale = 'en' }: CurrencyMaskConfig = {},
+    ) => {}
+  `,
+)
+
+tests.addValid(
+  'destructured',
+  `
+    type StoryDocProps = {
+      markdown: MarkdownText;
+      className?: string;
+    };
+
+    export const StoryDoc = ({ markdown, className }: StoryDocProps) => {
+      return null;
+    };
+  `,
+)
+
+tests.addValid(
+  'ignore exported function parameter',
+  `
+
+      type Props = {
+        inline?: boolean;
+        rotate?: number;
+      };
+
+      export const FieldTypeIcon = memo(
+        ({ inline, rotate }: Props) => {
+          return null;
+        },
+      );
   `,
 )
 

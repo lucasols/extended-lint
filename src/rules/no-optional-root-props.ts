@@ -1,5 +1,5 @@
 import { ESLintUtils, TSESTree } from '@typescript-eslint/utils'
-import { findParentNode, walkUp } from '../../tests/utils/astUtils'
+import { findParentNode, walkUp } from '../astUtils'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -34,13 +34,7 @@ const rule = createRule<Options, 'optionalNotAllowed'>({
       return decl.parent.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
     }
 
-    const visitedNodes = new Set<TSESTree.Node>()
-
     function isReferencedOnlyOnce(decl: Declaration): boolean {
-      if (visitedNodes.has(decl)) return false
-
-      visitedNodes.add(decl)
-
       const variables = context.sourceCode.getDeclaredVariables(decl)
       const variable = variables[0]
 
@@ -61,15 +55,70 @@ const rule = createRule<Options, 'optionalNotAllowed'>({
           return false
         }
 
+        const parent = node.parent
+
+        if (!parent) return false
+
         if (
-          node.type === TSESTree.AST_NODE_TYPES.TSTypeAliasDeclaration ||
-          node.type === TSESTree.AST_NODE_TYPES.TSInterfaceDeclaration
+          parent.type ===
+            TSESTree.AST_NODE_TYPES.TSTypeParameterInstantiation &&
+          parent.parent.type === TSESTree.AST_NODE_TYPES.TSTypeReference
         ) {
-          return isReferencedOnlyOnce(node)
+          const parentIsFcType =
+            parent.parent.typeName.type ===
+              TSESTree.AST_NODE_TYPES.Identifier &&
+            parent.parent.typeName.name === 'FC'
+
+          if (parentIsFcType) {
+            const varDecl = findParentNode(
+              parent.parent.parent,
+              TSESTree.AST_NODE_TYPES.VariableDeclaration,
+              4,
+            )
+
+            if (varDecl) {
+              const isExportedVar =
+                varDecl.parent.type ===
+                TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
+
+              return !isExportedVar
+            }
+          }
+        }
+
+        if (node.type === TSESTree.AST_NODE_TYPES.AssignmentPattern) {
+          return false
+        }
+
+        if (parent.type === TSESTree.AST_NODE_TYPES.ArrowFunctionExpression) {
+          const fnIsExported = findParentNode(
+            parent,
+            TSESTree.AST_NODE_TYPES.VariableDeclaration,
+          )
+
+          if (
+            fnIsExported?.parent &&
+            fnIsExported.parent.type ===
+              TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
+          ) {
+            return false
+          }
+
+          return parent.params.some((param) => param === node)
+        }
+
+        if (parent.type === TSESTree.AST_NODE_TYPES.FunctionDeclaration) {
+          const fnIsExported =
+            parent.parent.type ===
+            TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
+
+          if (fnIsExported) return false
+
+          return parent.params.some((param) => param === node)
         }
       }
 
-      return true
+      return false
     }
 
     function reportOptionalProperty(
