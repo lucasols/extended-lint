@@ -214,6 +214,26 @@ tests.addInvalid(
 )
 
 tests.addValid(
+  'declarations exported indirectly should not be checked',
+  `
+    type Foo = { a?: number; };
+    const test = (arg: Foo) => {};
+
+    export const Test2 = test
+  `,
+)
+
+tests.addValid(
+  'declarations exported indirectly in function should not be checked',
+  `
+    type Foo = { a?: number; };
+    function test(arg: Foo) {}
+
+    export const Test2 = test
+  `,
+)
+
+tests.addValid(
   'ignore types used in exported variables',
   `
     type Foo = { a?: number; b: string };
@@ -454,51 +474,9 @@ tests.addValid(
 )
 
 tests.addValid(
-  'FC component with intersection type',
-  `
-    type BaseProps = { base?: string }
-    type ExtraProps = { extra?: number }
-    export const Component: FC<BaseProps & ExtraProps> = () => {}
-  `,
-)
-
-tests.addValid(
-  'exported FC component with inline type',
+  'exported FC component with inline type should not be checked',
   `
     export const Component: FC<{ prop?: boolean }> = () => {}
-  `,
-)
-
-tests.addValid(
-  'exported FC component with default export',
-  `
-    type Props = { prop?: boolean }
-    export default function Component(): FC<Props> {
-      return () => null
-    }
-  `,
-)
-
-tests.addValid(
-  'exported FC component with memo',
-  `
-    type Props = { prop?: boolean }
-    export const Component = memo<Props>(() => null)
-  `,
-)
-
-tests.addValid(
-  'exported FC component with forwardRef',
-  `
-    type Props = { prop?: boolean }
-    export const Component = forwardRef<HTMLDivElement, Props>(() => null)
-  `,
-)
-
-tests.addValid(
-  'exported FC component with inline type and memo',
-  `
-    export const Component = memo<{ prop?: boolean }>(() => null)
   `,
 )
 
@@ -546,23 +524,18 @@ tests.addValid(
 tests.addValid(
   'FC component with complex type',
   `
-    type ComplexProp = { nested: { optional?: string } }
-    const Component: FC<ComplexProp> = () => {}
-  `,
-)
-
-tests.addValid(
-  'FC component with readonly props',
-  `
-    type Props = { readonly optional?: string }
-    export const Component: FC<Props> = () => {}
+    const Component: FC<{ nested: { optional?: string } }> = () => {}
   `,
 )
 
 tests.addInvalid(
-  'FC component with inline readonly optional prop',
+  'FC component used only once should show error',
   `
-    const Component: FC<{ readonly prop?: string }> = () => {}
+    const Test = () => {
+      return <Component />
+    }
+
+    const Component: FC<{ prop?: string }> = () => {}
   `,
   [
     {
@@ -572,7 +545,11 @@ tests.addInvalid(
         {
           messageId: 'suggestion',
           output: `
-            const Component: FC<{ readonly prop: undefined | string }> = () => {}
+            const Test = () => {
+              return <Component />
+            }
+
+            const Component: FC<{ prop: undefined | string }> = () => {}
           `,
         },
       ],
@@ -581,11 +558,26 @@ tests.addInvalid(
 )
 
 tests.addValid(
-  'FC component with type alias used multiple times',
+  'FC component used multiple times should not show error',
   `
-    type Props = { prop?: string }
-    const Component1: FC<Props> = () => {}
-    const Component2: FC<Props> = () => {}
+    const Test = () => {
+      return <Component />
+    }
+
+    const Test2 = () => {
+      return <Component />
+    }
+
+    const Component: FC<{ prop?: string }> = () => {}
+  `,
+)
+
+tests.addValid(
+  'FC component exported indirectly should not be checked',
+  `
+    const Component: FC<{ prop?: string }> = () => {}
+
+    export const Test = Component
   `,
 )
 

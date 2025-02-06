@@ -105,6 +105,19 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
             return false
           }
 
+          if (fnIsExported) {
+            // is indirectly exported
+            const isIndirectlyExported = context.sourceCode
+              .getScope(fnIsExported)
+              .references.some(
+                (ref) =>
+                  ref.identifier.parent.parent?.parent?.type ===
+                  TSESTree.AST_NODE_TYPES.ExportNamedDeclaration,
+              )
+
+            if (isIndirectlyExported) return false
+          }
+
           return parent.params.some((param) => param === node)
         }
 
@@ -114,6 +127,16 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
             TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
 
           if (fnIsExported) return false
+
+          const isIndirectlyExported = context.sourceCode
+            .getScope(parent)
+            .upper?.references.some(
+              (ref) =>
+                ref.identifier.parent.parent?.parent?.type ===
+                TSESTree.AST_NODE_TYPES.ExportNamedDeclaration,
+            )
+
+          if (isIndirectlyExported) return false
 
           return parent.params.some((param) => param === node)
         }
@@ -208,6 +231,28 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
           varDecl.parent.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
 
         if (isExportedVar) return
+
+        const isIndirectlyExported = context.sourceCode
+          .getScope(varDecl)
+          .references.some(
+            (ref) =>
+              ref.identifier.parent.parent?.parent?.type ===
+              TSESTree.AST_NODE_TYPES.ExportNamedDeclaration,
+          )
+
+        if (isIndirectlyExported) return
+
+        const varDeclIdentifier =
+          varDecl.declarations[0].id.type === TSESTree.AST_NODE_TYPES.Identifier
+            ? varDecl.declarations[0].id
+            : null
+
+        const varRefs = context.sourceCode
+          .getScope(varDecl)
+          .variables.find((v) => v.name === varDeclIdentifier?.name)
+          ?.references.filter((ref) => ref.identifier !== varDeclIdentifier)
+
+        if (varRefs && varRefs.length > 1) return
 
         for (const member of propsType.members) {
           if (member.type === TSESTree.AST_NODE_TYPES.TSPropertySignature) {
