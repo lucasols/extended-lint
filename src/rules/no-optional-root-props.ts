@@ -31,8 +31,13 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
   },
   defaultOptions: [],
   create(context) {
-    function isExported(decl: Declaration): boolean {
-      return decl.parent.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
+    function isExported(node: TSESTree.Node | undefined): boolean {
+      if (!node) return false
+
+      return (
+        node.parent?.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration ||
+        node.parent?.type === TSESTree.AST_NODE_TYPES.ExportDefaultDeclaration
+      )
     }
 
     function isReferencedOnlyOnce(decl: Declaration): boolean {
@@ -78,18 +83,12 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
             )
 
             if (varDecl) {
-              const isExportedVar =
-                varDecl.parent.type ===
-                TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
-
-              if (isExportedVar) return false
+              if (isExported(varDecl)) return false
 
               const isIndirectlyExported = context.sourceCode
                 .getScope(varDecl)
-                .references.some(
-                  (ref) =>
-                    ref.identifier.parent.parent?.parent?.type ===
-                    TSESTree.AST_NODE_TYPES.ExportNamedDeclaration,
+                .references.some((ref) =>
+                  isExported(ref.identifier.parent.parent),
                 )
 
               if (isIndirectlyExported) return false
@@ -109,16 +108,11 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
             TSESTree.AST_NODE_TYPES.VariableDeclaration,
           )
 
-          if (
-            fnIsExported?.parent &&
-            fnIsExported.parent.type ===
-              TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
-          ) {
+          if (fnIsExported && isExported(fnIsExported)) {
             return false
           }
 
           if (fnIsExported) {
-            // is indirectly exported
             const isIndirectlyExported = context.sourceCode
               .getScope(fnIsExported)
               .references.some(
@@ -134,18 +128,12 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
         }
 
         if (parent.type === TSESTree.AST_NODE_TYPES.FunctionDeclaration) {
-          const fnIsExported =
-            parent.parent.type ===
-            TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
-
-          if (fnIsExported) return false
+          if (isExported(parent)) return false
 
           const isIndirectlyExported = context.sourceCode
             .getScope(parent)
-            .upper?.references.some(
-              (ref) =>
-                ref.identifier.parent.parent?.parent?.type ===
-                TSESTree.AST_NODE_TYPES.ExportNamedDeclaration,
+            .upper?.references.some((ref) =>
+              isExported(ref.identifier.parent.parent),
             )
 
           if (isIndirectlyExported) return false
@@ -239,10 +227,7 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
 
         if (!varDecl) return
 
-        const isExportedVar =
-          varDecl.parent.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
-
-        if (isExportedVar) return
+        if (isExported(varDecl)) return
 
         const isIndirectlyExported = context.sourceCode
           .getScope(varDecl)
