@@ -369,6 +369,27 @@ tests.addInvalid(
   ],
 )
 
+tests.addInvalid(
+  'FC component with inline type',
+  `
+    const Component: FC<{ prop?: boolean }> = () => {}
+  `,
+  [
+    {
+      messageId: 'optionalNotAllowed',
+      data: { propertyName: 'prop' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: `
+            const Component: FC<{ prop: undefined | boolean }> = () => {}
+          `,
+        },
+      ],
+    },
+  ],
+)
+
 tests.addValid(
   'exported FC component',
   `
@@ -419,7 +440,6 @@ tests.addValid(
 tests.addValid(
   'ignore exported function parameter',
   `
-
       type Props = {
         inline?: boolean;
         rotate?: number;
@@ -430,6 +450,142 @@ tests.addValid(
           return null;
         },
       );
+  `,
+)
+
+tests.addValid(
+  'FC component with intersection type',
+  `
+    type BaseProps = { base?: string }
+    type ExtraProps = { extra?: number }
+    export const Component: FC<BaseProps & ExtraProps> = () => {}
+  `,
+)
+
+tests.addValid(
+  'exported FC component with inline type',
+  `
+    export const Component: FC<{ prop?: boolean }> = () => {}
+  `,
+)
+
+tests.addValid(
+  'exported FC component with default export',
+  `
+    type Props = { prop?: boolean }
+    export default function Component(): FC<Props> {
+      return () => null
+    }
+  `,
+)
+
+tests.addValid(
+  'exported FC component with memo',
+  `
+    type Props = { prop?: boolean }
+    export const Component = memo<Props>(() => null)
+  `,
+)
+
+tests.addValid(
+  'exported FC component with forwardRef',
+  `
+    type Props = { prop?: boolean }
+    export const Component = forwardRef<HTMLDivElement, Props>(() => null)
+  `,
+)
+
+tests.addValid(
+  'exported FC component with inline type and memo',
+  `
+    export const Component = memo<{ prop?: boolean }>(() => null)
+  `,
+)
+
+tests.addInvalid(
+  'FC component with multiple inline optional props',
+  `
+    const Component: FC<{ prop1?: string; prop2?: number; required: boolean }> = () => {}
+  `,
+  [
+    {
+      messageId: 'optionalNotAllowed',
+      data: { propertyName: 'prop1' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: `
+            const Component: FC<{ prop1: undefined | string; prop2?: number; required: boolean }> = () => {}
+          `,
+        },
+      ],
+    },
+    {
+      messageId: 'optionalNotAllowed',
+      data: { propertyName: 'prop2' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: `
+            const Component: FC<{ prop1?: string; prop2: undefined | number; required: boolean }> = () => {}
+          `,
+        },
+      ],
+    },
+  ],
+)
+
+tests.addValid(
+  'FC component with generic type parameter',
+  `
+    type Props<T> = { data?: T }
+    export const Component: FC<Props<string>> = () => {}
+  `,
+)
+
+tests.addValid(
+  'FC component with complex type',
+  `
+    type ComplexProp = { nested: { optional?: string } }
+    const Component: FC<ComplexProp> = () => {}
+  `,
+)
+
+tests.addValid(
+  'FC component with readonly props',
+  `
+    type Props = { readonly optional?: string }
+    export const Component: FC<Props> = () => {}
+  `,
+)
+
+tests.addInvalid(
+  'FC component with inline readonly optional prop',
+  `
+    const Component: FC<{ readonly prop?: string }> = () => {}
+  `,
+  [
+    {
+      messageId: 'optionalNotAllowed',
+      data: { propertyName: 'prop' },
+      suggestions: [
+        {
+          messageId: 'suggestion',
+          output: `
+            const Component: FC<{ readonly prop: undefined | string }> = () => {}
+          `,
+        },
+      ],
+    },
+  ],
+)
+
+tests.addValid(
+  'FC component with type alias used multiple times',
+  `
+    type Props = { prop?: string }
+    const Component1: FC<Props> = () => {}
+    const Component2: FC<Props> = () => {}
   `,
 )
 

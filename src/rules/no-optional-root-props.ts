@@ -181,6 +181,40 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
           }
         }
       },
+      TSTypeReference(node) {
+        if (
+          node.typeName.type !== TSESTree.AST_NODE_TYPES.Identifier ||
+          node.typeName.name !== 'FC' ||
+          !node.typeArguments?.params[0]
+        ) {
+          return
+        }
+
+        const propsType = node.typeArguments.params[0]
+
+        if (propsType.type !== TSESTree.AST_NODE_TYPES.TSTypeLiteral) {
+          return
+        }
+
+        const varDecl = findParentNode(
+          node.parent,
+          TSESTree.AST_NODE_TYPES.VariableDeclaration,
+          4,
+        )
+
+        if (!varDecl) return
+
+        const isExportedVar =
+          varDecl.parent.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
+
+        if (isExportedVar) return
+
+        for (const member of propsType.members) {
+          if (member.type === TSESTree.AST_NODE_TYPES.TSPropertySignature) {
+            reportOptionalProperty(member)
+          }
+        }
+      },
     }
   },
 })
