@@ -82,7 +82,19 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
                 varDecl.parent.type ===
                 TSESTree.AST_NODE_TYPES.ExportNamedDeclaration
 
-              return !isExportedVar
+              if (isExportedVar) return false
+
+              const isIndirectlyExported = context.sourceCode
+                .getScope(varDecl)
+                .references.some(
+                  (ref) =>
+                    ref.identifier.parent.parent?.parent?.type ===
+                    TSESTree.AST_NODE_TYPES.ExportNamedDeclaration,
+                )
+
+              if (isIndirectlyExported) return false
+
+              return true
             }
           }
         }

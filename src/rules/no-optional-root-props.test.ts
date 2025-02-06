@@ -581,4 +581,24 @@ tests.addValid(
   `,
 )
 
+tests.addValid(
+  'FC component exported indirectly in memo should not be checked',
+  `
+    const Component: FC<{ prop?: string }> = () => {}
+
+    export const Test = memo(Component)
+  `,
+)
+
+tests.addValid(
+  'FC component exported indirectly in memo should not be checked',
+  `
+    type Props = { prop?: string }
+
+    const Component: FC<Props> = () => {}
+
+    export const Test = memo(Component)
+  `,
+)
+
 tests.run()
