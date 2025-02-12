@@ -275,4 +275,58 @@ tests.addInvalidWithOptions(
   },
 )
 
+tests.addInvalidWithOptions(
+  'Should not ignore single condition',
+  `
+    export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
+      const fieldConfig = getFieldTypeConfig(type);
+
+      if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) {
+        return null;
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
+        const fieldConfig = getFieldTypeConfig(type);
+
+        if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) return null;
+      }
+    `,
+  },
+)
+
+tests.addInvalidWithOptions(
+  'Should not ignore positive condition',
+  `
+    export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
+      const fieldConfig = getFieldTypeConfig(type);
+
+      if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) {
+        return null;
+      }
+
+      if (fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) {
+        return null;
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
+        const fieldConfig = getFieldTypeConfig(type);
+
+        if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) return null;
+
+        if (fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) return null;
+      }
+    `,
+  },
+)
+
 tests.run()
