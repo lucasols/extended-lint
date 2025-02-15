@@ -38,10 +38,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
     const sourceCode = context.sourceCode
 
     function getPropertyText(
-      node:
-        | TSESTree.ObjectExpression
-        | TSESTree.TSInterfaceBody
-        | TSESTree.TSTypeLiteral,
+      node: TSESTree.ObjectExpression | TSESTree.TSTypeLiteral,
     ): string | false {
       let property
 
@@ -57,15 +54,9 @@ const rule = createRule<[Options], 'singleLineProp'>({
           return false
         }
       } else {
-        if (node.type === AST_NODE_TYPES.TSInterfaceBody) {
-          if (node.body.length !== 1) return false
+        if (node.members.length !== 1) return false
 
-          property = node.body[0]!
-        } else {
-          if (node.members.length !== 1) return false
-
-          property = node.members[0]!
-        }
+        property = node.members[0]!
 
         if (
           property.type === AST_NODE_TYPES.TSPropertySignature &&
@@ -80,10 +71,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
     }
 
     function checkNode(
-      node:
-        | TSESTree.ObjectExpression
-        | TSESTree.TSInterfaceBody
-        | TSESTree.TSTypeLiteral,
+      node: TSESTree.ObjectExpression | TSESTree.TSTypeLiteral,
     ) {
       if (node.loc.start.line === node.loc.end.line) return
 
@@ -121,7 +109,10 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
       if (
         options.maxLineLength &&
-        singleLine.length + nodeIndent.length > options.maxLineLength
+        singleLine.length +
+          nodeIndent.length +
+          (hasTrailingCommaOrSemicolon(node, sourceCode) ? 1 : 0) >
+          options.maxLineLength
       ) {
         return
       }
@@ -136,12 +127,24 @@ const rule = createRule<[Options], 'singleLineProp'>({
     }
 
     return {
-      TSInterfaceBody: checkNode,
       TSTypeLiteral: checkNode,
       ObjectExpression: checkNode,
     }
   },
 })
+
+function hasTrailingCommaOrSemicolon(
+  node: TSESTree.Node,
+  sourceCode: TSESLint.SourceCode,
+) {
+  const tokenAfterNode = sourceCode.getTokenAfter(node)
+
+  return (
+    tokenAfterNode?.type === AST_TOKEN_TYPES.Punctuator &&
+    (tokenAfterNode.value === ',' || tokenAfterNode.value === ';') &&
+    tokenAfterNode.loc.start.line === node.loc.end.line
+  )
+}
 
 function getTokenIndent(sourceCode: TSESLint.SourceCode, token: TSESTree.Node) {
   return sourceCode.text.slice(

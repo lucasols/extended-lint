@@ -158,30 +158,6 @@ tests.addValid(
 )
 
 tests.addInvalid(
-  'Interface with single prop',
-  `
-    interface Bar {
-      a: string;
-    }
-  `,
-  [{ messageId: 'singleLineProp' }],
-  {
-    output: `
-    interface Bar { a: string }
-  `,
-  },
-)
-
-tests.addValid(
-  'interface with single prop with comment',
-  `
-    interface Bar {
-      a: string; // comment
-    }
-  `,
-)
-
-tests.addInvalid(
   'single extends type',
   `
     type Bar = Foo & {
@@ -216,21 +192,6 @@ tests.addInvalid(
   {
     output: `
     type Bar = { a: string }
-  `,
-  },
-)
-
-tests.addInvalid(
-  'single prop interface',
-  `
-    interface Baz {
-      a: number
-    }
-  `,
-  [{ messageId: 'singleLineProp' }],
-  {
-    output: `
-    interface Baz { a: number }
   `,
   },
 )
@@ -293,7 +254,7 @@ tests.addInvalid(
 )
 
 tests.addInvalid(
-  'nested single prop interface',
+  'nested single prop type in interface',
   `
     interface Baz {
       a: {
@@ -395,6 +356,49 @@ tests.addInvalid(
     }
   `,
   },
+)
+
+tests.addValid(
+  'should consider the trailing comma/semicolon in line length',
+  `
+    type Bar = {
+      a: {
+        bc: 1;
+      };
+      c: 2;
+    }
+
+    const foo = {
+      a: {
+        bc: 1,
+      },
+      c: 2,
+    }
+  `,
+  { maxLineLength: 14 },
+)
+
+tests.addValid(
+  'should consider not having a trailing comma/semicolon in line length',
+  `
+    type Bar = {
+      a: {
+        bc: 1,
+      }
+      c: 2;
+    }
+  `,
+  { maxLineLength: 14 },
+)
+
+tests.addValid(
+  'should ignore interfaces',
+  `
+    interface SidePanelParagraphProps {
+      children: React.ReactNode;
+    }
+  `,
+  { maxLineLength: 80 },
 )
 
 tests.run()
