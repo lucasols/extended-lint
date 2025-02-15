@@ -192,13 +192,26 @@ tests.addValid(
 )
 
 tests.addValid(
-  'If with code starting with { in the next line',
+  'If with code starting with } else in the next line',
   `
     if (test) {
       if (test) {
         return;
       }
     } else {
+      console.log('test');
+    }
+  `,
+)
+
+tests.addValid(
+  'If with code starting with } catch in the next line',
+  `
+    try {
+      if (test) {
+        return;
+      }
+    } catch (error) {
       console.log('test');
     }
   `,
@@ -315,7 +328,7 @@ tests.addInvalidWithOptions(
     }
   `,
   { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
-  [{ messageId: 'noSingleLineCurly' }],
+  [{ messageId: 'noSingleLineCurly' }, { messageId: 'noSingleLineCurly' }],
   {
     output: `
       export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {

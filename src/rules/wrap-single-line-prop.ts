@@ -36,39 +36,65 @@ const rule = createRule<[Options], 'singleLineProp'>({
   create(context, [options]) {
     const sourceCode = context.sourceCode
 
-    function checkNode(node: TSESTree.Node) {
-      if (
-        node.type !== AST_NODE_TYPES.TSInterfaceBody &&
-        node.type !== AST_NODE_TYPES.TSTypeLiteral &&
-        node.type !== AST_NODE_TYPES.ObjectExpression
-      ) {
-        return
-      }
-
-      let properties: TSESTree.Node[]
+    function getPropertyText(
+      node:
+        | TSESTree.ObjectExpression
+        | TSESTree.TSInterfaceBody
+        | TSESTree.TSTypeLiteral,
+    ): string | false {
+      let property
 
       if (node.type === AST_NODE_TYPES.ObjectExpression) {
-        properties = node.properties
-      } else if (node.type === AST_NODE_TYPES.TSInterfaceBody) {
-        properties = node.body
+        if (node.properties.length !== 1) return false
+
+        property = node.properties[0]!
+
+        if (
+          property.type === AST_NODE_TYPES.Property &&
+          property.value.type === AST_NODE_TYPES.ObjectExpression
+        ) {
+          return false
+        }
       } else {
-        properties = node.members
+        if (node.type === AST_NODE_TYPES.TSInterfaceBody) {
+          if (node.body.length !== 1) return false
+
+          property = node.body[0]!
+        } else {
+          if (node.members.length !== 1) return false
+
+          property = node.members[0]!
+        }
+
+        if (
+          property.type === AST_NODE_TYPES.TSPropertySignature &&
+          property.typeAnnotation?.typeAnnotation.type ===
+            AST_NODE_TYPES.TSTypeLiteral
+        ) {
+          return false
+        }
       }
 
-      if (properties.length === 0) return
-      if (properties.length !== 1) return
+      return sourceCode.getText(property)
+    }
 
-      const property = properties[0]!
+    function checkNode(
+      node:
+        | TSESTree.ObjectExpression
+        | TSESTree.TSInterfaceBody
+        | TSESTree.TSTypeLiteral,
+    ) {
+      if (node.loc.start.line === node.loc.end.line) return
 
-      if (sourceCode.getCommentsInside(node).length > 0) return
+      const propertyText = getPropertyText(node)
 
-      const openBrace = sourceCode.getFirstToken(node)!
-      const closeBrace = sourceCode.getLastToken(node)!
-      const propertyText = sourceCode.getText(property)
+      if (!propertyText) return
 
       if (propertyText.includes('\n')) return
 
-      const singleLine = `${openBrace.value} ${propertyText} ${closeBrace.value}`
+      if (sourceCode.getCommentsInside(node).length > 0) return
+
+      const singleLine = `{ ${propertyText} }`
 
       const nodeIndent = getTokenIndent(sourceCode, node)
 

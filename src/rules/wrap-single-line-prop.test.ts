@@ -108,19 +108,13 @@ tests.addInvalid(
   },
 )
 
-tests.addInvalid(
-  'mapped type',
+tests.addValid(
+  'not format mapped type',
   `
     type Bar = {
       [K in keyof Foo]: Foo[K]
     }
   `,
-  [{ messageId: 'singleLineProp' }],
-  {
-    output: `
-    type Bar = { [K in keyof Foo]: Foo[K] }
-  `,
-  },
 )
 
 tests.addInvalid(
@@ -162,7 +156,7 @@ tests.addInvalid(
       }
     }
   `,
-  [{ messageId: 'singleLineProp' }, { messageId: 'singleLineProp' }],
+  [{ messageId: 'singleLineProp' }],
   {
     output: `
     const foo = {
@@ -181,7 +175,7 @@ tests.addInvalid(
       }
     }
   `,
-  [{ messageId: 'singleLineProp' }, { messageId: 'singleLineProp' }],
+  [{ messageId: 'singleLineProp' }],
   {
     output: `
     const foo = {
@@ -200,7 +194,7 @@ tests.addInvalid(
       }
     }
   `,
-  [{ messageId: 'singleLineProp' }, { messageId: 'singleLineProp' }],
+  [{ messageId: 'singleLineProp' }],
   {
     output: `
     type Bar = {
@@ -219,7 +213,7 @@ tests.addInvalid(
       }
     }
   `,
-  [{ messageId: 'singleLineProp' }, { messageId: 'singleLineProp' }],
+  [{ messageId: 'singleLineProp' }],
   {
     output: `
     interface Baz {

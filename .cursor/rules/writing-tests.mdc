@@ -3,6 +3,7 @@ description: writing tests
 globs: 
 ---
 
-Tests should be in `src/rules` with the same name of the rule and the .test.ts extension
-Use the same test strucuture of [prefer-single-line-if.test.ts](mdc:src/rules/prefer-single-line-if.test.ts)
-Also run the written tests with `pnpm test ...` to check if the tests pass
+- Tests should be in `src/rules` with the same name of the rule and the .test.ts extension
+- Use the same test strucuture of [prefer-single-line-if.test.ts](mdc:src/rules/prefer-single-line-if.test.ts)
+- Also run the written tests with `pnpm test ...` to check if the tests pass
+- Always run the tests without asking

@@ -42,6 +42,9 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
       IfStatement(node) {
         if (node.consequent.type !== AST_NODE_TYPES.BlockStatement) return
 
+        // Skip if the condition is a single line
+        if (node.loc.start.line === node.loc.end.line) return
+
         // Skip if there are comments inside the block
         const comments = sourceCode.getCommentsInside(node.consequent)
 
@@ -78,15 +81,28 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
 
         let ifCondition: string | undefined
 
-        if (
-          options.maxNonSimpleConditionLength &&
-          (node.test.type === AST_NODE_TYPES.CallExpression ||
-            node.test.type === AST_NODE_TYPES.BinaryExpression ||
-            node.test.type === AST_NODE_TYPES.MemberExpression)
-        ) {
-          ifCondition = sourceCode.getText(node.test)
-          if (ifCondition.length > options.maxNonSimpleConditionLength) {
-            return
+        if (options.maxNonSimpleConditionLength) {
+          let isComplexCondition = isComplexNodeCondition(node.test)
+
+          if (!isComplexCondition) {
+            if (
+              node.test.type === AST_NODE_TYPES.UnaryExpression &&
+              node.test.operator === '!'
+            ) {
+              const innerCondition = node.test.argument
+
+              if (isComplexNodeCondition(innerCondition)) {
+                isComplexCondition = true
+              }
+            }
+          }
+
+          if (isComplexCondition) {
+            ifCondition = sourceCode.getText(node.test)
+
+            if (ifCondition.length > options.maxNonSimpleConditionLength) {
+              return
+            }
           }
         }
 
@@ -105,7 +121,15 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
           nextToken.type === AST_TOKEN_TYPES.Punctuator &&
           nextToken.value === '}'
         ) {
-          return
+          const nextToken2 = sourceCode.getTokenAfter(nextToken)
+
+          if (
+            nextToken2 &&
+            nextToken2.type === AST_TOKEN_TYPES.Keyword &&
+            (nextToken2.value === 'else' || nextToken2.value === 'catch')
+          ) {
+            return
+          }
         }
 
         const ifIndent = getTokenIndent(sourceCode, node)
@@ -132,6 +156,13 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
     }
   },
 })
+
+function isComplexNodeCondition(node: TSESTree.Node) {
+  return (
+    node.type === AST_NODE_TYPES.CallExpression ||
+    node.type === AST_NODE_TYPES.BinaryExpression
+  )
+}
 
 function getTokenIndent(sourceCode: TSESLint.SourceCode, token: TSESTree.Node) {
   return sourceCode.text.slice(
