@@ -294,7 +294,7 @@ tests.addInvalidWithOptions(
     export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
       const fieldConfig = getFieldTypeConfig(type);
 
-      if (!fieldConfig.recordValueConfig.foo) {
+      if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) {
         return null;
       }
     }
@@ -306,7 +306,7 @@ tests.addInvalidWithOptions(
       export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
         const fieldConfig = getFieldTypeConfig(type);
 
-        if (!fieldConfig.recordValueConfig.foo) return null;
+        if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) return null;
       }
     `,
   },
@@ -318,11 +318,11 @@ tests.addInvalidWithOptions(
     export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
       const fieldConfig = getFieldTypeConfig(type);
 
-      if (!fieldConfig.recordValueConfig.foo) {
+      if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) {
         return null;
       }
 
-      if (fieldConfig.recordValueConfig.bar) {
+      if (fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) {
         return null;
       }
     }
@@ -334,12 +334,26 @@ tests.addInvalidWithOptions(
       export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
         const fieldConfig = getFieldTypeConfig(type);
 
-        if (!fieldConfig.recordValueConfig.foo) return null;
+        if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) return null;
 
-        if (fieldConfig.recordValueConfig.bar) return null;
+        if (fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) return null;
       }
     `,
   },
+)
+
+tests.only.addValid(
+  'Ignore complex member expression',
+  `
+    export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
+      const fieldConfig = getFieldTypeConfig(type);
+
+      if (!fieldConfig.recordValueConfig('ok').mutateAfterOptimisticUpdate) {
+        return null;
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
 )
 
 tests.run()

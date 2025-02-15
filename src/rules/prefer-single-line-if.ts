@@ -161,8 +161,16 @@ function isComplexNodeCondition(node: TSESTree.Node) {
   return (
     node.type === AST_NODE_TYPES.CallExpression ||
     node.type === AST_NODE_TYPES.BinaryExpression ||
-    node.type === AST_NODE_TYPES.MemberExpression
+    (node.type === AST_NODE_TYPES.MemberExpression &&
+      isComplexMemberExpression(node))
   )
+}
+
+function isComplexMemberExpression(node: TSESTree.MemberExpression) {
+  if (node.object.type === AST_NODE_TYPES.MemberExpression) {
+    return isComplexMemberExpression(node.object)
+  }
+  return node.object.type !== AST_NODE_TYPES.Identifier
 }
 
 function getTokenIndent(sourceCode: TSESLint.SourceCode, token: TSESTree.Node) {
