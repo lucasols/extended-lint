@@ -153,6 +153,82 @@ tests.addInvalid(
   },
 )
 
+tests.addInvalid(
+  'nested single prop object',
+  `
+    const foo = {
+      a: {
+        b: 1
+      }
+    }
+  `,
+  [{ messageId: 'singleLineProp' }, { messageId: 'singleLineProp' }],
+  {
+    output: `
+    const foo = {
+      a: { b: 1 }
+    }
+  `,
+  },
+)
+
+tests.addInvalid(
+  'nested single spread prop object',
+  `
+    const foo = {
+      a: {
+        ...bar
+      }
+    }
+  `,
+  [{ messageId: 'singleLineProp' }, { messageId: 'singleLineProp' }],
+  {
+    output: `
+    const foo = {
+      a: { ...bar }
+    }
+  `,
+  },
+)
+
+tests.addInvalid(
+  'nested single prop type',
+  `
+    type Bar = {
+      a: {
+        b: string
+      }
+    }
+  `,
+  [{ messageId: 'singleLineProp' }, { messageId: 'singleLineProp' }],
+  {
+    output: `
+    type Bar = {
+      a: { b: string }
+    }
+  `,
+  },
+)
+
+tests.addInvalid(
+  'nested single prop interface',
+  `
+    interface Baz {
+      a: {
+        b: number
+      }
+    }
+  `,
+  [{ messageId: 'singleLineProp' }, { messageId: 'singleLineProp' }],
+  {
+    output: `
+    interface Baz {
+      a: { b: number }
+    }
+  `,
+  },
+)
+
 tests.addValid(
   'very long prop',
   `
