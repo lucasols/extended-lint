@@ -343,4 +343,16 @@ tests.addValid(
   { maxLineLength: 25 },
 )
 
+tests.addValid(
+  'do not format when result is longer than maxLineLength',
+  `
+    export const UpdatesPage: FC = () => {
+      const activeNotification = useNewSearchParams({
+        activeNotification: 'string',
+      }).activeNotification;
+    }
+  `,
+  { maxLineLength: 80 },
+)
+
 tests.run()

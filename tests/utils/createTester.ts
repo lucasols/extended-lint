@@ -69,7 +69,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
 
     valid.push({
       name: testName,
-      code,
+      code: dedent(code),
       filename: fileName,
       options: ruleOptions
         ? Array.isArray(ruleOptions)

@@ -86,6 +86,12 @@ const rule = createRule<[Options], 'singleLineProp'>({
     ) {
       if (node.loc.start.line === node.loc.end.line) return
 
+      const tokenAfterNode = sourceCode.getTokenAfter(node)
+
+      if (tokenAfterNode?.loc.start.line === node.loc.end.line) {
+        return
+      }
+
       let propertyText = getPropertyText(node)
 
       if (!propertyText) return
