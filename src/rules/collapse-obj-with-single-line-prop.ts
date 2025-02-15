@@ -11,7 +11,7 @@ const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
 )
 
-const name = 'wrap-single-line-prop'
+const name = 'collapse-obj-with-single-line-prop'
 
 const optionsSchema = t.object({
   maxLineLength: t.optional(t.number()),
@@ -153,7 +153,7 @@ function getTokenIndent(sourceCode: TSESLint.SourceCode, token: TSESTree.Node) {
   )
 }
 
-export const wrapSingleLineProp = {
+export const collapseObjWithSingleLineProp = {
   name,
   rule,
 }

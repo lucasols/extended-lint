@@ -1,7 +1,7 @@
 import { createTester } from '../../tests/utils/createTester'
-import { wrapSingleLineProp } from './wrap-single-line-prop'
+import { collapseObjWithSingleLineProp } from './collapse-obj-with-single-line-prop'
 
-const tests = createTester(wrapSingleLineProp)
+const tests = createTester(collapseObjWithSingleLineProp)
 
 tests.addValid(
   'no single prop objects',

@@ -1,5 +1,6 @@
 import { LooseRuleDefinition } from '@typescript-eslint/utils/ts-eslint'
 import { advancedNoRestrictedSyntax } from './advanced-no-restricted-syntax'
+import { collapseObjWithSingleLineProp } from './collapse-obj-with-single-line-prop'
 import { exhaustiveDepsESLintRule } from './exhaustive-deps'
 import { noCallWithExplicitGenerics } from './no-call-with-explicit-generics'
 import { noCallWithInferredGenerics } from './no-call-with-inferred-generics'
@@ -14,7 +15,6 @@ import { preferNamedFunction } from './prefer-named-functions'
 import { preferSingleLineIf } from './prefer-single-line-if'
 import { requireDescription } from './require-description'
 import { rulesOfHooksESLintRule } from './rules-of-hooks'
-import { wrapSingleLineProp } from './wrap-single-line-prop'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -32,5 +32,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [preferSingleLineIf.name]: preferSingleLineIf.rule,
   [noOptionalRootProps.name]: noOptionalRootProps.rule,
   [noLeakedTextInJSX.name]: noLeakedTextInJSX.rule,
-  [wrapSingleLineProp.name]: wrapSingleLineProp.rule,
+  [collapseObjWithSingleLineProp.name]: collapseObjWithSingleLineProp.rule,
 }
