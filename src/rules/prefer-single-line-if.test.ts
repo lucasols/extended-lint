@@ -342,7 +342,7 @@ tests.addInvalidWithOptions(
   },
 )
 
-tests.only.addValid(
+tests.addValid(
   'Ignore complex member expression',
   `
     export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
