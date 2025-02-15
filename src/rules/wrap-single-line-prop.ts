@@ -1,5 +1,6 @@
 import {
   AST_NODE_TYPES,
+  AST_TOKEN_TYPES,
   ESLintUtils,
   TSESLint,
   TSESTree,
@@ -86,7 +87,17 @@ const rule = createRule<[Options], 'singleLineProp'>({
     ) {
       if (node.loc.start.line === node.loc.end.line) return
 
-      const tokenAfterNode = sourceCode.getTokenAfter(node)
+      const tokenAfterNode = sourceCode.getTokenAfter(node, {
+        filter: (token) => {
+          const isTrailingComma =
+            token.type === AST_TOKEN_TYPES.Punctuator && token.value === ','
+
+          const isTrailingSemicolon =
+            token.type === AST_TOKEN_TYPES.Punctuator && token.value === ';'
+
+          return !isTrailingComma && !isTrailingSemicolon
+        },
+      })
 
       if (tokenAfterNode?.loc.start.line === node.loc.end.line) {
         return

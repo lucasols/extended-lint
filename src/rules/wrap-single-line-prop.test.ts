@@ -355,4 +355,46 @@ tests.addValid(
   { maxLineLength: 80 },
 )
 
+tests.addInvalid(
+  'nested prop with trailing comma',
+  `
+    const foo = {
+      a: {
+        b: 1,
+      },
+      c: 2,
+    }
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+    const foo = {
+      a: { b: 1 },
+      c: 2,
+    }
+  `,
+  },
+)
+
+tests.addInvalid(
+  'nested type prop with trailing semicolon',
+  `
+    type Bar = {
+      a: {
+        b: 1;
+      };
+      c: 2;
+    }
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+    type Bar = {
+      a: { b: 1 };
+      c: 2;
+    }
+  `,
+  },
+)
+
 tests.run()
