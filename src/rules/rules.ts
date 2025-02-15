@@ -14,6 +14,7 @@ import { preferNamedFunction } from './prefer-named-functions'
 import { preferSingleLineIf } from './prefer-single-line-if'
 import { requireDescription } from './require-description'
 import { rulesOfHooksESLintRule } from './rules-of-hooks'
+import { wrapSingleLineProp } from './wrap-single-line-prop'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -31,4 +32,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [preferSingleLineIf.name]: preferSingleLineIf.rule,
   [noOptionalRootProps.name]: noOptionalRootProps.rule,
   [noLeakedTextInJSX.name]: noLeakedTextInJSX.rule,
+  [wrapSingleLineProp.name]: wrapSingleLineProp.rule,
 }

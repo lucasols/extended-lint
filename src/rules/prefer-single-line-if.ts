@@ -160,7 +160,8 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
 function isComplexNodeCondition(node: TSESTree.Node) {
   return (
     node.type === AST_NODE_TYPES.CallExpression ||
-    node.type === AST_NODE_TYPES.BinaryExpression
+    node.type === AST_NODE_TYPES.BinaryExpression ||
+    node.type === AST_NODE_TYPES.MemberExpression
   )
 }
 

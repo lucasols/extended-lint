@@ -294,7 +294,7 @@ tests.addInvalidWithOptions(
     export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
       const fieldConfig = getFieldTypeConfig(type);
 
-      if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) {
+      if (!fieldConfig.recordValueConfig.foo) {
         return null;
       }
     }
@@ -306,7 +306,7 @@ tests.addInvalidWithOptions(
       export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
         const fieldConfig = getFieldTypeConfig(type);
 
-        if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) return null;
+        if (!fieldConfig.recordValueConfig.foo) return null;
       }
     `,
   },
@@ -318,11 +318,11 @@ tests.addInvalidWithOptions(
     export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
       const fieldConfig = getFieldTypeConfig(type);
 
-      if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) {
+      if (!fieldConfig.recordValueConfig.foo) {
         return null;
       }
 
-      if (fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) {
+      if (fieldConfig.recordValueConfig.bar) {
         return null;
       }
     }
@@ -334,9 +334,9 @@ tests.addInvalidWithOptions(
       export function getFieldMutateAfterOptimisticUpdateFn(type: FieldsTypeIds) {
         const fieldConfig = getFieldTypeConfig(type);
 
-        if (!fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) return null;
+        if (!fieldConfig.recordValueConfig.foo) return null;
 
-        if (fieldConfig.recordValueConfig.mutateAfterOptimisticUpdate) return null;
+        if (fieldConfig.recordValueConfig.bar) return null;
       }
     `,
   },
