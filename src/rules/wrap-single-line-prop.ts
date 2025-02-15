@@ -86,13 +86,17 @@ const rule = createRule<[Options], 'singleLineProp'>({
     ) {
       if (node.loc.start.line === node.loc.end.line) return
 
-      const propertyText = getPropertyText(node)
+      let propertyText = getPropertyText(node)
 
       if (!propertyText) return
 
       if (propertyText.includes('\n')) return
 
       if (sourceCode.getCommentsInside(node).length > 0) return
+
+      if (propertyText.endsWith(';')) {
+        propertyText = propertyText.slice(0, -1)
+      }
 
       const singleLine = `{ ${propertyText} }`
 

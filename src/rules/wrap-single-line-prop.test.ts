@@ -79,6 +79,21 @@ tests.addInvalid(
 )
 
 tests.addInvalid(
+  'single prop object with trailing comma',
+  `
+    const foo = {
+      a: 1,
+    }
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+    const foo = { a: 1 }
+  `,
+  },
+)
+
+tests.addInvalid(
   'single spread prop object',
   `
     const foo = {
@@ -91,6 +106,79 @@ tests.addInvalid(
     const foo = { ...bar }
   `,
   },
+)
+
+tests.addInvalid(
+  'single prop type',
+  `
+    type Bar = {
+      a: string
+    }
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+    type Bar = { a: string }
+  `,
+  },
+)
+
+tests.addInvalid(
+  'single prop type with semicolon',
+  `
+    type Bar = {
+      a: string;
+    }
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      type Bar = { a: string }
+    `,
+  },
+)
+
+tests.addValid(
+  'single prop type comment',
+  `
+    type Bar = {
+      a: string; // comment
+    }
+  `,
+)
+
+tests.addValid(
+  'multiple props',
+  `
+    type Bar = {
+      a: string;
+      b: number;
+    }
+  `,
+)
+
+tests.addInvalid(
+  'Interface with single prop',
+  `
+    interface Bar {
+      a: string;
+    }
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+    interface Bar { a: string }
+  `,
+  },
+)
+
+tests.addValid(
+  'interface with single prop with comment',
+  `
+    interface Bar {
+      a: string; // comment
+    }
+  `,
 )
 
 tests.addInvalid(

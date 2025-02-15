@@ -25,7 +25,19 @@
       "label": "Run in test project",
       "type": "npm",
       "script": "run-in-test-project",
-      "problemMatcher": []
+      "problemMatcher": [],
+      "presentation": {
+        "clear": true
+      }
+    },
+    {
+      "label": "Run in test project (fix)",
+      "type": "shell",
+      "command": "pnpm run run-in-test-project -- --fix",
+      "problemMatcher": [],
+      "presentation": {
+        "clear": true
+      }
     }
   ],
   "inputs": [
