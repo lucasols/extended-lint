@@ -11,7 +11,7 @@ const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
 )
 
-const name = 'collapse-obj-with-single-line-prop'
+const name = 'collapse-obj-with-single-prop'
 
 const optionsSchema = t.object({
   maxLineLength: t.optional(t.number()),

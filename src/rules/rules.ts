@@ -1,6 +1,6 @@
 import { LooseRuleDefinition } from '@typescript-eslint/utils/ts-eslint'
 import { advancedNoRestrictedSyntax } from './advanced-no-restricted-syntax'
-import { collapseObjWithSingleLineProp } from './collapse-obj-with-single-line-prop'
+import { collapseObjWithSingleLineProp } from './collapse-obj-with-single-prop'
 import { exhaustiveDepsESLintRule } from './exhaustive-deps'
 import { noCallWithExplicitGenerics } from './no-call-with-explicit-generics'
 import { noCallWithInferredGenerics } from './no-call-with-inferred-generics'

@@ -1,5 +1,5 @@
 import { createTester } from '../../tests/utils/createTester'
-import { collapseObjWithSingleLineProp } from './collapse-obj-with-single-line-prop'
+import { collapseObjWithSingleLineProp } from './collapse-obj-with-single-prop'
 
 const tests = createTester(collapseObjWithSingleLineProp)
 
