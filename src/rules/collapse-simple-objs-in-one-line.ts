@@ -65,7 +65,8 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
           if (
             property.type === AST_NODE_TYPES.Property &&
-            property.value.type === AST_NODE_TYPES.ObjectExpression
+            (property.value.type === AST_NODE_TYPES.ObjectExpression ||
+              property.value.type === AST_NODE_TYPES.ArrayExpression)
           ) {
             return false
           }

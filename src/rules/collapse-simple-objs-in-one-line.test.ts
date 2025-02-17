@@ -699,4 +699,17 @@ tests.describe('nestedObjMaxLineLength', () => {
   )
 })
 
+tests.addValid(
+  'not format objects with nested array or objs',
+  `
+    type Bar = {
+      a: { a: 1 }
+    }
+
+    const foo = {
+      a: [{ a: 1 }]
+    }
+  `,
+)
+
 tests.run()
