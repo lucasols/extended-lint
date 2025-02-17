@@ -40,13 +40,14 @@ tests.addValid(
 )
 
 tests.addValid(
-  'multiline prop',
+  'multiline object with more than 3 properties',
   `
     const foo = {
       a: {
         b: 1,
         c: 2,
         d: 3,
+        e: 4,
       }
     }
     type Bar = {
@@ -54,6 +55,7 @@ tests.addValid(
         b: string
         c: string
         d: string
+        e: string
       }
     }
     interface Baz {
@@ -61,6 +63,7 @@ tests.addValid(
         b: number
         c: number
         d: number
+        e: number
       }
     }
   `,
@@ -521,6 +524,21 @@ tests.describe('collapse objects with more than one property', () => {
         a: WithComplexTypeArgument<string | number>;
         b: number
       }
+
+      type Quux = {
+        a: WithComplexTypeArgument<string | number>;
+        b: number
+      }
+
+      type EditorProps = ModalSharedProps & {
+        title: string;
+        edit: ApiRole;
+      };
+
+      type EditorProps = ModalSharedProps | {
+        title: string;
+        edit: ApiRole;
+      };
     `,
     { maxProperties: 100 },
   )
@@ -595,6 +613,87 @@ tests.describe('objects inside JSX attributes', () => {
             b="test"
           />
         );
+      `,
+    },
+  )
+})
+
+tests.describe('ignore types with suffix', () => {
+  tests.addValid(
+    'ignore types with suffix',
+    `
+      type Props = {
+        a: 1,
+      }
+
+      type TestProps = {
+        a: 1,
+        b: 2,
+      }
+    `,
+    { ignoreTypesWithSuffix: ['Props'] },
+  )
+})
+
+tests.describe('nestedObjMaxLineLength', () => {
+  tests.addInvalidWithOptions(
+    'nestedObjMaxLineLength',
+    `
+      type Bar = {
+        a: 1;
+        b: {
+          a: 1,
+          b: 2,
+          c: 3,
+        }
+        d: {
+          a: 1,
+          b: 2,
+          c: 3,
+          d: 4,
+        }
+      }
+
+      const foo = {
+        a: 1,
+        b: {
+          a: 1,
+          b: 2,
+          c: 3,
+        },
+        d: {
+          a: 1,
+          b: 2,
+          c: 3,
+          d: 4,
+        }
+      }
+    `,
+    { nestedObjMaxLineLength: 26 },
+    [{ messageId: 'singleLineProp' }, { messageId: 'singleLineProp' }],
+    {
+      output: `
+        type Bar = {
+          a: 1;
+          b: { a: 1; b: 2; c: 3 }
+          d: {
+            a: 1,
+            b: 2,
+            c: 3,
+            d: 4,
+          }
+        }
+
+        const foo = {
+          a: 1,
+          b: { a: 1, b: 2, c: 3 },
+          d: {
+            a: 1,
+            b: 2,
+            c: 3,
+            d: 4,
+          }
+        }
       `,
     },
   )

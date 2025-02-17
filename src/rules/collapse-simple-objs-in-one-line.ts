@@ -16,6 +16,9 @@ const name = 'collapse-simple-objs-in-one-line'
 const optionsSchema = t.object({
   maxLineLength: t.optional(t.number()),
   maxProperties: t.optional(t.number()),
+  nestedObjMaxLineLength: t.optional(t.number()),
+  nestedObjMaxProperties: t.optional(t.number()),
+  ignoreTypesWithSuffix: t.optional(t.array(t.string())),
 })
 
 type Options = t.Infer<typeof optionsSchema>
@@ -37,15 +40,27 @@ const rule = createRule<[Options], 'singleLineProp'>({
   create(context, [options]) {
     const sourceCode = context.sourceCode
 
+    const ignoreTypesWithSuffix = options.ignoreTypesWithSuffix ?? []
+
     const maxProperties = options.maxProperties ?? 2
+    const nestedObjMaxLineLength =
+      options.nestedObjMaxLineLength ?? options.maxLineLength
+    const nestedObjMaxProperties = options.nestedObjMaxProperties ?? 3
 
-    function getPropertyText(
+    function getMatchedProperties(
       node: TSESTree.ObjectExpression | TSESTree.TSTypeLiteral,
-    ): string | false {
+    ): { text: string; isNested: boolean; propsSize: number } | false {
       if (node.type === AST_NODE_TYPES.ObjectExpression) {
-        if (node.properties.length > maxProperties) return false
+        const isNested = node.parent.type === AST_NODE_TYPES.Property
 
-        if (node.properties.length === 1) {
+        const maxPropertiesToUse = isNested
+          ? nestedObjMaxProperties
+          : maxProperties
+
+        const propsSize = node.properties.length
+        if (propsSize > maxPropertiesToUse) return false
+
+        if (propsSize === 1) {
           const property = node.properties[0]!
 
           if (
@@ -55,7 +70,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
             return false
           }
 
-          return sourceCode.getText(property)
+          return { text: sourceCode.getText(property), isNested, propsSize }
         }
 
         const propertyTexts: string[] = []
@@ -76,11 +91,33 @@ const rule = createRule<[Options], 'singleLineProp'>({
           propertyTexts.push(sourceCode.getText(property))
         }
 
-        return propertyTexts.join(', ')
+        return { text: propertyTexts.join(', '), isNested, propsSize }
       } else {
-        if (node.members.length > maxProperties) return false
+        const isNested =
+          node.parent.parent?.type === AST_NODE_TYPES.TSPropertySignature
 
-        if (node.members.length === 1) {
+        const maxPropertiesToUse = isNested
+          ? nestedObjMaxProperties
+          : maxProperties
+
+        const propsSize = node.members.length
+
+        if (propsSize > maxPropertiesToUse) return false
+
+        if (
+          ignoreTypesWithSuffix.length > 0 &&
+          node.parent.type === AST_NODE_TYPES.TSTypeAliasDeclaration
+        ) {
+          const typeName = node.parent.id.name
+
+          if (
+            ignoreTypesWithSuffix.some((suffix) => typeName.endsWith(suffix))
+          ) {
+            return false
+          }
+        }
+
+        if (propsSize === 1) {
           const property = node.members[0]!
 
           if (
@@ -91,7 +128,14 @@ const rule = createRule<[Options], 'singleLineProp'>({
             return false
           }
 
-          return sourceCode.getText(property)
+          return { text: sourceCode.getText(property), isNested, propsSize: 1 }
+        }
+
+        if (
+          node.parent.type === AST_NODE_TYPES.TSIntersectionType ||
+          node.parent.type === AST_NODE_TYPES.TSUnionType
+        ) {
+          return false
         }
 
         const propertyTexts: string[] = []
@@ -132,7 +176,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
           propertyTexts.push(text)
         }
 
-        return propertyTexts.join('; ')
+        return { text: propertyTexts.join('; '), isNested, propsSize }
       }
     }
 
@@ -159,9 +203,11 @@ const rule = createRule<[Options], 'singleLineProp'>({
         }
       }
 
-      let propertyText = getPropertyText(node)
+      const matchedObject = getMatchedProperties(node)
 
-      if (!propertyText) return
+      if (!matchedObject) return
+
+      let propertyText = matchedObject.text
 
       if (propertyText.includes('\n')) return
 
@@ -175,12 +221,17 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
       const nodeIndent = getTokenIndent(sourceCode, node)
 
+      const maxLineLength =
+        matchedObject.isNested && matchedObject.propsSize > 2
+          ? nestedObjMaxLineLength
+          : options.maxLineLength
+
       if (
-        options.maxLineLength &&
+        maxLineLength &&
         singleLine.length +
           nodeIndent.length +
           (hasTrailingToken(node, sourceCode) ? 1 : 0) >
-          options.maxLineLength
+          maxLineLength
       ) {
         return
       }
