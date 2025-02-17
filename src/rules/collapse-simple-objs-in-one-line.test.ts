@@ -536,13 +536,14 @@ tests.describe('collapse objects with more than one property', () => {
         e: null,
         f: undefined,
         g: variable,
+        shortHand,
       }
     `,
     { maxProperties: 100 },
     [{ messageId: 'singleLineProp' }],
     {
       output: `
-        const foo = { a: 1, b: '2', c: true, d: false, e: null, f: undefined, g: variable }
+        const foo = { a: 1, b: '2', c: true, d: false, e: null, f: undefined, g: variable, shortHand }
       `,
     },
   )
