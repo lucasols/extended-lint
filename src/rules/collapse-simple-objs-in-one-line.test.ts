@@ -1,7 +1,7 @@
 import { createTester } from '../../tests/utils/createTester'
-import { collapseObjWithSingleLineProp } from './collapse-obj-with-single-prop'
+import { collapseSimpleObjsInOneLine } from './collapse-simple-objs-in-one-line'
 
-const tests = createTester(collapseObjWithSingleLineProp)
+const tests = createTester(collapseSimpleObjsInOneLine)
 
 tests.addValid(
   'no single prop objects',
@@ -45,19 +45,22 @@ tests.addValid(
     const foo = {
       a: {
         b: 1,
-        c: 2
+        c: 2,
+        d: 3,
       }
     }
     type Bar = {
       a: {
         b: string
         c: string
+        d: string
       }
     }
     interface Baz {
       a: {
         b: number
         c: number
+        d: number
       }
     }
   `,
@@ -153,6 +156,7 @@ tests.addValid(
     type Bar = {
       a: string;
       b: number;
+      c: boolean;
     }
   `,
 )
@@ -400,5 +404,199 @@ tests.addValid(
   `,
   { maxLineLength: 80 },
 )
+
+tests.describe('collapse objects with more than one property', () => {
+  tests.addInvalid(
+    'object with more than one property',
+    `
+      const foo = {
+        a: 1,
+        b: 2,
+      }
+    `,
+    [{ messageId: 'singleLineProp' }],
+    {
+      output: `
+        const foo = { a: 1, b: 2 }
+      `,
+    },
+  )
+
+  tests.addInvalid(
+    'type with more than one property',
+    `
+      type Bar = {
+        a: 1,
+        b: 2,
+      }
+    `,
+    [{ messageId: 'singleLineProp' }],
+    {
+      output: `
+        type Bar = { a: 1; b: 2 }
+      `,
+    },
+  )
+
+  tests.addValid(
+    'by default, collapse objects up to 2 properties',
+    `
+      const foo = {
+        a: 1,
+        b: 2,
+        c: 3,
+      }
+    `,
+  )
+
+  tests.addInvalidWithOptions(
+    'maxProperties',
+    `
+      const foo = {
+        a: 1,
+        b: 2,
+        c: 3,
+      }
+    `,
+    { maxProperties: 3 },
+    [{ messageId: 'singleLineProp' }],
+    {
+      output: `
+        const foo = { a: 1, b: 2, c: 3 }
+      `,
+    },
+  )
+
+  tests.addInvalid(
+    'multiple props in type',
+    `
+    type Bar = {
+        a: string;
+        b: number;
+      }
+    `,
+    [{ messageId: 'singleLineProp' }],
+    {
+      output: `
+        type Bar = { a: string; b: number }
+      `,
+    },
+  )
+
+  tests.addValid(
+    'ignore complex objects',
+    `
+      const foo = {
+        a: withObj.member.expression,
+        b: 2,
+      }
+
+      const bar = {
+        a: withFunctionCall(),
+        b: 2,
+      }
+
+      const baz = {
+        a: withBooleanLogic || foo,
+        b: 2,
+      }
+    `,
+    { maxProperties: 100 },
+  )
+
+  tests.addValid(
+    'ignore complex types',
+    `
+      type Bar = {
+        a: WithPropertyAccess['a'],
+        b: number
+      }
+
+      type Baz = {
+        a: With | Union;
+        b: number
+      }
+
+      type Qux = {
+        a: WithComplexTypeArgument<string | number>;
+        b: number
+      }
+    `,
+    { maxProperties: 100 },
+  )
+
+  tests.addInvalidWithOptions(
+    'collapse objects with simple values',
+    `
+      const foo = {
+        a: 1,
+        b: '2',
+        c: true,
+        d: false,
+        e: null,
+        f: undefined,
+        g: variable,
+      }
+    `,
+    { maxProperties: 100 },
+    [{ messageId: 'singleLineProp' }],
+    {
+      output: `
+        const foo = { a: 1, b: '2', c: true, d: false, e: null, f: undefined, g: variable }
+      `,
+    },
+  )
+
+  tests.addInvalidWithOptions(
+    'collapse types with simple values',
+    `
+      type Bar = {
+        a: 1,
+        b: '2',
+        c: true,
+        d: false,
+        e: null,
+        f: undefined,
+        g: TypeRef,
+        h: WithTypeArgument<string>
+      }
+    `,
+    { maxProperties: 100 },
+    [{ messageId: 'singleLineProp' }],
+    {
+      output: `
+        type Bar = { a: 1; b: '2'; c: true; d: false; e: null; f: undefined; g: TypeRef; h: WithTypeArgument<string> }
+      `,
+    },
+  )
+})
+
+tests.describe('objects inside JSX attributes', () => {
+  tests.addInvalid(
+    'object inside JSX attribute',
+    `
+      const foo = (
+        <div
+          a={{
+            a: 1,
+            b: 2,
+          }}
+          b="test"
+        />
+      );
+    `,
+    [{ messageId: 'singleLineProp' }],
+    {
+      output: `
+        const foo = (
+          <div
+            a={{ a: 1, b: 2 }}
+            b="test"
+          />
+        );
+      `,
+    },
+  )
+})
 
 tests.run()
