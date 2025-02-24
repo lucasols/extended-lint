@@ -63,4 +63,32 @@ tests.addValid(
   `,
 )
 
+tests.addInvalid(
+  'leaked && text in jsx',
+  `
+    <div>
+      <p>Hello</p>
+      test && (
+      <div>
+        <p>Hello</p>
+      </div>
+    </div>
+  `,
+  [{ messageId: 'leakedTextInJSX', data: { text: '&&' } }],
+)
+
+tests.addInvalid(
+  'leaked || text in jsx',
+  `
+    <div>
+      <p>Hello</p>
+      test || (
+      <div>
+        <p>Hello</p>
+      </div>
+    </div>
+  `,
+  [{ messageId: 'leakedTextInJSX', data: { text: '||' } }],
+)
+
 tests.run()

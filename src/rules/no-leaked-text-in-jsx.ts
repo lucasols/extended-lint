@@ -33,11 +33,19 @@ const rule = createRule<Options, 'leakedTextInJSX'>({
 
         const disallowedTexts = [',', ';', '[', ']']
 
-        if (disallowedTexts.includes(text)) {
+        const hasLogicalOperator = text.includes('&&') || text.includes('||')
+
+        if (hasLogicalOperator || disallowedTexts.includes(text)) {
           context.report({
             node,
             messageId: 'leakedTextInJSX',
-            data: { text },
+            data: {
+              text: hasLogicalOperator
+                ? text.includes('&&')
+                  ? '&&'
+                  : '||'
+                : text,
+            },
           })
         }
       },
