@@ -8,7 +8,7 @@ const name = 'no-leaked-text-in-jsx'
 
 type Options = []
 
-const disallowedTexts = [',', ';', '[', ']']
+const disallowedTexts = [',', ';', '[', ']', '(', ')']
 
 const rule = createRule<Options, 'leakedTextInJSX'>({
   name,
