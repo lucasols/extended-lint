@@ -33,7 +33,7 @@ tests.addInvalid(
 )
 
 tests.addInvalid(
-  'leaked ; text in jsx',
+  'leaked [ text in jsx',
   `
     <div>
       <p>Hello</p>
@@ -103,6 +103,17 @@ tests.addInvalid(
     </div>
   `,
   [{ messageId: 'leakedTextInJSX', data: { text: '? (' } }],
+)
+
+tests.addInvalid(
+  'leaked ] text in jsx',
+  `
+    <div>
+      <p>Hello</p>
+      ]
+    </div>
+  `,
+  [{ messageId: 'leakedTextInJSX', data: { text: ']' } }],
 )
 
 tests.run()
