@@ -8,6 +8,8 @@ const name = 'no-leaked-text-in-jsx'
 
 type Options = []
 
+const disallowedTexts = [',', ';', '[', ']']
+
 const rule = createRule<Options, 'leakedTextInJSX'>({
   name,
   meta: {
@@ -31,21 +33,25 @@ const rule = createRule<Options, 'leakedTextInJSX'>({
 
         if (!text) return
 
-        const disallowedTexts = [',', ';', '[', ']']
+        let invalidText: string = ''
 
-        const hasLogicalOperator = text.includes('&&') || text.includes('||')
+        if (disallowedTexts.includes(text)) {
+          invalidText = text
+        } else {
+          if (text.includes('&&')) {
+            invalidText = '&&'
+          } else if (text.includes('||')) {
+            invalidText = '||'
+          } else if (text.endsWith('? (')) {
+            invalidText = '? ('
+          }
+        }
 
-        if (hasLogicalOperator || disallowedTexts.includes(text)) {
+        if (invalidText) {
           context.report({
             node,
             messageId: 'leakedTextInJSX',
-            data: {
-              text: hasLogicalOperator
-                ? text.includes('&&')
-                  ? '&&'
-                  : '||'
-                : text,
-            },
+            data: { text: invalidText },
           })
         }
       },
