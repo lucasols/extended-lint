@@ -43,6 +43,28 @@ tests.addInvalid(
   [{ messageId: 'leakedTextInJSX', data: { text: '[' } }],
 )
 
+tests.addInvalid(
+  'leaked ( text in jsx',
+  `
+    <div>
+      <p>Hello</p>
+      (
+    </div>
+  `,
+  [{ messageId: 'leakedTextInJSX', data: { text: '(' } }],
+)
+
+tests.addInvalid(
+  'leaked ) text in jsx',
+  `
+    <div>
+      <p>Hello</p>
+      )
+    </div>
+  `,
+  [{ messageId: 'leakedTextInJSX', data: { text: ')' } }],
+)
+
 tests.addValid(
   'no leaked text in jsx',
   `
