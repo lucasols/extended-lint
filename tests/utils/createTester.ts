@@ -187,7 +187,10 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
               (error): TestCaseError<string> => ({
                 messageId: error.messageId || defaultErrorId || '?',
                 data: error.data,
-                suggestions: error.suggestions,
+                suggestions: error.suggestions?.map((suggestion) => ({
+                  ...suggestion,
+                  output: dedent(suggestion.output),
+                })),
               }),
             ),
     })

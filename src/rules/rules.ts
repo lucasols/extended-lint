@@ -13,6 +13,7 @@ import { noRelativeImports } from './no-relative-imports'
 import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
 import { preferNamedFunction } from './prefer-named-functions'
 import { preferSingleLineIf } from './prefer-single-line-if'
+import { reactCompilerMigration } from './react-compiler-migration'
 import { requireDescription } from './require-description'
 import { rulesOfHooksESLintRule } from './rules-of-hooks'
 
@@ -33,4 +34,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noOptionalRootProps.name]: noOptionalRootProps.rule,
   [noLeakedTextInJSX.name]: noLeakedTextInJSX.rule,
   [collapseSimpleObjsInOneLine.name]: collapseSimpleObjsInOneLine.rule,
+  [reactCompilerMigration.name]: reactCompilerMigration.rule,
 }

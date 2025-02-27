@@ -1,6 +1,6 @@
 ---
 description: use these rules whenever are tests involved, or code changes that may affect existing tests
-globs: 
+globs: src/**/*
 alwaysApply: false
 ---
 
