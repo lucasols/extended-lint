@@ -326,6 +326,45 @@ tests.describe('disallowMethod with requireTrueProp', () => {
       },
     ],
   )
+
+  tests.addInvalidWithOptions(
+    'requireTrueProp is missing',
+    `
+      // eslint react-compiler/react-compiler: ["error"]
+
+
+      const chatMessages = chatMessagesList.useListQuery(
+        {
+          chatId: isRecordChat ? chatId : Number(chatId),
+          chatType,
+          parentMessageId: mainMessageId,
+        },
+        {
+          returnRefetchingStatus: true,
+          itemSelector(data, id) {
+            return { data, id };
+          },
+        },
+      );
+    `,
+    {
+      disallowMethods: [
+        {
+          name: 'itemSelector',
+          requireTrueProp: 'isSafe',
+        },
+      ],
+    },
+    [
+      {
+        messageId: 'disallowedMethodWithMissingRequireTrueProp',
+        data: {
+          method: 'itemSelector',
+          requireTrueProp: 'isSafe',
+        },
+      },
+    ],
+  )
 })
 
 // Run the tests
