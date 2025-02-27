@@ -356,4 +356,24 @@ tests.addValid(
   { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
 )
 
+tests.addInvalidWithOptions(
+  'Should not ignore single condition',
+  `
+    function foo() {
+      if (!bar) {
+        return forceFormValidation();
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      function foo() {
+        if (!bar) return forceFormValidation();
+      }
+    `,
+  },
+)
+
 tests.run()
