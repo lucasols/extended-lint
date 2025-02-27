@@ -240,5 +240,93 @@ tests.addInvalidWithOptions(
   ],
 )
 
+tests.describe('disallowMethod with requireTrueProp', () => {
+  tests.addValid(
+    'Using disallowed method with missing requireTrueProp',
+    `
+      // eslint react-compiler/react-compiler: ["error"]
+
+      function Component() {
+        useHook({
+          unsafeMethod: () => {},
+          isSafe: true,
+        })
+        return null
+      }
+    `,
+    {
+      disallowMethods: [
+        {
+          name: 'unsafeMethod',
+          requireTrueProp: 'isSafe',
+        },
+      ],
+    },
+  )
+
+  tests.addInvalidWithOptions(
+    'requireTrueProp is set to false',
+    `
+      // eslint react-compiler/react-compiler: ["error"]
+
+      function Component() {
+        useHook({
+          unsafeMethod: () => {},
+          isSafe: false,
+        })
+        return null
+      }
+    `,
+    {
+      disallowMethods: [
+        {
+          name: 'unsafeMethod',
+          requireTrueProp: 'isSafe',
+        },
+      ],
+    },
+    [
+      {
+        messageId: 'disallowedMethodWithMissingRequireTrueProp',
+        data: {
+          method: 'unsafeMethod',
+          requireTrueProp: 'isSafe',
+        },
+      },
+    ],
+  )
+
+  tests.addInvalidWithOptions(
+    'requireTrueProp is missing',
+    `
+      // eslint react-compiler/react-compiler: ["error"]
+
+      function Component() {
+        useHook({
+          unsafeMethod: () => {},
+        })
+        return null
+      }
+    `,
+    {
+      disallowMethods: [
+        {
+          name: 'unsafeMethod',
+          requireTrueProp: 'isSafe',
+        },
+      ],
+    },
+    [
+      {
+        messageId: 'disallowedMethodWithMissingRequireTrueProp',
+        data: {
+          method: 'unsafeMethod',
+          requireTrueProp: 'isSafe',
+        },
+      },
+    ],
+  )
+})
+
 // Run the tests
 tests.run()

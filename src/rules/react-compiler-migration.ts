@@ -20,7 +20,8 @@ const optionsSchema = t.object({
     t.array(
       t.object({
         name: t.string(),
-        replacement: t.string(),
+        replacement: t.optional(t.string()),
+        requireTrueProp: t.optional(t.string()),
       }),
     ),
   ),
@@ -49,7 +50,12 @@ function isHook(callee: TSESTree.CallExpression['callee']): boolean {
   return false
 }
 
-const rule = createRule<[Options], 'disallowedFunctionOrMethod' | 'replace'>({
+const rule = createRule<
+  [Options],
+  | 'disallowedFunctionOrMethod'
+  | 'replace'
+  | 'disallowedMethodWithMissingRequireTrueProp'
+>({
   name,
   meta: {
     type: 'suggestion',
@@ -61,6 +67,8 @@ const rule = createRule<[Options], 'disallowedFunctionOrMethod' | 'replace'>({
       disallowedFunctionOrMethod:
         '{{functionOrMethod}} is not supported in react compiler. Use {{replacement}} instead.',
       replace: 'Replace with safe alternative {{replacement}}',
+      disallowedMethodWithMissingRequireTrueProp:
+        '{{method}} is should have a prop named {{requireTrueProp}} set to true when used in react compiler.',
     },
     hasSuggestions: true,
     schema: [optionsSchema as any],
@@ -151,28 +159,63 @@ const rule = createRule<[Options], 'disallowedFunctionOrMethod' | 'replace'>({
                 )
 
                 if (disallowedMethod) {
-                  context.report({
-                    node: prop,
-                    messageId: 'disallowedFunctionOrMethod',
-                    data: {
-                      functionOrMethod: disallowedMethod.name,
-                      replacement: disallowedMethod.replacement,
-                    },
-                    suggest: [
-                      {
-                        messageId: 'replace',
+                  // Check for requireTrueProp condition
+                  if (disallowedMethod.requireTrueProp) {
+                    const requiredPropName = disallowedMethod.requireTrueProp
+                    let hasTrueProp = false
+
+                    // Check if the object has the required prop set to true
+                    for (const objProp of arg.properties) {
+                      if (
+                        objProp.type === AST_NODE_TYPES.Property &&
+                        objProp.key.type === AST_NODE_TYPES.Identifier &&
+                        objProp.key.name === requiredPropName &&
+                        objProp.value.type === AST_NODE_TYPES.Literal &&
+                        objProp.value.value === true
+                      ) {
+                        hasTrueProp = true
+                        break
+                      }
+                    }
+
+                    if (!hasTrueProp) {
+                      context.report({
+                        node: prop,
+                        messageId: 'disallowedMethodWithMissingRequireTrueProp',
                         data: {
-                          replacement: disallowedMethod.replacement,
+                          method: disallowedMethod.name,
+                          requireTrueProp: requiredPropName,
                         },
-                        fix: (fixer) => {
-                          return fixer.replaceText(
-                            prop.key,
-                            disallowedMethod.replacement,
-                          )
-                        },
+                      })
+                      continue
+                    }
+                  }
+
+                  // Handle replacement if available
+                  if (disallowedMethod.replacement) {
+                    context.report({
+                      node: prop,
+                      messageId: 'disallowedFunctionOrMethod',
+                      data: {
+                        functionOrMethod: disallowedMethod.name,
+                        replacement: disallowedMethod.replacement,
                       },
-                    ],
-                  })
+                      suggest: [
+                        {
+                          messageId: 'replace',
+                          data: {
+                            replacement: disallowedMethod.replacement,
+                          },
+                          fix: (fixer) => {
+                            return fixer.replaceText(
+                              prop.key,
+                              disallowedMethod.replacement!,
+                            )
+                          },
+                        },
+                      ],
+                    })
+                  }
                 }
               }
             }
