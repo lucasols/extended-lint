@@ -58,10 +58,7 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
         const statement = node.consequent.body[0]!
 
         if (statement.type === AST_NODE_TYPES.ReturnStatement) {
-          const statementArgCanBeInlined =
-            !statement.argument ||
-            statement.argument.type === AST_NODE_TYPES.Literal ||
-            statement.argument.type === AST_NODE_TYPES.Identifier
+          const statementArgCanBeInlined = isValidReturnStatement(statement)
 
           if (!statementArgCanBeInlined) return
         } else {
@@ -178,6 +175,29 @@ function getTokenIndent(sourceCode: TSESLint.SourceCode, token: TSESTree.Node) {
     token.range[0] - token.loc.start.column,
     token.range[0],
   )
+}
+
+function isValidReturnStatement(
+  statement: TSESTree.ReturnStatement | TSESTree.UnaryExpression,
+) {
+  if (!statement.argument) return true
+
+  if (
+    statement.argument.type === AST_NODE_TYPES.Literal ||
+    statement.argument.type === AST_NODE_TYPES.Identifier
+  ) {
+    return true
+  }
+
+  if (statement.argument.type === AST_NODE_TYPES.CallExpression) {
+    return statement.argument.arguments.length === 0
+  }
+
+  if (statement.argument.type === AST_NODE_TYPES.UnaryExpression) {
+    return isValidReturnStatement(statement.argument)
+  }
+
+  return false
 }
 
 export const preferSingleLineIf = {

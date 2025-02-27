@@ -376,4 +376,64 @@ tests.addInvalidWithOptions(
   },
 )
 
+tests.addInvalidWithOptions(
+  'Should not ignore single condition',
+  `
+    function foo() {
+      if (!bar) {
+        return !forceFormValidation();
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      function foo() {
+        if (!bar) return !forceFormValidation();
+      }
+    `,
+  },
+)
+
+tests.addInvalidWithOptions(
+  'Should not ignore single condition',
+  `
+    function foo() {
+      if (!bar) {
+        return !variable;
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      function foo() {
+        if (!bar) return !variable;
+      }
+    `,
+  },
+)
+
+tests.addInvalidWithOptions(
+  'Should not ignore single condition',
+  `
+    function foo() {
+      if (!bar) {
+        return !!variable;
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      function foo() {
+        if (!bar) return !!variable;
+      }
+    `,
+  },
+)
+
 tests.run()
