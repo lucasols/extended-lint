@@ -227,7 +227,7 @@ const rule = createRule<
   },
 })
 
-export const reactCompilerMigration = {
+export const reactCompilerExtra = {
   name,
   rule,
 }

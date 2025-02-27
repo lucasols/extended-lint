@@ -1,4 +1,5 @@
 import { LooseRuleDefinition } from '@typescript-eslint/utils/ts-eslint'
+import { reactCompilerExtra } from '../react-compiler-extra'
 import { advancedNoRestrictedSyntax } from './advanced-no-restricted-syntax'
 import { collapseSimpleObjsInOneLine } from './collapse-simple-objs-in-one-line'
 import { exhaustiveDepsESLintRule } from './exhaustive-deps'
@@ -35,4 +36,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noLeakedTextInJSX.name]: noLeakedTextInJSX.rule,
   [collapseSimpleObjsInOneLine.name]: collapseSimpleObjsInOneLine.rule,
   [reactCompilerMigration.name]: reactCompilerMigration.rule,
+  [reactCompilerExtra.name]: reactCompilerExtra.rule,
 }
