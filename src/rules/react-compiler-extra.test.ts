@@ -1,7 +1,7 @@
 import { createTester } from '../../tests/utils/createTester'
-import { reactCompilerMigration } from '../react-compiler-extra'
+import { reactCompilerExtra } from '../react-compiler-extra'
 
-const tests = createTester(reactCompilerMigration)
+const tests = createTester(reactCompilerExtra)
 
 tests.addValid(
   'non-hook call with object method',
