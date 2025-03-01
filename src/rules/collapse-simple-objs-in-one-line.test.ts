@@ -725,12 +725,16 @@ tests.addInvalid(
               label: __\`Number\`,
               value: 'number',
             },
+            {
+              label: \`String\`,
+              value: 'string',
+            },
           ]}
         />
       )
     }
 `,
-  [{ messageId: 'singleLineProp' }],
+  [{ messageId: 'singleLineProp' }, { messageId: 'singleLineProp' }],
   {
     output: `
       const Component = () => {
@@ -740,6 +744,7 @@ tests.addInvalid(
             notClearable
             options={[
               { label: __\`Number\`, value: 'number' },
+              { label: \`String\`, value: 'string' },
             ]}
           />
         )
