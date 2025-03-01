@@ -82,7 +82,9 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
             const isSimpleValue =
               valueType === AST_NODE_TYPES.Literal ||
-              valueType === AST_NODE_TYPES.Identifier
+              valueType === AST_NODE_TYPES.Identifier ||
+              valueType === AST_NODE_TYPES.TemplateLiteral ||
+              valueType === AST_NODE_TYPES.TaggedTemplateExpression
 
             if (!isSimpleValue) {
               return false

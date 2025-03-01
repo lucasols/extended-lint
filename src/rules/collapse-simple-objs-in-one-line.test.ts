@@ -712,4 +712,40 @@ tests.addValid(
   `,
 )
 
+tests.addInvalid(
+  'object with template literal',
+  `
+    const Component = () => {
+      return (
+        <Select
+          label={"Select return type"}
+          notClearable
+          options={[
+            {
+              label: __\`Number\`,
+              value: 'number',
+            },
+          ]}
+        />
+      )
+    }
+`,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      const Component = () => {
+        return (
+          <Select
+            label={"Select return type"}
+            notClearable
+            options={[
+              { label: __\`Number\`, value: 'number' },
+            ]}
+          />
+        )
+      }
+    `,
+  },
+)
+
 tests.run()
