@@ -64,7 +64,9 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
         } else {
           const isValidStatement =
             statement.type === AST_NODE_TYPES.ContinueStatement ||
-            statement.type === AST_NODE_TYPES.BreakStatement
+            statement.type === AST_NODE_TYPES.BreakStatement ||
+            (statement.type === AST_NODE_TYPES.ExpressionStatement &&
+              isValidExpressionStatement(statement))
 
           if (!isValidStatement) return
         }
@@ -182,19 +184,45 @@ function isValidReturnStatement(
 ) {
   if (!statement.argument) return true
 
+  const argument = statement.argument
+
   if (
-    statement.argument.type === AST_NODE_TYPES.Literal ||
-    statement.argument.type === AST_NODE_TYPES.Identifier
+    argument.type === AST_NODE_TYPES.ArrayExpression &&
+    argument.elements.length === 0
   ) {
     return true
   }
 
-  if (statement.argument.type === AST_NODE_TYPES.CallExpression) {
-    return statement.argument.arguments.length === 0
+  if (
+    argument.type === AST_NODE_TYPES.ObjectExpression &&
+    argument.properties.length === 0
+  ) {
+    return true
   }
 
-  if (statement.argument.type === AST_NODE_TYPES.UnaryExpression) {
-    return isValidReturnStatement(statement.argument)
+  if (
+    argument.type === AST_NODE_TYPES.Literal ||
+    argument.type === AST_NODE_TYPES.Identifier ||
+    argument.type === AST_NODE_TYPES.TemplateLiteral ||
+    argument.type === AST_NODE_TYPES.TaggedTemplateExpression
+  ) {
+    return true
+  }
+
+  if (argument.type === AST_NODE_TYPES.CallExpression) {
+    return argument.arguments.length === 0
+  }
+
+  if (argument.type === AST_NODE_TYPES.UnaryExpression) {
+    return isValidReturnStatement(argument)
+  }
+
+  return false
+}
+
+function isValidExpressionStatement(statement: TSESTree.ExpressionStatement) {
+  if (statement.expression.type === AST_NODE_TYPES.CallExpression) {
+    return statement.expression.arguments.length === 0
   }
 
   return false

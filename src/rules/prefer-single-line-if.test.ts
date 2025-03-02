@@ -130,17 +130,20 @@ tests.addValid(
   { maxLineLength: 50 },
 )
 
-tests.addValid(
-  'ignored returns or expressions',
+tests.addInvalidWithOptions(
+  'simple call expression',
   `
     if (foo) {
       foo();
     }
-
-    if (foo) {
-      return \`foo \${foo}\`;
-    }
   `,
+  { maxLineLength: 50 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      if (foo) foo();
+    `,
+  },
 )
 
 tests.addValid(
@@ -431,6 +434,86 @@ tests.addInvalidWithOptions(
     output: `
       function foo() {
         if (!bar) return !!variable;
+      }
+    `,
+  },
+)
+
+tests.addInvalidWithOptions(
+  'Return empty array',
+  `
+    function foo() {
+      if (!bar) {
+        return [];
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      function foo() {
+        if (!bar) return [];
+      }
+    `,
+  },
+)
+
+tests.addInvalidWithOptions(
+  'Return empty   ',
+  `
+    function foo() {
+      if (!bar) {
+        return {};
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      function foo() {
+        if (!bar) return {};
+      }
+    `,
+  },
+)
+
+tests.addInvalidWithOptions(
+  'Return template literal',
+  `
+    function foo() {
+      if (!bar) {
+        return \`foo\`;
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      function foo() {
+        if (!bar) return \`foo\`;
+      }
+    `,
+  },
+)
+
+tests.addInvalidWithOptions(
+  'Return tagged template literal',
+  `
+    function foo() {
+      if (!bar) {
+        return __\`foo\`;
+      }
+    }
+  `,
+  { maxLineLength: 80, maxNonSimpleConditionLength: 40 },
+  [{ messageId: 'noSingleLineCurly' }],
+  {
+    output: `
+      function foo() {
+        if (!bar) return __\`foo\`;
       }
     `,
   },
