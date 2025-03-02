@@ -130,20 +130,13 @@ tests.addValid(
   { maxLineLength: 50 },
 )
 
-tests.addInvalidWithOptions(
-  'simple call expression',
+tests.addValid(
+  'simple call expression should be ignored',
   `
     if (foo) {
       foo();
     }
   `,
-  { maxLineLength: 50 },
-  [{ messageId: 'noSingleLineCurly' }],
-  {
-    output: `
-      if (foo) foo();
-    `,
-  },
 )
 
 tests.addValid(

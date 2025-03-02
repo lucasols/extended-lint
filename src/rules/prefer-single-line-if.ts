@@ -64,9 +64,7 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
         } else {
           const isValidStatement =
             statement.type === AST_NODE_TYPES.ContinueStatement ||
-            statement.type === AST_NODE_TYPES.BreakStatement ||
-            (statement.type === AST_NODE_TYPES.ExpressionStatement &&
-              isValidExpressionStatement(statement))
+            statement.type === AST_NODE_TYPES.BreakStatement
 
           if (!isValidStatement) return
         }
@@ -215,14 +213,6 @@ function isValidReturnStatement(
 
   if (argument.type === AST_NODE_TYPES.UnaryExpression) {
     return isValidReturnStatement(argument)
-  }
-
-  return false
-}
-
-function isValidExpressionStatement(statement: TSESTree.ExpressionStatement) {
-  if (statement.expression.type === AST_NODE_TYPES.CallExpression) {
-    return statement.expression.arguments.length === 0
   }
 
   return false
