@@ -147,6 +147,15 @@ tests.addInvalidWithOptions(
 )
 
 tests.addValid(
+  'call expression with arguments should be ignored',
+  `
+    if (foo) {
+      foo(test);
+    }
+  `,
+)
+
+tests.addValid(
   'ignored conditions',
   `
     if (foo && bar) {
