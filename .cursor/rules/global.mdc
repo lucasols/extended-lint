@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- Do not run eslint or typescript via terminal
+- Do not add comments to simple code
+- Always write strongly typed typescript
+- Always use `type` instead of `interface` when possible
+- Use `for of` instead of `array.forEach`
+- NEVER use `array.reduce`
+- NEVER use `as` assertions, except for `as const`

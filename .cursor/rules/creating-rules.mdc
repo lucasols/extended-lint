@@ -1,0 +1,11 @@
+---
+description: Rules to be used when creating new rules
+globs: 
+alwaysApply: false
+---
+
+When creating new rules follow these rules:
+
+- Use the structure of rules like [react-compiler-extra.ts](mdc:src/react-compiler-extra.ts)
+- Add the rule to [rules.ts](mdc:src/rules/rules.ts) index
+- Write tests for the rule
