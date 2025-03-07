@@ -12,6 +12,7 @@ import { noLeakedTextInJSX } from './no-leaked-text-in-jsx'
 import { noNonCamelCaseFunctions } from './no-non-camel-case-functions'
 import { noOptionalRootProps } from './no-optional-root-props'
 import { noRelativeImports } from './no-relative-imports'
+import { noUnnecessaryCasting } from './no-unnecessary-casting'
 import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
 import { preferNamedFunction } from './prefer-named-functions'
 import { preferSingleLineIf } from './prefer-single-line-if'
@@ -39,4 +40,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [reactCompilerMigration.name]: reactCompilerMigration.rule,
   [reactCompilerExtra.name]: reactCompilerExtra.rule,
   [improvedNoUnnecessaryCondition.name]: improvedNoUnnecessaryCondition.rule,
+  [noUnnecessaryCasting.name]: noUnnecessaryCasting.rule,
 }
