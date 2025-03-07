@@ -46,7 +46,7 @@ export const improvedNoUnnecessaryCondition = {
       },
       messages: {
         unnecessaryTypeofCondition:
-          'This condition is always unnecessary. The type of "{{name}}" is always "{{type}}".',
+          'This condition is unnecessary. The type of "{{name}}" is always "{{type}}".',
         alwaysFalseTypeofCondition:
           'This condition will always be false. The type of "{{name}}" is "{{actualType}}" so the condition has no overlap with "{{conditionType}}".',
       },
@@ -71,7 +71,7 @@ export const improvedNoUnnecessaryCondition = {
         )
       }
 
-      function getTypeOfFromType(type: ts.Type): TypeofValue[] | null {
+      function getTypeOfFromType(type: ts.Type): TypeofValue | null {
         if (
           type.flags & ts.TypeFlags.Any ||
           type.flags & ts.TypeFlags.Unknown
@@ -81,27 +81,27 @@ export const improvedNoUnnecessaryCondition = {
 
         // For string types
         if (type.flags & ts.TypeFlags.StringLike) {
-          return ['string']
+          return 'string'
         }
 
         // For number types
         if (type.flags & ts.TypeFlags.NumberLike) {
-          return ['number']
+          return 'number'
         }
 
         // For bigint types
         if (type.flags & ts.TypeFlags.BigIntLike) {
-          return ['bigint']
+          return 'bigint'
         }
 
         // For boolean types
         if (type.flags & ts.TypeFlags.BooleanLike) {
-          return ['boolean']
+          return 'boolean'
         }
 
         // For symbol types - check different possible symbol flags
         if (type.flags & ts.TypeFlags.ESSymbolLike) {
-          return ['symbol']
+          return 'symbol'
         }
 
         // For undefined types
@@ -109,27 +109,27 @@ export const improvedNoUnnecessaryCondition = {
           type.flags & ts.TypeFlags.Undefined ||
           type.flags & ts.TypeFlags.Void
         ) {
-          return ['undefined']
+          return 'undefined'
         }
 
         // For null types
         if (type.flags & ts.TypeFlags.Null) {
-          return ['object']
+          return 'object'
         }
 
         // For function types - check if it has call signatures
         if (type.getCallSignatures().length > 0) {
-          return ['function']
+          return 'function'
         }
 
         // For object types (including arrays, etc.)
         if (type.flags & ts.TypeFlags.Object) {
-          return ['object']
+          return 'object'
         }
 
         // For all other non-primitive types
         if (type.flags & ts.TypeFlags.NonPrimitive) {
-          return ['object']
+          return 'object'
         }
 
         // For other types not explicitly handled
@@ -156,7 +156,7 @@ export const improvedNoUnnecessaryCondition = {
         }
 
         // For all types, collect possible typeof values
-        const possibleTypeofValues: TypeofValue[] = []
+        const possibleTypeofValues = new Set<TypeofValue>()
 
         // Handle union types
         if (type.isUnion()) {
@@ -164,23 +164,23 @@ export const improvedNoUnnecessaryCondition = {
             const primitiveType = getTypeOfFromType(unionType)
 
             if (primitiveType) {
-              possibleTypeofValues.push(...primitiveType)
+              possibleTypeofValues.add(primitiveType)
             } else {
               return null
             }
           }
 
-          return new Set(possibleTypeofValues)
+          return possibleTypeofValues
         }
 
         // For non-union types
         const primitiveType = getTypeOfFromType(type)
 
         if (primitiveType) {
-          possibleTypeofValues.push(...primitiveType)
+          possibleTypeofValues.add(primitiveType)
         }
 
-        return new Set(possibleTypeofValues)
+        return possibleTypeofValues
       }
 
       function checkBinaryExpression(node: TSESTree.BinaryExpression) {
