@@ -847,4 +847,15 @@ tests.addValid(
   `,
 )
 
+tests.addValid(
+  'argument with generic type',
+  `
+    function test<T>(value: T) {
+      if (typeof value === 'string') {
+        console.log(value)
+      }
+    }
+  `,
+)
+
 tests.run()

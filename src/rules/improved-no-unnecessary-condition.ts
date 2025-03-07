@@ -26,6 +26,7 @@ const typeofValues = [
   'undefined',
   'object',
   'function',
+  'never',
 ] as const
 
 type TypeofValue = (typeof typeofValues)[number]
@@ -132,6 +133,10 @@ export const improvedNoUnnecessaryCondition = {
           return 'object'
         }
 
+        if (type.flags & ts.TypeFlags.Never) {
+          return 'never'
+        }
+
         // For other types not explicitly handled
         return null
       }
@@ -178,9 +183,10 @@ export const improvedNoUnnecessaryCondition = {
 
         if (primitiveType) {
           possibleTypeofValues.add(primitiveType)
+          return possibleTypeofValues
+        } else {
+          return null
         }
-
-        return possibleTypeofValues
       }
 
       function checkBinaryExpression(node: TSESTree.BinaryExpression) {
