@@ -88,11 +88,6 @@ export const noUnnecessaryCasting = {
         }
       }
 
-      // Helper to check if node is an Expression (not SpreadElement)
-      function isExpression(node: TSESTree.CallExpressionArgument) {
-        return node.type !== AST_NODE_TYPES.SpreadElement
-      }
-
       // Create a fix that replaces the function call with its argument
       function createFix(
         node: TSESTree.CallExpression,
@@ -110,7 +105,7 @@ export const noUnnecessaryCasting = {
         if (node.arguments.length !== 1) return
 
         const arg = node.arguments[0]
-        if (!arg || !isExpression(arg)) return
+        if (!arg || arg.type === AST_NODE_TYPES.SpreadElement) return
 
         const { callee } = node
         if (callee.type !== AST_NODE_TYPES.Identifier) return
