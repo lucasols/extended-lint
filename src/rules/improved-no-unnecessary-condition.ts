@@ -210,31 +210,6 @@ export const improvedNoUnnecessaryCondition = {
           return
         }
 
-        // Special case for "non-nullable typeof check" pattern like "value && typeof value === 'string'"
-        // This is a valid pattern, so we shouldn't report an error
-        if (
-          node.parent.type === AST_NODE_TYPES.LogicalExpression &&
-          node.parent.operator === '&&' &&
-          node.parent.left.type === AST_NODE_TYPES.Identifier
-        ) {
-          // Check if the left operand of && is the same as the operand of typeof
-          const leftIdentifier = node.parent.left
-          let typeofOperand = null
-
-          if (isTypeofExpression(node.left)) {
-            typeofOperand = node.left.argument
-          } else if (isTypeofExpression(node.right)) {
-            typeofOperand = node.right.argument
-          }
-
-          if (
-            typeofOperand?.type === AST_NODE_TYPES.Identifier &&
-            typeofOperand.name === leftIdentifier.name
-          ) {
-            return // Don't report errors for this pattern
-          }
-        }
-
         let typeOfNode: TSESTree.UnaryExpression | null = null
         let conditionType: string | null = null
 
