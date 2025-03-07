@@ -71,48 +71,68 @@ export const improvedNoUnnecessaryCondition = {
         )
       }
 
-      function getPrimitiveTypeName(type: ts.Type): TypeofValue | null {
+      function getTypeOfFromType(type: ts.Type): TypeofValue[] | null {
         if (
-          type.flags & ts.TypeFlags.String ||
-          type.flags & ts.TypeFlags.StringLiteral
+          type.flags & ts.TypeFlags.Any ||
+          type.flags & ts.TypeFlags.Unknown
         ) {
-          return 'string'
+          return null
         }
-        if (
-          type.flags & ts.TypeFlags.Number ||
-          type.flags & ts.TypeFlags.NumberLiteral
-        ) {
-          return 'number'
+
+        // For string types
+        if (type.flags & ts.TypeFlags.StringLike) {
+          return ['string']
         }
-        if (
-          type.flags & ts.TypeFlags.Boolean ||
-          type.flags & ts.TypeFlags.BooleanLiteral
-        ) {
-          return 'boolean'
+
+        // For number types
+        if (type.flags & ts.TypeFlags.NumberLike) {
+          return ['number']
         }
-        if (type.flags & ts.TypeFlags.Null) {
-          return 'object' // typeof null === 'object'
+
+        // For bigint types
+        if (type.flags & ts.TypeFlags.BigIntLike) {
+          return ['bigint']
         }
+
+        // For boolean types
+        if (type.flags & ts.TypeFlags.BooleanLike) {
+          return ['boolean']
+        }
+
+        // For symbol types - check different possible symbol flags
+        if (type.flags & ts.TypeFlags.ESSymbolLike) {
+          return ['symbol']
+        }
+
+        // For undefined types
         if (
           type.flags & ts.TypeFlags.Undefined ||
           type.flags & ts.TypeFlags.Void
         ) {
-          return 'undefined'
-        }
-        if (type.flags & ts.TypeFlags.Object) {
-          // Check if it's a function
-          if (type.getCallSignatures().length > 0) {
-            return 'function'
-          }
-          return 'object'
-        }
-        if (type.flags & ts.TypeFlags.ESSymbolLike) {
-          return 'symbol'
-        }
-        if (type.flags & ts.TypeFlags.BigIntLike) {
-          return 'bigint'
+          return ['undefined']
         }
 
+        // For null types
+        if (type.flags & ts.TypeFlags.Null) {
+          return ['object']
+        }
+
+        // For function types - check if it has call signatures
+        if (type.getCallSignatures().length > 0) {
+          return ['function']
+        }
+
+        // For object types (including arrays, etc.)
+        if (type.flags & ts.TypeFlags.Object) {
+          return ['object']
+        }
+
+        // For all other non-primitive types
+        if (type.flags & ts.TypeFlags.NonPrimitive) {
+          return ['object']
+        }
+
+        // For other types not explicitly handled
         return null
       }
 
@@ -136,30 +156,31 @@ export const improvedNoUnnecessaryCondition = {
         }
 
         // For all types, collect possible typeof values
-        const possibleTypeofValues = new Set<TypeofValue>()
+        const possibleTypeofValues: TypeofValue[] = []
 
         // Handle union types
         if (type.isUnion()) {
           for (const unionType of type.types) {
-            const primitiveType = getPrimitiveTypeName(unionType)
+            const primitiveType = getTypeOfFromType(unionType)
 
-            if (primitiveType !== null) {
-              possibleTypeofValues.add(primitiveType)
+            if (primitiveType) {
+              possibleTypeofValues.push(...primitiveType)
             } else {
               return null
             }
           }
 
-          return possibleTypeofValues
+          return new Set(possibleTypeofValues)
         }
 
         // For non-union types
-        const primitiveType = getPrimitiveTypeName(type)
-        if (primitiveType !== null) {
-          possibleTypeofValues.add(primitiveType)
+        const primitiveType = getTypeOfFromType(type)
+
+        if (primitiveType) {
+          possibleTypeofValues.push(...primitiveType)
         }
 
-        return possibleTypeofValues
+        return new Set(possibleTypeofValues)
       }
 
       function checkBinaryExpression(node: TSESTree.BinaryExpression) {
@@ -168,6 +189,31 @@ export const improvedNoUnnecessaryCondition = {
 
         if (!isValidOperator) {
           return
+        }
+
+        // Special case for "non-nullable typeof check" pattern like "value && typeof value === 'string'"
+        // This is a valid pattern, so we shouldn't report an error
+        if (
+          node.parent.type === AST_NODE_TYPES.LogicalExpression &&
+          node.parent.operator === '&&' &&
+          node.parent.left.type === AST_NODE_TYPES.Identifier
+        ) {
+          // Check if the left operand of && is the same as the operand of typeof
+          const leftIdentifier = node.parent.left
+          let typeofOperand = null
+
+          if (isTypeofExpression(node.left)) {
+            typeofOperand = node.left.argument
+          } else if (isTypeofExpression(node.right)) {
+            typeofOperand = node.right.argument
+          }
+
+          if (
+            typeofOperand?.type === AST_NODE_TYPES.Identifier &&
+            typeofOperand.name === leftIdentifier.name
+          ) {
+            return // Don't report errors for this pattern
+          }
         }
 
         let typeOfNode: TSESTree.UnaryExpression | null = null

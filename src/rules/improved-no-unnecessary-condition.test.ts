@@ -835,4 +835,16 @@ tests.addInvalid(
     },
   ],
 )
+
+tests.addValid(
+  'non nullable typeof check',
+  `
+    function test(value: unknown) {
+      if (value && typeof value === 'string') {
+        console.log(value)
+      }
+    }
+  `,
+)
+
 tests.run()
