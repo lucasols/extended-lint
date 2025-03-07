@@ -72,7 +72,7 @@ export const improvedNoUnnecessaryCondition = {
         )
       }
 
-      function getTypeOfFromType(type: ts.Type): TypeofValue | null {
+      function getTypeOfFromType(type: ts.Type): TypeofValue[] | null {
         if (
           type.flags & ts.TypeFlags.Any ||
           type.flags & ts.TypeFlags.Unknown
@@ -82,27 +82,27 @@ export const improvedNoUnnecessaryCondition = {
 
         // For string types
         if (type.flags & ts.TypeFlags.StringLike) {
-          return 'string'
+          return ['string']
         }
 
         // For number types
         if (type.flags & ts.TypeFlags.NumberLike) {
-          return 'number'
+          return ['number']
         }
 
         // For bigint types
         if (type.flags & ts.TypeFlags.BigIntLike) {
-          return 'bigint'
+          return ['bigint']
         }
 
         // For boolean types
         if (type.flags & ts.TypeFlags.BooleanLike) {
-          return 'boolean'
+          return ['boolean']
         }
 
         // For symbol types - check different possible symbol flags
         if (type.flags & ts.TypeFlags.ESSymbolLike) {
-          return 'symbol'
+          return ['symbol']
         }
 
         // For undefined types
@@ -110,31 +110,44 @@ export const improvedNoUnnecessaryCondition = {
           type.flags & ts.TypeFlags.Undefined ||
           type.flags & ts.TypeFlags.Void
         ) {
-          return 'undefined'
+          return ['undefined']
         }
 
         // For null types
         if (type.flags & ts.TypeFlags.Null) {
-          return 'object'
+          return ['object']
         }
 
         // For function types - check if it has call signatures
         if (type.getCallSignatures().length > 0) {
-          return 'function'
+          return ['function']
         }
 
         // For object types (including arrays, etc.)
         if (type.flags & ts.TypeFlags.Object) {
-          return 'object'
+          // Non-nullable type - {}
+          if (type.getProperties().length === 0) {
+            return [
+              'string',
+              'number',
+              'bigint',
+              'boolean',
+              'symbol',
+              'object',
+              'function',
+            ]
+          }
+
+          return ['object']
         }
 
         // For all other non-primitive types
         if (type.flags & ts.TypeFlags.NonPrimitive) {
-          return 'object'
+          return ['object']
         }
 
         if (type.flags & ts.TypeFlags.Never) {
-          return 'never'
+          return ['never']
         }
 
         // For other types not explicitly handled
@@ -143,7 +156,7 @@ export const improvedNoUnnecessaryCondition = {
 
       function getTypeofOperandType(
         node: TSESTree.Expression,
-      ): Set<TypeofValue> | null {
+      ): TypeofValue[] | null {
         if (!checker) return null
 
         const tsNode = parserServices.esTreeNodeToTSNodeMap.get(
@@ -161,7 +174,7 @@ export const improvedNoUnnecessaryCondition = {
         }
 
         // For all types, collect possible typeof values
-        const possibleTypeofValues = new Set<TypeofValue>()
+        const possibleTypeofValues: TypeofValue[] = []
 
         // Handle union types
         if (type.isUnion()) {
@@ -169,7 +182,7 @@ export const improvedNoUnnecessaryCondition = {
             const primitiveType = getTypeOfFromType(unionType)
 
             if (primitiveType) {
-              possibleTypeofValues.add(primitiveType)
+              possibleTypeofValues.push(...primitiveType)
             } else {
               return null
             }
@@ -182,7 +195,7 @@ export const improvedNoUnnecessaryCondition = {
         const primitiveType = getTypeOfFromType(type)
 
         if (primitiveType) {
-          possibleTypeofValues.add(primitiveType)
+          possibleTypeofValues.push(...primitiveType)
           return possibleTypeofValues
         } else {
           return null
@@ -255,11 +268,12 @@ export const improvedNoUnnecessaryCondition = {
         const isNegated = node.operator === '!=='
 
         // Check if the condition is always true or always false
-        const conditionTypeIncluded = possibleTypeofValues.has(conditionType)
+        const conditionTypeIncluded =
+          possibleTypeofValues.includes(conditionType)
 
         // For === operator: condition is unnecessary if it's always true
         // For !== operator: condition is unnecessary if it's always false
-        if (possibleTypeofValues.size === 1) {
+        if (possibleTypeofValues.length === 1) {
           // Only one possible type, so either always true or always false
           if (conditionTypeIncluded && !isNegated) {
             // typeof x === 'string' where x is always string
@@ -288,8 +302,7 @@ export const improvedNoUnnecessaryCondition = {
               messageId: 'alwaysFalseTypeofCondition',
               data: {
                 name: getNodeText(typeOfNode, context),
-                actualType:
-                  Array.from(possibleTypeofValues).join(' | ') || 'never',
+                actualType: getActualType(possibleTypeofValues),
                 conditionType,
               },
             })
@@ -300,8 +313,7 @@ export const improvedNoUnnecessaryCondition = {
               messageId: 'alwaysFalseTypeofCondition',
               data: {
                 name: getNodeText(typeOfNode, context),
-                actualType:
-                  Array.from(possibleTypeofValues).join(' | ') || 'never',
+                actualType: getActualType(possibleTypeofValues),
                 conditionType,
               },
             })
@@ -314,8 +326,7 @@ export const improvedNoUnnecessaryCondition = {
             messageId: 'alwaysFalseTypeofCondition',
             data: {
               name: getNodeText(typeOfNode, context),
-              actualType:
-                Array.from(possibleTypeofValues).join(' | ') || 'never',
+              actualType: getActualType(possibleTypeofValues),
               conditionType,
             },
           })
@@ -327,7 +338,7 @@ export const improvedNoUnnecessaryCondition = {
             messageId: 'unnecessaryTypeofCondition',
             data: {
               name: getNodeText(typeOfNode, context),
-              type: Array.from(possibleTypeofValues).join(' | '),
+              type: getActualType(possibleTypeofValues),
             },
           })
         }
@@ -338,6 +349,10 @@ export const improvedNoUnnecessaryCondition = {
       }
     },
   }),
+}
+
+function getActualType(possibleTypeofValues: TypeofValue[]): unknown {
+  return Array.from(new Set(possibleTypeofValues)).join(' | ') || 'never'
 }
 
 function getNodeText(

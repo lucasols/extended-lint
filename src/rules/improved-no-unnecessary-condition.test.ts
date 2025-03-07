@@ -848,6 +848,39 @@ tests.addValid(
 )
 
 tests.addValid(
+  'non nullable typeof check',
+  `
+    function test(value: {}) {
+      if (typeof value === 'string') {
+        console.log(value)
+      }
+    }
+  `,
+)
+
+tests.addInvalid(
+  'non nullable typeof check',
+  `
+    function test(value: {}) {
+      if (typeof value === 'undefined') {
+        console.log(value)
+      }
+    }
+  `,
+  [
+    {
+      messageId: 'alwaysFalseTypeofCondition',
+      data: {
+        name: 'value',
+        actualType:
+          'string | number | bigint | boolean | symbol | object | function',
+        conditionType: 'undefined',
+      },
+    },
+  ],
+)
+
+tests.addValid(
   'argument with generic type',
   `
     function test<T>(value: T) {
