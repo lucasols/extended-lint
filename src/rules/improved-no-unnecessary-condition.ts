@@ -1,8 +1,11 @@
-import { narrowStringToUnion } from '@ls-stack/utils/typingFnUtils'
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
+import {
+  AST_NODE_TYPES,
+  ESLintUtils,
+  TSESLint,
+  TSESTree,
+} from '@typescript-eslint/utils'
 import * as t from 'tschema'
-import * as ts from 'typescript'
-import * as TSESLint from '../../node_modules/.pnpm/@typescript-eslint+utils@8.22.0_eslint@9.19.0_typescript@5.7.3/node_modules/@typescript-eslint/utils/dist/ts-eslint'
+import ts from 'typescript'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -39,11 +42,11 @@ export const improvedNoUnnecessaryCondition = {
     meta: {
       type: 'suggestion',
       docs: {
-        description: 'Disallow unnecessary typeof conditions with known types',
+        description: 'Extends checks of `no-unnecessary-condition` rule',
       },
       messages: {
         unnecessaryTypeofCondition:
-          'Types has no overlap. The type of "{{name}}" is always "{{type}}".',
+          'This condition is always unnecessary. The type of "{{name}}" is always "{{type}}".',
         alwaysFalseTypeofCondition:
           'This condition will always be false. The type of "{{name}}" is "{{actualType}}" so the condition has no overlap with "{{conditionType}}".',
       },
@@ -103,10 +106,10 @@ export const improvedNoUnnecessaryCondition = {
           }
           return 'object'
         }
-        if (type.flags & ts.TypeFlags.ESSymbol) {
+        if (type.flags & ts.TypeFlags.ESSymbolLike) {
           return 'symbol'
         }
-        if (type.flags & ts.TypeFlags.BigInt) {
+        if (type.flags & ts.TypeFlags.BigIntLike) {
           return 'bigint'
         }
 
@@ -118,9 +121,12 @@ export const improvedNoUnnecessaryCondition = {
       ): Set<TypeofValue> | null {
         if (!checker) return null
 
-        const tsNode = parserServices.esTreeNodeToTSNodeMap.get(node)
+        const tsNode = parserServices.esTreeNodeToTSNodeMap.get(
+          node,
+        ) as ts.TypeOfExpression
 
-        const type = checker.getTypeAtLocation(tsNode)
+        const type = checker.getTypeAtLocation(tsNode.expression)
+
         // Skip any/unknown types
         if (
           type.flags & ts.TypeFlags.Any ||
@@ -230,7 +236,8 @@ export const improvedNoUnnecessaryCondition = {
               messageId: 'alwaysFalseTypeofCondition',
               data: {
                 name: getNodeText(typeOfNode, context),
-                actualType: Array.from(possibleTypeofValues).join(' | '),
+                actualType:
+                  Array.from(possibleTypeofValues).join(' | ') || 'never',
                 conditionType,
               },
             })
@@ -241,7 +248,8 @@ export const improvedNoUnnecessaryCondition = {
               messageId: 'alwaysFalseTypeofCondition',
               data: {
                 name: getNodeText(typeOfNode, context),
-                actualType: Array.from(possibleTypeofValues).join(' | '),
+                actualType:
+                  Array.from(possibleTypeofValues).join(' | ') || 'never',
                 conditionType,
               },
             })
@@ -254,8 +262,20 @@ export const improvedNoUnnecessaryCondition = {
             messageId: 'alwaysFalseTypeofCondition',
             data: {
               name: getNodeText(typeOfNode, context),
-              actualType: Array.from(possibleTypeofValues).join(' | '),
+              actualType:
+                Array.from(possibleTypeofValues).join(' | ') || 'never',
               conditionType,
+            },
+          })
+        } else if (!conditionTypeIncluded && isNegated) {
+          // Multiple possible types, and we're checking for a type that isn't included
+          // e.g., typeof x !== 'object' where x is string | number | boolean
+          context.report({
+            node,
+            messageId: 'unnecessaryTypeofCondition',
+            data: {
+              name: getNodeText(typeOfNode, context),
+              type: Array.from(possibleTypeofValues).join(' | '),
             },
           })
         }

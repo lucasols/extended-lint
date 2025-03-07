@@ -65,7 +65,7 @@ tests.addInvalid(
   ],
 )
 
-tests.only.addInvalid(
+tests.addInvalid(
   'unnecessary typeof check on string variable',
   `
     const str = 'hello'
@@ -220,23 +220,14 @@ tests.addInvalid(
   ],
 )
 
-tests.addInvalid(
-  'unnecessary typeof check with different operators',
+tests.addValid(
+  'ignore `==` operator',
   `
     const str = 'hello'
     if (typeof str == 'string') {
       console.log(str)
     }
   `,
-  [
-    {
-      messageId: 'unnecessaryTypeofCondition',
-      data: {
-        name: 'str',
-        type: 'string',
-      },
-    },
-  ],
 )
 
 tests.addInvalid(
@@ -591,7 +582,7 @@ tests.addInvalid(
       messageId: 'unnecessaryTypeofCondition',
       data: {
         name: 'nullVar',
-        type: 'null',
+        type: 'object',
       },
     },
   ],
@@ -610,7 +601,7 @@ tests.addInvalid(
       messageId: 'alwaysFalseTypeofCondition',
       data: {
         name: 'nullVar',
-        actualType: 'null',
+        actualType: 'object',
         conditionType: 'string',
       },
     },
@@ -771,7 +762,7 @@ tests.addInvalid(
 )
 
 // Logical Operators with Typeof
-tests.addValid(
+tests.addInvalid(
   'valid logical OR typeof checks on union type',
   `
     function test(value: string | number) {
@@ -780,6 +771,15 @@ tests.addValid(
       }
     }
   `,
+  [
+    {
+      messageId: 'unnecessaryTypeofCondition',
+      data: {
+        name: 'value',
+        type: 'number',
+      },
+    },
+  ],
 )
 
 tests.addInvalid(
@@ -798,6 +798,14 @@ tests.addInvalid(
         type: 'string',
       },
     },
+    {
+      messageId: 'alwaysFalseTypeofCondition',
+      data: {
+        name: 'str',
+        actualType: 'never',
+        conditionType: 'number',
+      },
+    },
   ],
 )
 
@@ -811,6 +819,13 @@ tests.addInvalid(
   `,
   [
     {
+      messageId: 'unnecessaryTypeofCondition',
+      data: {
+        name: 'str',
+        type: 'string',
+      },
+    },
+    {
       messageId: 'alwaysFalseTypeofCondition',
       data: {
         name: 'str',
@@ -820,5 +835,4 @@ tests.addInvalid(
     },
   ],
 )
-
 tests.run()

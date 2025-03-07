@@ -9,7 +9,8 @@
     "test:ui": "vitest --ui",
     "build": "pnpm test && pnpm lint && pnpm run build:no-test",
     "build:no-test": "tsup --minify --dts",
-    "run-in-test-project": "pnpm build:no-test && node --experimental-strip-types ./debug/runInTestProject.ts",
+    "build:no-minify": "tsup --dts",
+    "run-in-test-project": "pnpm build:no-minify && node --experimental-strip-types ./debug/runInTestProject.ts",
     "pre-publish": "./scripts/check-if-is-sync.sh && pnpm build",
     "npm-publish": "pnpm publish --access=public"
   },
@@ -41,9 +42,9 @@
     "tschema": "^3.2.0",
     "tsm": "^2.3.0",
     "tsup": "^8.3.6",
-    "typescript": "^5.7.3",
     "vite": "^6.0.11",
-    "vitest": "^3.0.4"
+    "vitest": "^3.0.4",
+    "typescript": "^5.7.3"
   },
   "dependencies": {
     "@typescript-eslint/utils": "^8.22.0",
@@ -52,6 +53,7 @@
     "esutils": "^2.0.3"
   },
   "peerDependencies": {
+    "typescript": "^5.7.3",
     "eslint": "^9.9.1"
   }
 }
