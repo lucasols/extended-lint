@@ -3,6 +3,7 @@ import { reactCompilerExtra } from '../react-compiler-extra'
 import { advancedNoRestrictedSyntax } from './advanced-no-restricted-syntax'
 import { collapseSimpleObjsInOneLine } from './collapse-simple-objs-in-one-line'
 import { exhaustiveDepsESLintRule } from './exhaustive-deps'
+import { improvedNoUnnecessaryCondition } from './improved-no-unnecessary-condition'
 import { noCallWithExplicitGenerics } from './no-call-with-explicit-generics'
 import { noCallWithInferredGenerics } from './no-call-with-inferred-generics'
 import { noCommentedOutCode } from './no-commented-out-code'
@@ -37,4 +38,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [collapseSimpleObjsInOneLine.name]: collapseSimpleObjsInOneLine.rule,
   [reactCompilerMigration.name]: reactCompilerMigration.rule,
   [reactCompilerExtra.name]: reactCompilerExtra.rule,
+  [improvedNoUnnecessaryCondition.name]: improvedNoUnnecessaryCondition.rule,
 }
