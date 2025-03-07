@@ -76,6 +76,36 @@ export const noUnnecessaryCasting = {
         throw new Error('TypeScript services or program not available')
       }
 
+      // Helper to check if a type can be inferred from the AST without using the type checker
+      function canInferTypeFromAST(
+        node: TSESTree.Expression,
+        expectedType: 'number' | 'string',
+      ): boolean {
+        switch (node.type) {
+          case AST_NODE_TYPES.Literal:
+            if (expectedType === 'number') {
+              return typeof node.value === 'number'
+            } else {
+              return typeof node.value === 'string'
+            }
+          case AST_NODE_TYPES.TemplateLiteral:
+            return expectedType === 'string'
+
+          case AST_NODE_TYPES.UnaryExpression:
+            // Unary numeric operators
+            if (expectedType === 'number') {
+              return (
+                node.operator === '+' ||
+                node.operator === '-' ||
+                node.operator === '~'
+              )
+            }
+            return false
+          default:
+            return false
+        }
+      }
+
       // Helper to check if a type matches the expected type
       function typeMatchesExpected(
         type: ts.Type,
@@ -118,12 +148,22 @@ export const noUnnecessaryCasting = {
         )
         if (!castFunction) return
 
-        // Get the argument type
-        const argTsNode = parserServices.esTreeNodeToTSNodeMap.get(arg)
-        const argType = checker.getTypeAtLocation(argTsNode)
+        // Fast path: Try to infer type from AST first
+        const isTypeInferrable = canInferTypeFromAST(
+          arg,
+          castFunction.expectedType,
+        )
 
-        // Check if the cast is unnecessary
-        if (typeMatchesExpected(argType, castFunction.expectedType)) {
+        // If we can infer the type from AST or the type checker confirms it
+        if (
+          isTypeInferrable ||
+          typeMatchesExpected(
+            checker.getTypeAtLocation(
+              parserServices.esTreeNodeToTSNodeMap.get(arg),
+            ),
+            castFunction.expectedType,
+          )
+        ) {
           // Use appropriate message ID based on function name
           let messageId:
             | 'unnecessaryNumberCasting'
