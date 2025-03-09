@@ -753,4 +753,71 @@ tests.addInvalid(
   },
 )
 
+tests.addInvalidWithOptions(
+  'simplify objects in function calls in JSX',
+  `
+    const Component = () => {
+      return (
+        <Select
+          className={cx({
+            hide: hideFooter,
+          })}
+        />
+      )
+    }
+  `,
+  { maxLineLength: 42 },
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      const Component = () => {
+        return (
+          <Select
+            className={cx({ hide: hideFooter })}
+          />
+        )
+      }
+    `,
+  },
+)
+
+tests.addValid(
+  'extra close brackets should be counted in line length',
+  `
+    const Component = () => {
+      return (
+        <Select
+          className={cx({
+            hide: hideFooter,
+          })}
+        />
+      )
+    }
+  `,
+  { maxLineLength: 41 },
+)
+
+tests.addInvalid(
+  'simplify objects in function calls',
+  `
+    const Component = () => {
+      const foo = cx({
+        hide: hideFooter,
+      })
+
+      return foo
+    }
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      const Component = () => {
+        const foo = cx({ hide: hideFooter })
+
+        return foo
+      }
+    `,
+  },
+)
+
 tests.run()

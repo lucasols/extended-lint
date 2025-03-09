@@ -189,17 +189,39 @@ const rule = createRule<[Options], 'singleLineProp'>({
       if (node.loc.start.line === node.loc.end.line) return
 
       if (node.parent.type !== AST_NODE_TYPES.JSXExpressionContainer) {
+        let skippedTokens = 0
+
         const tokenAfterNode = sourceCode.getTokenAfter(node, {
           filter: (token) => {
-            const isTrailingComma =
-              token.type === AST_TOKEN_TYPES.Punctuator && token.value === ','
+            if (token.type !== AST_TOKEN_TYPES.Punctuator) return true
 
-            const isTrailingSemicolon =
-              token.type === AST_TOKEN_TYPES.Punctuator && token.value === ';'
+            if (token.value === ',') {
+              skippedTokens++
+              return false
+            }
 
-            return !isTrailingComma && !isTrailingSemicolon
+            if (token.value === ';') {
+              skippedTokens++
+              return false
+            }
+
+            if (token.value === ')') {
+              skippedTokens++
+              return false
+            }
+
+            if (token.value === '}') {
+              skippedTokens++
+              return false
+            }
+
+            return true
           },
         })
+
+        if (skippedTokens > 2) {
+          return
+        }
 
         if (tokenAfterNode?.loc.start.line === node.loc.end.line) {
           return
@@ -233,7 +255,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
         maxLineLength &&
         singleLine.length +
           nodeIndent.length +
-          (hasTrailingToken(node, sourceCode) ? 1 : 0) >
+          getExtraCharsAfterNode(node, sourceCode) >
           maxLineLength
       ) {
         return
@@ -267,19 +289,17 @@ function isSimplePropValueType(type: TSESTree.AST_NODE_TYPES) {
   return false
 }
 
-function hasTrailingToken(
+function getExtraCharsAfterNode(
   node: TSESTree.Node,
   sourceCode: TSESLint.SourceCode,
-) {
-  const tokenAfterNode = sourceCode.getTokenAfter(node)
+): number {
+  const closingToken = sourceCode.getLastToken(node)
+  if (!closingToken) return 0
 
-  return (
-    tokenAfterNode?.type === AST_TOKEN_TYPES.Punctuator &&
-    (tokenAfterNode.value === ',' ||
-      tokenAfterNode.value === ';' ||
-      tokenAfterNode.value === '}') &&
-    tokenAfterNode.loc.start.line === node.loc.end.line
-  )
+  const lineEndIndex = sourceCode.text.indexOf('\n', closingToken.range[1])
+  const endOfLine = lineEndIndex !== -1 ? lineEndIndex : sourceCode.text.length
+
+  return endOfLine - closingToken.range[1]
 }
 
 function getTokenIndent(sourceCode: TSESLint.SourceCode, token: TSESTree.Node) {
