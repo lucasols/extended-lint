@@ -189,7 +189,7 @@ tests.addValid(
 )
 
 tests.addInvalid(
-  'single prop type',
+  'single prop type 2',
   `
     type Bar = {
       a: string

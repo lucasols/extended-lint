@@ -75,7 +75,7 @@ tests.addInvalid(
 )
 
 tests.addInvalid(
-  'unused properties with object type literal',
+  'unused properties with object type literal 2',
   `
   const test = ({ usedType }: { unusedType?: string, usedType?: string }) => {
     console.log(usedType);

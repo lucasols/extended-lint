@@ -103,7 +103,7 @@ tests.addInvalidWithOptions(
 )
 
 tests.addInvalidWithOptions(
-  'Using disallowed method in a hook with enable directive',
+  'Using disallowed method in a hook with enable directive 2',
   `
     // eslint react-compiler/react-compiler: ["error"]
 
@@ -195,7 +195,7 @@ tests.addInvalidWithOptions(
 )
 
 tests.addInvalidWithOptions(
-  'Using disallowed method in a hook inside namespace with enable directive',
+  'Using disallowed method in a hook inside namespace with enable directive 2',
   `
     // eslint react-compiler/react-compiler: ["error"]
 
@@ -328,7 +328,7 @@ tests.describe('disallowMethod with requireTrueProp', () => {
   )
 
   tests.addInvalidWithOptions(
-    'requireTrueProp is missing',
+    'requireTrueProp is missing 2',
     `
       // eslint react-compiler/react-compiler: ["error"]
 

@@ -186,7 +186,7 @@ tests.addInvalid(
 )
 
 tests.addInvalid(
-  'allow arrow functions matching ignoreRegex',
+  'allow arrow functions matching ignoreRegex 2',
   `
     export const test = (a: T) => {
     }

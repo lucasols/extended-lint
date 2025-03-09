@@ -848,7 +848,7 @@ tests.addValid(
 )
 
 tests.addValid(
-  'non nullable typeof check',
+  'non nullable typeof check 2',
   `
     function test(value: {}) {
       if (typeof value === 'string') {
@@ -859,7 +859,7 @@ tests.addValid(
 )
 
 tests.addInvalid(
-  'non nullable typeof check',
+  'non nullable typeof check 3',
   `
     function test(value: {}) {
       if (typeof value === 'undefined') {

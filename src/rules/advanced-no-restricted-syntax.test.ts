@@ -488,7 +488,7 @@ tests.describe('mustCallFn', () => {
   )
 
   tests.addInvalidWithOptions(
-    'with fileNameVars',
+    'with fileNameVars 2',
     `
       function foo(bar) {
         shouldCallFn('number');

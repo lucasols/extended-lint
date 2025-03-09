@@ -66,7 +66,7 @@ tests.addInvalid(
 )
 
 tests.addValid(
-  'no leaked text in jsx',
+  'no leaked text in jsx 2',
   `
     <div>
       <p>Hello</p>
@@ -76,7 +76,7 @@ tests.addValid(
 )
 
 tests.addValid(
-  'no leaked text in jsx',
+  'no leaked text in jsx 3',
   `
     <div>
       <p>Hello</p>

@@ -251,7 +251,7 @@ tests.describe('maxCallConditionLength', () => {
   )
 
   tests.addValid(
-    'Max call condition length',
+    'Max call condition length 2',
     `
     if (testVeryLongCall(veryLongArgument)) {
       return null;
@@ -362,7 +362,7 @@ tests.addValid(
 )
 
 tests.addInvalidWithOptions(
-  'Should not ignore single condition',
+  'Should not ignore single condition 2',
   `
     function foo() {
       if (!bar) {
@@ -382,7 +382,7 @@ tests.addInvalidWithOptions(
 )
 
 tests.addInvalidWithOptions(
-  'Should not ignore single condition',
+  'Should not ignore single condition 3',
   `
     function foo() {
       if (!bar) {
@@ -402,7 +402,7 @@ tests.addInvalidWithOptions(
 )
 
 tests.addInvalidWithOptions(
-  'Should not ignore single condition',
+  'Should not ignore single condition 4',
   `
     function foo() {
       if (!bar) {
@@ -422,7 +422,7 @@ tests.addInvalidWithOptions(
 )
 
 tests.addInvalidWithOptions(
-  'Should not ignore single condition',
+  'Should not ignore single condition 5',
   `
     function foo() {
       if (!bar) {
@@ -442,7 +442,7 @@ tests.addInvalidWithOptions(
 )
 
 tests.addInvalidWithOptions(
-  'Return empty array',
+  'Return empty array 2',
   `
     function foo() {
       if (!bar) {

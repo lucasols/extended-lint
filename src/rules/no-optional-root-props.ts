@@ -1,4 +1,4 @@
-import { ESLintUtils, TSESTree } from '@typescript-eslint/utils'
+import { ESLintUtils, TSESLint, TSESTree } from '@typescript-eslint/utils'
 import { findParentNode, walkUp } from '../astUtils'
 
 const createRule = ESLintUtils.RuleCreator(
@@ -31,15 +31,6 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
   },
   defaultOptions: [],
   create(context) {
-    function isExported(node: TSESTree.Node | undefined): boolean {
-      if (!node) return false
-
-      return (
-        node.parent?.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration ||
-        node.parent?.type === TSESTree.AST_NODE_TYPES.ExportDefaultDeclaration
-      )
-    }
-
     function isReferencedOnlyOnce(decl: Declaration): boolean {
       const variables = context.sourceCode.getDeclaredVariables(decl)
       const variable = variables[0]
@@ -52,6 +43,7 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
 
       if (!reference) return false
 
+      // checks if the reference is a function argument
       for (const node of walkUp(reference.identifier)) {
         if ('returnType' in node) {
           return false
@@ -82,19 +74,20 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
               4,
             )
 
-            if (varDecl) {
-              if (isExported(varDecl)) return false
+            if (!varDecl) return false
 
-              const isIndirectlyExported = context.sourceCode
-                .getScope(varDecl)
-                .references.some((ref) =>
-                  isExported(ref.identifier.parent.parent),
-                )
+            const singleRef = getValidSingleRef(varDecl, context.sourceCode)
 
-              if (isIndirectlyExported) return false
+            if (!singleRef) return false
 
-              return true
-            }
+            const isMemo =
+              singleRef.parent.type ===
+                TSESTree.AST_NODE_TYPES.CallExpression &&
+              singleRef.parent.callee.type ===
+                TSESTree.AST_NODE_TYPES.Identifier &&
+              singleRef.parent.callee.name === 'memo'
+
+            return !isMemo
           }
         }
 
@@ -103,42 +96,18 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
         }
 
         if (parent.type === TSESTree.AST_NODE_TYPES.ArrowFunctionExpression) {
-          const fnIsExported = findParentNode(
+          const fnDeclaration = findParentNode(
             parent,
             TSESTree.AST_NODE_TYPES.VariableDeclaration,
           )
 
-          if (fnIsExported && isExported(fnIsExported)) {
-            return false
-          }
+          if (!fnDeclaration) return false
 
-          if (fnIsExported) {
-            const isIndirectlyExported = context.sourceCode
-              .getScope(fnIsExported)
-              .references.some(
-                (ref) =>
-                  ref.identifier.parent.parent?.parent?.type ===
-                  TSESTree.AST_NODE_TYPES.ExportNamedDeclaration,
-              )
-
-            if (isIndirectlyExported) return false
-          }
-
-          return parent.params.some((param) => param === node)
+          return !!getValidSingleRef(fnDeclaration, context.sourceCode)
         }
 
         if (parent.type === TSESTree.AST_NODE_TYPES.FunctionDeclaration) {
-          if (isExported(parent)) return false
-
-          const isIndirectlyExported = context.sourceCode
-            .getScope(parent)
-            .upper?.references.some((ref) =>
-              isExported(ref.identifier.parent.parent),
-            )
-
-          if (isIndirectlyExported) return false
-
-          return parent.params.some((param) => param === node)
+          return !!getValidSingleRef(parent, context.sourceCode)
         }
       }
 
@@ -227,29 +196,16 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
 
         if (!varDecl) return
 
-        if (isExported(varDecl)) return
+        const singleRef = getValidSingleRef(varDecl, context.sourceCode)
 
-        const isIndirectlyExported = context.sourceCode
-          .getScope(varDecl)
-          .references.some(
-            (ref) =>
-              ref.identifier.parent.parent?.parent?.type ===
-              TSESTree.AST_NODE_TYPES.ExportNamedDeclaration,
-          )
+        if (!singleRef) return
 
-        if (isIndirectlyExported) return
+        const isMemo =
+          singleRef.parent.type === TSESTree.AST_NODE_TYPES.CallExpression &&
+          singleRef.parent.callee.type === TSESTree.AST_NODE_TYPES.Identifier &&
+          singleRef.parent.callee.name === 'memo'
 
-        const varDeclIdentifier =
-          varDecl.declarations[0].id.type === TSESTree.AST_NODE_TYPES.Identifier
-            ? varDecl.declarations[0].id
-            : null
-
-        const varRefs = context.sourceCode
-          .getScope(varDecl)
-          .variables.find((v) => v.name === varDeclIdentifier?.name)
-          ?.references.filter((ref) => ref.identifier !== varDeclIdentifier)
-
-        if (varRefs && varRefs.length > 1) return
+        if (isMemo) return
 
         for (const member of propsType.members) {
           if (member.type === TSESTree.AST_NODE_TYPES.TSPropertySignature) {
@@ -260,6 +216,65 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
     }
   },
 })
+
+function isExported(node: TSESTree.Node | undefined): boolean {
+  if (!node) return false
+
+  return (
+    node.parent?.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration ||
+    node.parent?.type === TSESTree.AST_NODE_TYPES.ExportDefaultDeclaration
+  )
+}
+
+function getValidSingleRef(
+  varDecl: TSESTree.VariableDeclaration | TSESTree.FunctionDeclaration,
+  sourceCode: TSESLint.SourceCode,
+): TSESTree.Identifier | TSESTree.JSXIdentifier | undefined {
+  if (isExported(varDecl)) return undefined
+
+  let declarationIdentifier: TSESTree.Identifier | undefined
+
+  if (varDecl.type === TSESTree.AST_NODE_TYPES.VariableDeclaration) {
+    if (varDecl.declarations.length !== 1) return undefined
+
+    if (
+      varDecl.declarations[0].id.type === TSESTree.AST_NODE_TYPES.Identifier
+    ) {
+      declarationIdentifier = varDecl.declarations[0].id
+    }
+  } else {
+    if (!varDecl.id) return undefined
+
+    declarationIdentifier = varDecl.id
+  }
+
+  if (!declarationIdentifier) return undefined
+
+  let scope = sourceCode.getScope(varDecl)
+
+  if (
+    varDecl.type === TSESTree.AST_NODE_TYPES.FunctionDeclaration &&
+    scope.upper
+  ) {
+    scope = scope.upper
+  }
+
+  const scopeVar = scope.variables.find((v) =>
+    v.identifiers.includes(declarationIdentifier),
+  )
+
+  if (!scopeVar) return undefined
+
+  const varRefs = scopeVar.references.filter(
+    (ref) => ref.identifier !== declarationIdentifier,
+  )
+
+  if (varRefs.length !== 1 || !varRefs[0]) return undefined
+
+  if (isExported(varRefs[0].identifier.parent.parent)) return undefined
+
+  return varRefs[0].identifier
+}
 
 export const noOptionalRootProps = {
   name,

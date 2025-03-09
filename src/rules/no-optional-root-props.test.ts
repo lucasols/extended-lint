@@ -100,6 +100,8 @@ tests.addInvalid(
 
     function test(arg: Local) {
     }
+
+    console.log(test)
   `,
   [
     {
@@ -117,6 +119,8 @@ tests.addInvalid(
 
             function test(arg: Local) {
             }
+
+            console.log(test)
           `,
         },
       ],
@@ -136,6 +140,8 @@ tests.addInvalid(
 
             function test(arg: Local) {
             }
+
+            console.log(test)
           `,
         },
       ],
@@ -172,6 +178,8 @@ tests.addInvalid(
   `
     type Foo = { a?: number; b: string };
     function test(arg: Foo) {}
+
+    console.log(test)
   `,
   [
     {
@@ -181,9 +189,11 @@ tests.addInvalid(
         {
           messageId: 'suggestion',
           output: `
-    type Foo = { a: undefined | number; b: string };
-    function test(arg: Foo) {}
-  `,
+            type Foo = { a: undefined | number; b: string };
+            function test(arg: Foo) {}
+
+            console.log(test)
+          `,
         },
       ],
     },
@@ -195,6 +205,8 @@ tests.addInvalid(
   `
     type Foo = { a?: number; b: string };
     const test = (arg: Foo) => {};
+
+    console.log(test)
   `,
   [
     {
@@ -204,9 +216,11 @@ tests.addInvalid(
         {
           messageId: 'suggestion',
           output: `
-    type Foo = { a: undefined | number; b: string };
-    const test = (arg: Foo) => {};
-  `,
+            type Foo = { a: undefined | number; b: string };
+            const test = (arg: Foo) => {};
+
+            console.log(test)
+          `,
         },
       ],
     },
@@ -370,6 +384,10 @@ tests.addInvalid(
     type Props = { a?: number }
 
     const Component: FC<Props> = () => {}
+
+    const Parent = () => {
+      return <Component />
+    }
   `,
   [
     {
@@ -382,6 +400,10 @@ tests.addInvalid(
             type Props = { a: undefined | number }
 
             const Component: FC<Props> = () => {}
+
+            const Parent = () => {
+              return <Component />
+            }
           `,
         },
       ],
@@ -392,6 +414,10 @@ tests.addInvalid(
 tests.addInvalid(
   'FC component with inline type',
   `
+    export const Parent = () => {
+      return <Component />
+    }
+
     const Component: FC<{ prop?: boolean }> = () => {}
   `,
   [
@@ -402,6 +428,10 @@ tests.addInvalid(
         {
           messageId: 'suggestion',
           output: `
+            export const Parent = () => {
+              return <Component />
+            }
+
             const Component: FC<{ prop: undefined | boolean }> = () => {}
           `,
         },
@@ -483,6 +513,10 @@ tests.addValid(
 tests.addInvalid(
   'FC component with multiple inline optional props',
   `
+    export const Parent = () => {
+      return <Component />
+    }
+
     const Component: FC<{ prop1?: string; prop2?: number; required: boolean }> = () => {}
   `,
   [
@@ -493,6 +527,10 @@ tests.addInvalid(
         {
           messageId: 'suggestion',
           output: `
+            export const Parent = () => {
+              return <Component />
+            }
+
             const Component: FC<{ prop1: undefined | string; prop2?: number; required: boolean }> = () => {}
           `,
         },
@@ -505,6 +543,10 @@ tests.addInvalid(
         {
           messageId: 'suggestion',
           output: `
+            export const Parent = () => {
+              return <Component />
+            }
+
             const Component: FC<{ prop1?: string; prop2: undefined | number; required: boolean }> = () => {}
           `,
         },
@@ -591,7 +633,7 @@ tests.addValid(
 )
 
 tests.addValid(
-  'FC component exported indirectly in memo should not be checked',
+  'FC component exported indirectly in memo should not be checked 2',
   `
     type Props = { prop?: string }
 
