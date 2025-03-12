@@ -225,7 +225,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
           },
         })
 
-        if (skippedTokens > 2) {
+        if (skippedTokens > 4) {
           return
         }
 

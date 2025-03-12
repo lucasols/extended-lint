@@ -840,4 +840,44 @@ tests.addInvalidWithOptions(
   },
 )
 
+tests.only.addInvalidWithOptions(
+  'objects with array of literals 2',
+  `
+    <NewSelect
+      onChange={(value) =>
+        handleChange(
+          {
+            tableId: value,
+            filters: [],
+            listFields: [],
+            openedRecordFields: [],
+          },
+          {
+            touchOnly: ['tableId'],
+          },
+        )
+      }
+    />
+  `,
+  { maxLineLength: 80, nestedObjMaxLineLength: 20 },
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      <NewSelect
+        onChange={(value) =>
+          handleChange(
+            {
+              tableId: value,
+              filters: [],
+              listFields: [],
+              openedRecordFields: [],
+            },
+            { touchOnly: ['tableId'] },
+          )
+        }
+      />
+    `,
+  },
+)
+
 tests.run()
