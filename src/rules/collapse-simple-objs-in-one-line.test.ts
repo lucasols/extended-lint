@@ -840,14 +840,14 @@ tests.addInvalidWithOptions(
   {
     output: `
       handleChange(
-      {
-        tableId: value,
-        filters: [],
-        listFields: [],
-        openedRecordFields: [],
-      },
-      { touchOnly: ['tableId'] },
-    )
+        {
+          tableId: value,
+          filters: [],
+          listFields: [],
+          openedRecordFields: [],
+        },
+        { touchOnly: ['tableId'] },
+      )
     `,
   },
 )
