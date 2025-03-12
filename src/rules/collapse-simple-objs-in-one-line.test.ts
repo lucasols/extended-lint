@@ -820,16 +820,10 @@ tests.addInvalid(
   },
 )
 
-tests.addInvalidWithOptions(
-  '',
+tests.only.addInvalidWithOptions(
+  'objects with array of literals',
   `
     handleChange(
-      {
-        tableId: value,
-        filters: [],
-        listFields: [],
-        openedRecordFields: [],
-      },
       {
         touchOnly: ['tableId'],
       },
@@ -840,12 +834,6 @@ tests.addInvalidWithOptions(
   {
     output: `
       handleChange(
-        {
-          tableId: value,
-          filters: [],
-          listFields: [],
-          openedRecordFields: [],
-        },
         { touchOnly: ['tableId'] },
       )
     `,

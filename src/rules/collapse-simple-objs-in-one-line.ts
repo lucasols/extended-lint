@@ -65,10 +65,22 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
           if (
             property.type === AST_NODE_TYPES.Property &&
-            (property.value.type === AST_NODE_TYPES.ObjectExpression ||
-              property.value.type === AST_NODE_TYPES.ArrayExpression)
+            property.value.type === AST_NODE_TYPES.ObjectExpression
           ) {
             return false
+          }
+
+          if (
+            property.type === AST_NODE_TYPES.Property &&
+            property.value.type === AST_NODE_TYPES.ArrayExpression
+          ) {
+            const hasSimpleValues = property.value.elements.every(
+              (element) => element && isSimpleObjectPropValue(element),
+            )
+
+            if (!hasSimpleValues) {
+              return false
+            }
           }
 
           return { text: sourceCode.getText(property), isNested, propsSize }
@@ -78,13 +90,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
         for (const property of node.properties) {
           if (property.type === AST_NODE_TYPES.Property) {
-            const valueType = property.value.type
-
-            const isSimpleValue =
-              valueType === AST_NODE_TYPES.Literal ||
-              valueType === AST_NODE_TYPES.Identifier ||
-              valueType === AST_NODE_TYPES.TemplateLiteral ||
-              valueType === AST_NODE_TYPES.TaggedTemplateExpression
+            const isSimpleValue = isSimpleObjectPropValue(property.value)
 
             if (!isSimpleValue) {
               return false
@@ -153,7 +159,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
           if (typeAnn.type === AST_NODE_TYPES.TSTypeLiteral) return false
 
-          if (!isSimplePropValueType(typeAnn.type)) {
+          if (!isSimpleTypePropValue(typeAnn)) {
             return false
           }
 
@@ -165,7 +171,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
             const typeArgument = typeAnn.typeArguments.params[0]!
 
-            if (!isSimplePropValueType(typeArgument.type)) {
+            if (!isSimpleTypePropValue(typeArgument)) {
               return false
             }
           }
@@ -277,14 +283,33 @@ const rule = createRule<[Options], 'singleLineProp'>({
   },
 })
 
-function isSimplePropValueType(type: TSESTree.AST_NODE_TYPES) {
-  if (type === AST_NODE_TYPES.TSLiteralType) return true
-  if (type === AST_NODE_TYPES.TSTypeReference) return true
-  if (type === AST_NODE_TYPES.TSNumberKeyword) return true
-  if (type === AST_NODE_TYPES.TSStringKeyword) return true
-  if (type === AST_NODE_TYPES.TSBooleanKeyword) return true
-  if (type === AST_NODE_TYPES.TSNullKeyword) return true
-  if (type === AST_NODE_TYPES.TSUndefinedKeyword) return true
+function isSimpleTypePropValue(node: TSESTree.TypeNode) {
+  if (node.type === AST_NODE_TYPES.TSLiteralType) return true
+  if (node.type === AST_NODE_TYPES.TSTypeReference) return true
+  if (node.type === AST_NODE_TYPES.TSNumberKeyword) return true
+  if (node.type === AST_NODE_TYPES.TSStringKeyword) return true
+  if (node.type === AST_NODE_TYPES.TSBooleanKeyword) return true
+  if (node.type === AST_NODE_TYPES.TSNullKeyword) return true
+  if (node.type === AST_NODE_TYPES.TSUndefinedKeyword) return true
+
+  return false
+}
+
+function isSimpleObjectPropValue(node: TSESTree.Node, skipArray?: boolean) {
+  if (node.type === AST_NODE_TYPES.Literal) return true
+  if (node.type === AST_NODE_TYPES.Identifier) return true
+  if (node.type === AST_NODE_TYPES.TemplateLiteral) return true
+  if (node.type === AST_NODE_TYPES.TaggedTemplateExpression) return true
+
+  if (!skipArray && node.type === AST_NODE_TYPES.ArrayExpression) {
+    if (
+      node.elements.every(
+        (element) => element && isSimpleObjectPropValue(element, true),
+      )
+    ) {
+      return true
+    }
+  }
 
   return false
 }
