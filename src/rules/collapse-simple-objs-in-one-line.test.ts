@@ -820,7 +820,7 @@ tests.addInvalid(
   },
 )
 
-tests.only.addInvalidWithOptions(
+tests.addInvalidWithOptions(
   'objects with array of literals',
   `
     handleChange(
