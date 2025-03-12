@@ -840,7 +840,7 @@ tests.addInvalidWithOptions(
   },
 )
 
-tests.only.addInvalidWithOptions(
+tests.addInvalidWithOptions(
   'objects with array of literals 2',
   `
     <NewSelect
