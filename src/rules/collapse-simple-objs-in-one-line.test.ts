@@ -820,4 +820,36 @@ tests.addInvalid(
   },
 )
 
+tests.addInvalidWithOptions(
+  '',
+  `
+    handleChange(
+      {
+        tableId: value,
+        filters: [],
+        listFields: [],
+        openedRecordFields: [],
+      },
+      {
+        touchOnly: ['tableId'],
+      },
+    )
+  `,
+  { maxLineLength: 80 },
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      handleChange(
+      {
+        tableId: value,
+        filters: [],
+        listFields: [],
+        openedRecordFields: [],
+      },
+      { touchOnly: ['tableId'] },
+    )
+    `,
+  },
+)
+
 tests.run()
