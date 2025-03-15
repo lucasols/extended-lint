@@ -15,6 +15,7 @@ import { noRelativeImports } from './no-relative-imports'
 import { noUnnecessaryCasting } from './no-unnecessary-casting'
 import { noUnusedObjProps } from './no-unused-obj-props'
 import { noUnusedSelectedValues } from './no-unused-selected-values'
+import { noUnusedTStateField } from './no-unused-t-state-field'
 import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
 import { preferNamedFunction } from './prefer-named-functions'
 import { preferSingleLineIf } from './prefer-single-line-if'
@@ -45,4 +46,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noUnnecessaryCasting.name]: noUnnecessaryCasting.rule,
   [noUnusedSelectedValues.name]: noUnusedSelectedValues.rule,
   [noUnusedObjProps.name]: noUnusedObjProps.rule,
+  [noUnusedTStateField.name]: noUnusedTStateField.rule,
 }

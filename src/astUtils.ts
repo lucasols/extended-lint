@@ -31,3 +31,18 @@ export function* walkUp(node: TSESTree.Node): Generator<TSESTree.Node> {
     yield* walkUp(node.parent)
   }
 }
+
+export function typedFind<T, R>(
+  array: T[],
+  predicate: (item: T) => R | false | undefined | null,
+): R | undefined {
+  for (const item of array) {
+    const result = predicate(item)
+
+    if (result !== undefined && result !== null && result !== false) {
+      return result
+    }
+  }
+
+  return undefined
+}
