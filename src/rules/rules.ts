@@ -13,6 +13,7 @@ import { noNonCamelCaseFunctions } from './no-non-camel-case-functions'
 import { noOptionalRootProps } from './no-optional-root-props'
 import { noRelativeImports } from './no-relative-imports'
 import { noUnnecessaryCasting } from './no-unnecessary-casting'
+import { noUnusedObjProps } from './no-unused-obj-props'
 import { noUnusedSelectedValues } from './no-unused-selected-values'
 import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
 import { preferNamedFunction } from './prefer-named-functions'
@@ -43,4 +44,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [improvedNoUnnecessaryCondition.name]: improvedNoUnnecessaryCondition.rule,
   [noUnnecessaryCasting.name]: noUnnecessaryCasting.rule,
   [noUnusedSelectedValues.name]: noUnusedSelectedValues.rule,
+  [noUnusedObjProps.name]: noUnusedObjProps.rule,
 }
