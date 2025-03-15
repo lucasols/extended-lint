@@ -83,44 +83,21 @@ export const noUnusedObjProps = {
           const usedProperties = new Set<string>()
 
           for (const ref of references) {
-            // If the reference is not a member expression parent, we need to check other cases
+            // Check if the reference is a property access
             if (
               ref.identifier.parent.type !== AST_NODE_TYPES.MemberExpression
             ) {
-              // If it's a spread element, consider all properties used
-              if (ref.identifier.parent.type === AST_NODE_TYPES.SpreadElement) {
-                return
-              }
-
-              // If it's a JSX spread attribute, consider all properties used
-              if (
-                ref.identifier.parent.type === AST_NODE_TYPES.JSXSpreadAttribute
-              ) {
-                return
-              }
-
-              // If it's used in a way we can't track (e.g., passed to a function),
-              // conservatively assume all properties are used
-              if (
-                ref.identifier.parent.type === AST_NODE_TYPES.CallExpression ||
-                ref.identifier.parent.type ===
-                  AST_NODE_TYPES.BinaryExpression ||
-                ref.identifier.parent.type ===
-                  AST_NODE_TYPES.VariableDeclarator ||
-                ref.identifier.parent.type ===
-                  AST_NODE_TYPES.JSXExpressionContainer
-              ) {
-                return
-              }
-
-              continue
+              // If it's not a property access, mark the object as having non-property access
+              return
             }
 
             const memberExpr = ref.identifier
               .parent as TSESTree.MemberExpression
 
             // Skip if this is not the object of the member expression
-            if (memberExpr.object !== ref.identifier) continue
+            if (memberExpr.object !== ref.identifier) {
+              return
+            }
 
             // Handle computed property access (obj[prop])
             if (memberExpr.computed) {
@@ -131,13 +108,14 @@ export const noUnusedObjProps = {
               ) {
                 usedProperties.add(memberExpr.property.value)
               } else {
-                // For dynamic computed properties, conservatively assume all properties are used
+                // For dynamic computed properties, mark as non-property access
                 return
               }
             } else {
               // Direct property access (obj.prop)
-              if (memberExpr.property.type !== AST_NODE_TYPES.Identifier)
-                continue
+              if (memberExpr.property.type !== AST_NODE_TYPES.Identifier) {
+                return
+              }
 
               usedProperties.add(memberExpr.property.name)
             }
@@ -146,17 +124,6 @@ export const noUnusedObjProps = {
             if (
               memberExpr.parent.type === AST_NODE_TYPES.CallExpression &&
               hasMethodsUsingThis
-            ) {
-              // If we find a method that might use 'this', conservatively assume all properties are used
-              return
-            }
-
-            // If this member expression is used in JSX, check if it's in a spread attribute
-            if (
-              memberExpr.parent.type ===
-                AST_NODE_TYPES.JSXExpressionContainer &&
-              memberExpr.parent.parent.type ===
-                AST_NODE_TYPES.JSXSpreadAttribute
             ) {
               return
             }

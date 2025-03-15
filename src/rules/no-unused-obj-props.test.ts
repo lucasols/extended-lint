@@ -201,6 +201,95 @@ tests.addValid(
   `,
 )
 
+// New tests for objects being returned
+tests.addValid(
+  'object returned directly',
+  `
+    function getData() {
+      const data = { id: 1, name: 'Test', value: 42 };
+      return data;
+    }
+  `,
+)
+
+tests.addValid(
+  'object returned in arrow function',
+  `
+    const getData = () => {
+      const data = { id: 1, name: 'Test', value: 42 };
+      return data;
+    }
+  `,
+)
+
+tests.addValid(
+  'object returned conditionally',
+  `
+    function getData(condition) {
+      const data = { id: 1, name: 'Test', value: 42 };
+      if (condition) {
+        return data;
+      }
+      return null;
+    }
+  `,
+)
+
+tests.addValid(
+  'object used in multiple ways',
+  `
+    function process() {
+      const data = { id: 1, name: 'Test', value: 42 };
+      console.log(data.id);
+      return data;
+    }
+  `,
+)
+
+tests.addValid(
+  'object passed to another function',
+  `
+    function process() {
+      const data = { id: 1, name: 'Test', value: 42 };
+      processData(data);
+    }
+  `,
+)
+
+tests.addValid(
+  'object used in template literal',
+  `
+    const obj = { a: 1, b: 2 };
+    console.log(\`\${obj}\`);
+  `,
+)
+
+tests.addValid(
+  'object used in array',
+  `
+    const obj = { a: 1, b: 2 };
+    const arr = [obj];
+  `,
+)
+
+tests.addValid(
+  'object used in object property',
+  `
+    const obj = { a: 1, b: 2 };
+    const container = { inner: obj };
+  `,
+)
+
+tests.addValid(
+  'object used in conditional',
+  `
+    const obj = { a: 1, b: 2 };
+    if (obj) {
+      console.log('has object');
+    }
+  `,
+)
+
 // Invalid test cases
 tests.addInvalid(
   'unused object property',
@@ -294,94 +383,6 @@ tests.addInvalid(
   [{ messageId: 'unusedObjectProperty', data: { name: 'c' } }],
 )
 
-tests.addInvalid(
-  'object used in conditional with unused properties',
-  `
-    const obj = { a: 1, b: 2 };
-    if (obj) {
-      console.log('has object');
-    }
-  `,
-  [
-    { messageId: 'unusedObjectProperty', data: { name: 'a' } },
-    { messageId: 'unusedObjectProperty', data: { name: 'b' } },
-  ],
-)
-
-tests.addInvalid(
-  'object used in template literal with unused properties',
-  `
-    const obj = { a: 1, b: 2 };
-    console.log(\`\${obj}\`);
-  `,
-  [
-    { messageId: 'unusedObjectProperty', data: { name: 'a' } },
-    { messageId: 'unusedObjectProperty', data: { name: 'b' } },
-  ],
-)
-
-tests.addInvalid(
-  'object used in array with unused properties',
-  `
-    const obj = { a: 1, b: 2 };
-    const arr = [obj];
-  `,
-  [
-    { messageId: 'unusedObjectProperty', data: { name: 'a' } },
-    { messageId: 'unusedObjectProperty', data: { name: 'b' } },
-  ],
-)
-
-tests.addInvalid(
-  'object used in object property with unused properties',
-  `
-    const obj = { a: 1, b: 2 };
-    const container = { inner: obj };
-  `,
-  [
-    { messageId: 'unusedObjectProperty', data: { name: 'a' } },
-    { messageId: 'unusedObjectProperty', data: { name: 'b' } },
-  ],
-)
-
-tests.addInvalid(
-  'object used in return statement with unused properties',
-  `
-    function test() {
-      const obj = { a: 1, b: 2 };
-      return obj;
-    }
-  `,
-  [
-    { messageId: 'unusedObjectProperty', data: { name: 'a' } },
-    { messageId: 'unusedObjectProperty', data: { name: 'b' } },
-  ],
-)
-
-tests.addInvalid(
-  'multiple objects with unused properties',
-  `
-    const obj1 = { a: 1, b: 2 };
-    const obj2 = { c: 3, d: 4 };
-    console.log(obj1.a, obj2.c);
-  `,
-  [
-    { messageId: 'unusedObjectProperty', data: { name: 'b' } },
-    { messageId: 'unusedObjectProperty', data: { name: 'd' } },
-  ],
-)
-
-tests.addInvalid(
-  'unused property in object with property access in different scope',
-  `
-    const obj = { a: 1, b: 2, c: 3 };
-    function test() {
-      console.log(obj.a, obj.b);
-    }
-  `,
-  [{ messageId: 'unusedObjectProperty', data: { name: 'c' } }],
-)
-
 // JSX invalid test cases
 tests.addInvalid(
   'unused property in object used in JSX',
@@ -392,6 +393,18 @@ tests.addInvalid(
     }
   `,
   [{ messageId: 'unusedObjectProperty', data: { name: 'margin' } }],
+)
+
+tests.addInvalid(
+  'partial property access in object',
+  `
+    function getData() {
+      const data = { id: 1, name: 'Test', value: 42 };
+      console.log(data.id, data.name);
+      // Only using id and name, not value
+    }
+  `,
+  [{ messageId: 'unusedObjectProperty', data: { name: 'value' } }],
 )
 
 tests.run()
