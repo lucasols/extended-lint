@@ -12,12 +12,17 @@ export const noUnusedTStateField = createExtendedLintRule<[], 'unusedField'>({
     },
     messages: {
       unusedField:
-        'This field "{{name}}" is not being used, you can safely remove it',
+        'Field "{{name}}" is not being used, you can safely remove it',
     },
     schema: [],
   },
   defaultOptions: [],
   create(context) {
+    const isJsxFile =
+      context.filename.endsWith('.jsx') || context.filename.endsWith('.tsx')
+
+    if (!isJsxFile) return {}
+
     const hasTStateFormImport = context.sourceCode.ast.body.some(
       (node) =>
         node.type === AST_NODE_TYPES.ImportDeclaration &&
@@ -29,9 +34,12 @@ export const noUnusedTStateField = createExtendedLintRule<[], 'unusedField'>({
     }
 
     let declaredFields: Map<string, TSESTree.Property> | null = null
+    let ruleExecuted = false
 
     return {
       CallExpression(node) {
+        if (ruleExecuted) return
+
         if (!declaredFields) {
           const fields = getDeclaredFields(node)
 
@@ -45,6 +53,8 @@ export const noUnusedTStateField = createExtendedLintRule<[], 'unusedField'>({
         const usedFields = getUsedFields(node, context.sourceCode)
 
         if (!usedFields) return
+
+        ruleExecuted = true
 
         for (const field of usedFields) {
           declaredFields.delete(field)
@@ -80,13 +90,26 @@ function getDeclaredFields(
   if (options.type !== AST_NODE_TYPES.ObjectExpression) return null
 
   const initialConfig = typedFind(options.properties, (property) => {
-    return (
-      property.type === AST_NODE_TYPES.Property &&
-      property.key.type === AST_NODE_TYPES.Identifier &&
-      property.key.name === 'initialConfig' &&
-      property.value.type === AST_NODE_TYPES.ObjectExpression &&
-      property.value
-    )
+    if (
+      property.type !== AST_NODE_TYPES.Property ||
+      property.key.type !== AST_NODE_TYPES.Identifier ||
+      property.key.name !== 'initialConfig'
+    ) {
+      return null
+    }
+
+    if (property.value.type === AST_NODE_TYPES.ObjectExpression) {
+      return property.value
+    }
+
+    if (
+      property.value.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+      property.value.type === AST_NODE_TYPES.FunctionExpression
+    ) {
+      return getReturnObjectFromArrowFunction(property.value)
+    }
+
+    return null
   })
 
   if (!initialConfig) return null
@@ -129,14 +152,31 @@ function getUsedFields(
 
   if (!formFieldsRef) return null
 
-  const references = getIdentifierReferences(node.parent, sourceCode)
+  const references = getVarReadReferences(node.parent, 'formFields', sourceCode)
 
   const usedFields = new Set<string>()
 
   for (const { identifier } of references) {
     if (identifier.type !== AST_NODE_TYPES.Identifier) return null
 
-    if (identifier.parent.type !== AST_NODE_TYPES.MemberExpression) return null
+    // is in object return
+    if (
+      identifier.parent.type === AST_NODE_TYPES.Property &&
+      identifier.parent.parent.type === AST_NODE_TYPES.ObjectExpression &&
+      identifier.parent.parent.parent.type === AST_NODE_TYPES.ReturnStatement
+    ) {
+      return null
+    }
+
+    // is directly returned
+    if (identifier.parent.type === AST_NODE_TYPES.ReturnStatement) {
+      return null
+    }
+
+    // is not property access
+    if (identifier.parent.type !== AST_NODE_TYPES.MemberExpression) {
+      continue
+    }
 
     if (identifier.parent.object.type !== AST_NODE_TYPES.Identifier) return null
 
@@ -149,17 +189,39 @@ function getUsedFields(
   return usedFields
 }
 
-function getIdentifierReferences(
-  node: TSESTree.VariableDeclarator,
+function getVarReadReferences(
+  scopeNode: TSESTree.Node,
+  varName: string,
   sourceCode: TSESLint.SourceCode,
 ): Reference[] {
-  const variables = sourceCode.getDeclaredVariables(node)
+  const variables = sourceCode.getDeclaredVariables(scopeNode)
 
-  if (variables.length !== 1) return []
-
-  const variable = variables[0]
+  const variable = variables.find((v) => v.name === varName)
 
   if (!variable) return []
 
-  return variable.references.filter((ref) => ref.identifier !== node.id)
+  return variable.references.filter((ref) => !ref.init)
+}
+
+function getReturnObjectFromArrowFunction(
+  node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression,
+): TSESTree.ObjectExpression | null {
+  if (node.body.type === AST_NODE_TYPES.ObjectExpression) {
+    return node.body
+  }
+
+  if (node.body.type === AST_NODE_TYPES.BlockStatement) {
+    const returnStatement = node.body.body.filter(
+      (statement) => statement.type === AST_NODE_TYPES.ReturnStatement,
+    )
+
+    if (returnStatement.length !== 1 || !returnStatement[0]) return null
+
+    if (returnStatement[0].argument?.type !== AST_NODE_TYPES.ObjectExpression)
+      return null
+
+    return returnStatement[0].argument
+  }
+
+  return null
 }
