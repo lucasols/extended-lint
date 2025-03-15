@@ -1,6 +1,5 @@
-import { Reference } from '@typescript-eslint/scope-manager'
 import { AST_NODE_TYPES, TSESLint, TSESTree } from '@typescript-eslint/utils'
-import { typedFind } from '../astUtils'
+import { getVarReferences, typedFind } from '../astUtils'
 import { createExtendedLintRule } from '../createRule'
 
 export const noUnusedTStateField = createExtendedLintRule<[], 'unusedField'>({
@@ -152,7 +151,7 @@ function getUsedFields(
 
   if (!formFieldsRef) return null
 
-  const references = getVarReadReferences(node.parent, 'formFields', sourceCode)
+  const references = getVarReferences(node.parent, 'formFields', sourceCode)
 
   const usedFields = new Set<string>()
 
@@ -187,26 +186,6 @@ function getUsedFields(
   }
 
   return usedFields
-}
-
-function getVarReadReferences(
-  scopeNode: TSESTree.Node,
-  varName: string,
-  sourceCode: TSESLint.SourceCode,
-): Reference[] {
-  const variables = sourceCode.getDeclaredVariables(scopeNode)
-
-  const variable = variables.find(
-    (v) =>
-      v.name === varName ||
-      (v.identifiers[0]?.parent.type === AST_NODE_TYPES.Property &&
-        v.identifiers[0]?.parent.key.type === AST_NODE_TYPES.Identifier &&
-        v.identifiers[0]?.parent.key.name === varName),
-  )
-
-  if (!variable) return []
-
-  return variable.references.filter((ref) => !ref.init)
 }
 
 function getReturnObjectFromArrowFunction(
