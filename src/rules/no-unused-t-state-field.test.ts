@@ -28,6 +28,29 @@ tests.addValid(
   `,
 )
 
+tests.addValid(
+  'with no unused field 2',
+  `
+    import { useForm } from 't-state-form';
+
+    const Component = () => {
+      const { formTypedCtx } = useForm({
+        initialConfig: {
+          name: { initialValue: 'John' },
+          text: { initialValue: 'text' },
+        },
+      })
+
+      const { formFields: fields } = useFormState(formTypedCtx)
+
+      return <div>
+        <TextField value={fields.name.value} />
+        <TextField value={fields.text.value} />
+      </div>
+    }
+  `,
+)
+
 tests.addInvalid(
   'has unused field',
   `

@@ -196,7 +196,13 @@ function getVarReadReferences(
 ): Reference[] {
   const variables = sourceCode.getDeclaredVariables(scopeNode)
 
-  const variable = variables.find((v) => v.name === varName)
+  const variable = variables.find(
+    (v) =>
+      v.name === varName ||
+      (v.identifiers[0]?.parent.type === AST_NODE_TYPES.Property &&
+        v.identifiers[0]?.parent.key.type === AST_NODE_TYPES.Identifier &&
+        v.identifiers[0]?.parent.key.name === varName),
+  )
 
   if (!variable) return []
 
