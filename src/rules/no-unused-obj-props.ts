@@ -52,6 +52,14 @@ export const noUnusedObjProps = {
             return
           }
 
+          // Skip if the object is exported
+
+          if (
+            node.parent.parent.type === AST_NODE_TYPES.ExportNamedDeclaration
+          ) {
+            return
+          }
+
           // Get the properties from the object
           const objectProperties = new Map<string, TSESTree.Property>()
 

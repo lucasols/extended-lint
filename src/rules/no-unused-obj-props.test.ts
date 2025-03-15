@@ -30,6 +30,31 @@ tests.addValid(
 )
 
 tests.addValid(
+  'used object',
+  `
+    const obj = { a: 1, b: 2 };
+    console.log(obj);
+  `,
+)
+
+tests.addValid(
+  'exported object',
+  `
+    export const obj = { a: 1, b: 2 };
+    console.log(obj.a);
+  `,
+)
+
+tests.addValid(
+  'exported object 2',
+  `
+    const obj = { a: 1, b: 2 };
+
+    export const test = obj;
+  `,
+)
+
+tests.addValid(
   'destructuring assignment',
   `
     const { a, b } = { a: 1, b: 2 };
