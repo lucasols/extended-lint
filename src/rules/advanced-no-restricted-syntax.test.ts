@@ -708,7 +708,7 @@ tests.describe('mustMatchSelector', () => {
     },
   )
 
-  tests.only.addInvalidWithOptions(
+  tests.addInvalidWithOptions(
     'invalid with use a filename var ',
     `
     const number = 'bar';
