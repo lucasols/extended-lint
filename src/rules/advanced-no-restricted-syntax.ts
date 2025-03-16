@@ -1,10 +1,7 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
+import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
 import { ReportFixFunction } from '@typescript-eslint/utils/ts-eslint'
 import * as t from 'tschema'
-
-const createRule = ESLintUtils.RuleCreator(
-  (name) => `https://github.com/lucasols/extended-lint#${name}`,
-)
+import { createExtendedLintRule } from '../createRule'
 
 const optionSchema = t.object({
   disallow: t.optional(
@@ -24,21 +21,31 @@ const optionSchema = t.object({
     t.array(
       t.object({
         includeRegex: t.string(),
-        mustCallFn: t.array(
-          t.object({
-            anyCall: t.array(
-              t.object({
-                fn: t.string(),
-                withArgs: t.array(
-                  t.object({
-                    atIndex: t.integer(),
-                    literal: t.any(t.string(), t.number(), t.boolean()),
-                  }),
-                ),
-              }),
-            ),
-            message: t.optional(t.string()),
-          }),
+        mustCallFn: t.optional(
+          t.array(
+            t.object({
+              anyCall: t.array(
+                t.object({
+                  fn: t.string(),
+                  withArgs: t.array(
+                    t.object({
+                      atIndex: t.integer(),
+                      literal: t.any(t.string(), t.number(), t.boolean()),
+                    }),
+                  ),
+                }),
+              ),
+              message: t.optional(t.string()),
+            }),
+          ),
+        ),
+        mustMatchSelector: t.optional(
+          t.array(
+            t.object({
+              selector: t.string(),
+              message: t.string(),
+            }),
+          ),
         ),
       }),
     ),
@@ -47,10 +54,11 @@ const optionSchema = t.object({
 
 export type Options = t.Infer<typeof optionSchema>
 
-const name = 'advanced-no-restricted-syntax'
-
-const rule = createRule<[Options], 'default'>({
-  name,
+export const advancedNoRestrictedSyntax = createExtendedLintRule<
+  [Options],
+  'default'
+>({
+  name: 'advanced-no-restricted-syntax',
   meta: {
     type: 'suggestion',
     docs: {
@@ -76,10 +84,16 @@ const rule = createRule<[Options], 'default'>({
 
     const callExpressionSelectors: ((node: TSESTree.CallExpression) => void)[] =
       []
+    const mustMatchSelectorSelectors: Map<string, () => void> = new Map()
 
     const mustMatchSomeCallRemaining = new Set<string>()
+    const mustMatchSomeSelectorRemaining = new Map<string, string>()
 
-    for (const { includeRegex, mustCallFn } of mustMatchSyntax ?? []) {
+    for (const {
+      includeRegex,
+      mustCallFn,
+      mustMatchSelector,
+    } of mustMatchSyntax ?? []) {
       const fileNameVars = getFileNameVarsRegex(
         fileName,
         new RegExp(includeRegex),
@@ -95,7 +109,7 @@ const rule = createRule<[Options], 'default'>({
         return newStr
       }
 
-      for (const { anyCall, message } of mustCallFn) {
+      for (const { anyCall, message } of mustCallFn ?? []) {
         const mustCallMessage = `Expected file to call the function: ${anyCall
           .map(({ fn }) => fn)
           .join(' or ')}`
@@ -171,6 +185,33 @@ const rule = createRule<[Options], 'default'>({
           }
         })
       }
+
+      for (const { selector, message } of mustMatchSelector ?? []) {
+        mustMatchSomeSelectorRemaining.set(
+          selector,
+          replaceStringWithVars(message),
+        )
+
+        mustMatchSelectorSelectors.set(replaceStringWithVars(selector), () => {
+          mustMatchSomeSelectorRemaining.delete(selector)
+        })
+      }
+    }
+
+    function addSelector(
+      selector: string,
+      checkSelectorFn: (selectorNode: TSESTree.Node | TSESTree.Token) => void,
+    ) {
+      const existingSelector = result[selector]
+
+      if (existingSelector) {
+        result[selector] = (node) => {
+          existingSelector(node)
+          checkSelectorFn(node)
+        }
+      } else {
+        result[selector] = checkSelectorFn
+      }
     }
 
     for (const {
@@ -192,6 +233,12 @@ const rule = createRule<[Options], 'default'>({
       }
     }
 
+    if (mustMatchSelectorSelectors.size > 0) {
+      for (const [selector, checkSelectorFn] of mustMatchSelectorSelectors) {
+        addSelector(selector, checkSelectorFn)
+      }
+    }
+
     if (callExpressionSelectors.length > 0) {
       result['CallExpression'] = (node) => {
         if (node.type !== AST_NODE_TYPES.CallExpression) return
@@ -207,7 +254,15 @@ const rule = createRule<[Options], 'default'>({
         context.report({
           node,
           messageId: 'default',
-          data: { message: `${message}` },
+          data: { message },
+        })
+      }
+
+      for (const [, message] of mustMatchSomeSelectorRemaining) {
+        context.report({
+          node,
+          messageId: 'default',
+          data: { message },
         })
       }
     }
@@ -284,7 +339,7 @@ function getFileNameVarsRegex(
     vars.push({ name: `${name}_lowercase`, value: value.toLowerCase() })
     vars.push({ name: `${name}_capitalize`, value: capitalize(value) })
     vars.push({ name: `${name}_uncapitalize`, value: uncapitalize(value) })
-    vars.push({ name: name, value: value })
+    vars.push({ name, value })
   }
 
   return vars
@@ -296,9 +351,4 @@ function capitalize(str: string) {
 
 function uncapitalize(str: string) {
   return str.charAt(0).toLowerCase() + str.slice(1)
-}
-
-export const advancedNoRestrictedSyntax = {
-  name,
-  rule,
 }

@@ -601,4 +601,140 @@ tests.describe('mustCallFn', () => {
   )
 })
 
+tests.describe('mustMatchSelector', () => {
+  tests.addValid(
+    'declaring correctly a variable',
+    `
+    const foo = 'bar';
+  `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustMatchSelector: [
+            { selector: 'Identifier[name="foo"]', message: 'noop' },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.addInvalidWithOptions(
+    'not declaring a variable',
+    `
+      const test = 'bar';
+    `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustMatchSelector: [
+            {
+              selector: 'Identifier[name="foo"]',
+              message: 'File should declare "foo"',
+            },
+          ],
+        },
+      ],
+    },
+    [
+      {
+        data: {
+          message: 'File should declare "foo"',
+        },
+      },
+    ],
+  )
+
+  tests.addValid(
+    'declaring a variable in destructuring',
+    `
+    const { foo } = bar;
+  `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustMatchSelector: [
+            { selector: 'Property[key.name="foo"]', message: 'noop' },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.addInvalidWithOptions(
+    'not declaring a variable in destructuring',
+    `
+    const { test } = bar;
+  `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustMatchSelector: [
+            {
+              selector: 'Property[key.name="foo"]',
+              message: 'Missing declaration of "foo"',
+            },
+          ],
+        },
+      ],
+    },
+    [
+      {
+        data: {
+          message: 'Missing declaration of "foo"',
+        },
+      },
+    ],
+  )
+
+  tests.addValid(
+    'use a filename var',
+    `
+    const string = 'bar';
+  `,
+    {
+      __dev_simulateFileName: 'stringFile.ts',
+      mustMatchSyntax: [
+        {
+          includeRegex: '(.+)File.ts$',
+          mustMatchSelector: [
+            { selector: 'Identifier[name="$1"]', message: 'noop' },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.only.addInvalidWithOptions(
+    'invalid with use a filename var ',
+    `
+    const number = 'bar';
+  `,
+    {
+      __dev_simulateFileName: 'stringFile.ts',
+      mustMatchSyntax: [
+        {
+          includeRegex: '(.+)File.ts$',
+          mustMatchSelector: [
+            {
+              selector: 'Identifier[name="$1"]',
+              message: 'File should declare "$1"',
+            },
+          ],
+        },
+      ],
+    },
+    [
+      {
+        data: {
+          message: 'File should declare "string"',
+        },
+      },
+    ],
+  )
+})
+
 tests.run()
