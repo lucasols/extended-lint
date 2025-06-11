@@ -6,6 +6,7 @@ const optionsSchema = t.object({
   disallowedFunctions: t.array(
     t.object({
       name: t.string(),
+      allowUsingWithArgs: t.optional(t.boolean()),
       hookAlternative: t.optional(t.string()),
       message: t.optional(t.string()),
       allowUseInside: t.optional(t.array(t.string())),
@@ -201,6 +202,16 @@ function isInsideAllowedFunction(
   return false
 }
 
+function hasMeaningfulArguments(node: TSESTree.CallExpression): boolean {
+  return (
+    node.arguments.length > 0 &&
+    !node.arguments.every(
+      (arg) =>
+        arg.type === AST_NODE_TYPES.Identifier && arg.name === 'undefined',
+    )
+  )
+}
+
 function shouldReportDisallowedFunction(
   node: TSESTree.Node,
   allowUseInside: string[],
@@ -286,6 +297,10 @@ export const preferReactHookAlternative = createExtendedLintRule<
 
         const disallowedFn = disallowedMap.get(functionName)
         if (!disallowedFn) {
+          return
+        }
+
+        if (disallowedFn.allowUsingWithArgs && hasMeaningfulArguments(node)) {
           return
         }
 

@@ -879,4 +879,288 @@ tests.addInvalid(
   },
 )
 
+tests.addValid(
+  'React component using setTimeout with arguments when allowUsingWithArgs is true',
+  `
+    function MyComponent() {
+      setTimeout(() => {
+        console.log('hello')
+      }, 1000)
+      return <div>test</div>
+    }
+  `,
+  {
+    disallowedFunctions: [
+      {
+        name: 'setTimeout',
+        hookAlternative: 'useTimeout',
+        allowUsingWithArgs: true,
+      },
+    ],
+  },
+)
+
+tests.addValid(
+  'React component using addEventListener with arguments when allowUsingWithArgs is true',
+  `
+    function MyComponent() {
+      window.addEventListener('click', handler)
+      return <div>test</div>
+    }
+  `,
+  {
+    disallowedFunctions: [
+      {
+        name: 'addEventListener',
+        hookAlternative: 'useEventListener',
+        allowUsingWithArgs: true,
+      },
+    ],
+  },
+)
+
+tests.addValid(
+  'Hook using setTimeout with arguments when allowUsingWithArgs is true',
+  `
+    function useMyHook() {
+      setTimeout(() => {
+        console.log('hello')
+      }, 1000)
+      return true
+    }
+  `,
+  {
+    disallowedFunctions: [
+      {
+        name: 'setTimeout',
+        hookAlternative: 'useTimeout',
+        allowUsingWithArgs: true,
+      },
+    ],
+  },
+)
+
+tests.addInvalid(
+  'React component using setTimeout with undefined argument when allowUsingWithArgs is true',
+  `
+    function MyComponent() {
+      setTimeout(undefined)
+      return <div>test</div>
+    }
+  `,
+  [
+    {
+      messageId: 'preferHookAlternative',
+      data: {
+        message: ' use useTimeout instead',
+      },
+      suggestions: [
+        {
+          messageId: 'preferHookAlternative',
+          output: `
+    function MyComponent() {
+      useTimeout(undefined)
+      return <div>test</div>
+    }
+  `,
+        },
+      ],
+    },
+  ],
+  {
+    options: {
+      disallowedFunctions: [
+        {
+          name: 'setTimeout',
+          hookAlternative: 'useTimeout',
+          allowUsingWithArgs: true,
+        },
+      ],
+    },
+  },
+)
+
+tests.addInvalid(
+  'React component using setTimeout with multiple undefined arguments when allowUsingWithArgs is true',
+  `
+    function MyComponent() {
+      setTimeout(undefined, undefined)
+      return <div>test</div>
+    }
+  `,
+  [
+    {
+      messageId: 'preferHookAlternative',
+      data: {
+        message: ' use useTimeout instead',
+      },
+      suggestions: [
+        {
+          messageId: 'preferHookAlternative',
+          output: `
+    function MyComponent() {
+      useTimeout(undefined, undefined)
+      return <div>test</div>
+    }
+  `,
+        },
+      ],
+    },
+  ],
+  {
+    options: {
+      disallowedFunctions: [
+        {
+          name: 'setTimeout',
+          hookAlternative: 'useTimeout',
+          allowUsingWithArgs: true,
+        },
+      ],
+    },
+  },
+)
+
+tests.addValid(
+  'React component using setTimeout with one meaningful and one undefined argument when allowUsingWithArgs is true',
+  `
+    function MyComponent() {
+      setTimeout(() => console.log('hello'), undefined)
+      return <div>test</div>
+    }
+  `,
+  {
+    disallowedFunctions: [
+      {
+        name: 'setTimeout',
+        hookAlternative: 'useTimeout',
+        allowUsingWithArgs: true,
+      },
+    ],
+  },
+)
+
+tests.addInvalid(
+  'React component using setTimeout without arguments when allowUsingWithArgs is true',
+  `
+    function MyComponent() {
+      setTimeout()
+      return <div>test</div>
+    }
+  `,
+  [
+    {
+      messageId: 'preferHookAlternative',
+      data: {
+        message: ' use useTimeout instead',
+      },
+      suggestions: [
+        {
+          messageId: 'preferHookAlternative',
+          output: `
+    function MyComponent() {
+      useTimeout()
+      return <div>test</div>
+    }
+  `,
+        },
+      ],
+    },
+  ],
+  {
+    options: {
+      disallowedFunctions: [
+        {
+          name: 'setTimeout',
+          hookAlternative: 'useTimeout',
+          allowUsingWithArgs: true,
+        },
+      ],
+    },
+  },
+)
+
+tests.addInvalid(
+  'React component using setTimeout without arguments when allowUsingWithArgs is false',
+  `
+    function MyComponent() {
+      setTimeout()
+      return <div>test</div>
+    }
+  `,
+  [
+    {
+      messageId: 'preferHookAlternative',
+      data: {
+        message: ' use useTimeout instead',
+      },
+      suggestions: [
+        {
+          messageId: 'preferHookAlternative',
+          output: `
+    function MyComponent() {
+      useTimeout()
+      return <div>test</div>
+    }
+  `,
+        },
+      ],
+    },
+  ],
+  {
+    options: {
+      disallowedFunctions: [
+        {
+          name: 'setTimeout',
+          hookAlternative: 'useTimeout',
+          allowUsingWithArgs: false,
+        },
+      ],
+    },
+  },
+)
+
+tests.addInvalid(
+  'React component using setTimeout with arguments when allowUsingWithArgs is false',
+  `
+    function MyComponent() {
+      setTimeout(() => {
+        console.log('hello')
+      }, 1000)
+      return <div>test</div>
+    }
+  `,
+  [
+    {
+      messageId: 'preferHookAlternative',
+      data: {
+        message: ' use useTimeout instead',
+      },
+      suggestions: [
+        {
+          messageId: 'preferHookAlternative',
+          output: `
+    function MyComponent() {
+      useTimeout(() => {
+        console.log('hello')
+      }, 1000)
+      return <div>test</div>
+    }
+  `,
+        },
+      ],
+    },
+  ],
+  {
+    options: {
+      disallowedFunctions: [
+        {
+          name: 'setTimeout',
+          hookAlternative: 'useTimeout',
+          allowUsingWithArgs: false,
+        },
+      ],
+    },
+  },
+)
+
 tests.run()
