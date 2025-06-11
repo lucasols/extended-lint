@@ -167,11 +167,11 @@ function getFunctionCallName(node: TSESTree.CallExpression): string | null {
   return null
 }
 
-export const preferHookAlternative = createExtendedLintRule<
+export const preferReactHookAlternative = createExtendedLintRule<
   [Options],
   'preferHookAlternative'
 >({
-  name: 'prefer-hook-alternative',
+  name: 'prefer-react-hook-alternative',
   meta: {
     type: 'suggestion',
     docs: {

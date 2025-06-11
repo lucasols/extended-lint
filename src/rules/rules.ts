@@ -17,8 +17,8 @@ import { noUnusedObjProps } from './no-unused-obj-props'
 import { noUnusedSelectedValues } from './no-unused-selected-values'
 import { noUnusedTStateField } from './no-unused-t-state-field'
 import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
-import { preferHookAlternative } from './prefer-hook-alternative'
 import { preferNamedFunction } from './prefer-named-functions'
+import { preferReactHookAlternative } from './prefer-react-hook-alternative'
 import { preferSingleLineIf } from './prefer-single-line-if'
 import { reactCompilerMigration } from './react-compiler-migration'
 import { requireDescription } from './require-description'
@@ -48,5 +48,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedSelectedValues.name]: noUnusedSelectedValues.rule,
   [noUnusedTStateField.name]: noUnusedTStateField.rule,
   [noUnusedObjProps.name]: noUnusedObjProps.rule,
-  [preferHookAlternative.name]: preferHookAlternative.rule,
+  [preferReactHookAlternative.name]: preferReactHookAlternative.rule,
 }

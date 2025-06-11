@@ -1,8 +1,8 @@
 import { createTester } from '../../tests/utils/createTester'
-import { preferHookAlternative } from './prefer-hook-alternative'
+import { preferReactHookAlternative } from './prefer-react-hook-alternative'
 
-const tests = createTester(preferHookAlternative, {
-  defaultErrorId: 'preferHookAlternative',
+const tests = createTester(preferReactHookAlternative, {
+  defaultErrorId: 'preferReactHookAlternative',
 })
 
 const defaultOptions = {
