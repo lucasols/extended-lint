@@ -6,7 +6,9 @@ const optionsSchema = t.object({
   disallowedFunctions: t.array(
     t.object({
       name: t.string(),
-      hookAlternative: t.string(),
+      hookAlternative: t.optional(t.string()),
+      message: t.optional(t.string()),
+      allowUseInside: t.optional(t.array(t.string())),
     }),
   ),
 })
@@ -167,6 +169,88 @@ function getFunctionCallName(node: TSESTree.CallExpression): string | null {
   return null
 }
 
+function isInsideAllowedFunction(
+  node: TSESTree.Node,
+  allowUseInside: string[],
+): boolean {
+  if (!allowUseInside.length) {
+    return false
+  }
+
+  let current = node.parent
+  while (current) {
+    if (
+      current.type === AST_NODE_TYPES.FunctionDeclaration ||
+      current.type === AST_NODE_TYPES.FunctionExpression ||
+      current.type === AST_NODE_TYPES.ArrowFunctionExpression
+    ) {
+      const functionName = getFunctionName(current)
+      if (functionName && functionName.type === AST_NODE_TYPES.Identifier) {
+        if (allowUseInside.includes(functionName.name)) {
+          return true
+        }
+      }
+    } else if (current.type === AST_NODE_TYPES.CallExpression) {
+      const callName = getFunctionCallName(current)
+      if (callName && allowUseInside.includes(callName)) {
+        return true
+      }
+    }
+    current = current.parent
+  }
+  return false
+}
+
+function shouldReportDisallowedFunction(
+  node: TSESTree.Node,
+  allowUseInside: string[],
+): boolean {
+  // First, check if we're anywhere inside a component or hook tree
+  let insideComponentOrHook = false
+  let current = node.parent
+
+  while (current) {
+    if (
+      current.type === AST_NODE_TYPES.FunctionDeclaration ||
+      current.type === AST_NODE_TYPES.FunctionExpression ||
+      current.type === AST_NODE_TYPES.ArrowFunctionExpression
+    ) {
+      const functionName = getFunctionName(current)
+      if (functionName && functionName.type === AST_NODE_TYPES.Identifier) {
+        if (
+          isComponentName(functionName.name) ||
+          isHookName(functionName.name)
+        ) {
+          insideComponentOrHook = true
+          break
+        }
+      } else if (isForwardRefCallback(current) || isMemoCallback(current)) {
+        insideComponentOrHook = true
+        break
+      }
+    }
+    current = current.parent
+  }
+
+  if (!insideComponentOrHook) {
+    return false
+  }
+
+  // If no allowed functions specified, use the original behavior
+  if (allowUseInside.length === 0) {
+    return isDirectlyInsideComponentOrHook(node)
+  }
+
+  // If allowed functions are specified, check if we're inside one
+  if (isInsideAllowedFunction(node, allowUseInside)) {
+    return false // Don't report - we're inside an allowed function
+  }
+
+  // We're inside a component/hook but not in an allowed function
+  // When allowUseInside is specified, we want to be stricter about nested functions
+  return true
+}
+
 export const preferReactHookAlternative = createExtendedLintRule<
   [Options],
   'preferHookAlternative'
@@ -180,7 +264,7 @@ export const preferReactHookAlternative = createExtendedLintRule<
     },
     messages: {
       preferHookAlternative:
-        'This function should not be used in react use the hook {{hookAlternative}} instead.',
+        'This function should not be used in react{{message}}.',
     },
     schema: [optionsSchema as any],
     hasSuggestions: true,
@@ -195,51 +279,57 @@ export const preferReactHookAlternative = createExtendedLintRule<
 
     return {
       CallExpression(node) {
-        if (!isDirectlyInsideComponentOrHook(node)) {
-          return
-        }
-
         const functionName = getFunctionCallName(node)
         if (!functionName) {
           return
         }
 
         const disallowedFn = disallowedMap.get(functionName)
-        if (disallowedFn) {
-          context.report({
-            node,
-            messageId: 'preferHookAlternative',
-            data: {
-              hookAlternative: disallowedFn.hookAlternative,
-            },
-            suggest: [
-              {
-                messageId: 'preferHookAlternative',
-                data: {
-                  message: `Replace with ${disallowedFn.hookAlternative}`,
-                  hookAlternative: disallowedFn.hookAlternative,
-                },
-                fix: (fixer) => {
-                  if (node.callee.type === AST_NODE_TYPES.Identifier) {
-                    return fixer.replaceText(
-                      node.callee,
-                      disallowedFn.hookAlternative,
-                    )
-                  } else if (
-                    node.callee.type === AST_NODE_TYPES.MemberExpression &&
-                    node.callee.property.type === AST_NODE_TYPES.Identifier
-                  ) {
-                    return fixer.replaceText(
-                      node.callee.property,
-                      disallowedFn.hookAlternative,
-                    )
-                  }
-                  return null
-                },
-              },
-            ],
-          })
+        if (!disallowedFn) {
+          return
         }
+
+        const allowUseInside = disallowedFn.allowUseInside || []
+
+        if (!shouldReportDisallowedFunction(node, allowUseInside)) {
+          return
+        }
+
+        context.report({
+          node,
+          messageId: 'preferHookAlternative',
+          data: {
+            message: disallowedFn.message
+              ? ` ${disallowedFn.message}`
+              : ` use ${disallowedFn.hookAlternative} instead`,
+          },
+          suggest: disallowedFn.hookAlternative
+            ? [
+                {
+                  messageId: 'preferHookAlternative',
+                  data: {
+                    message: `Replace with ${disallowedFn.hookAlternative}`,
+                    hookAlternative: disallowedFn.hookAlternative,
+                  },
+                  fix: (fixer) => {
+                    const replacement = disallowedFn.hookAlternative!
+                    if (node.callee.type === AST_NODE_TYPES.Identifier) {
+                      return fixer.replaceText(node.callee, replacement)
+                    } else if (
+                      node.callee.type === AST_NODE_TYPES.MemberExpression &&
+                      node.callee.property.type === AST_NODE_TYPES.Identifier
+                    ) {
+                      return fixer.replaceText(
+                        node.callee.property,
+                        replacement,
+                      )
+                    }
+                    return null
+                  },
+                },
+              ]
+            : [],
+        })
       },
     }
   },

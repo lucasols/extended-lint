@@ -18,6 +18,8 @@ const defaultOptions = {
     {
       name: 'addEventListener',
       hookAlternative: 'useEventListener',
+      message:
+        'addEventListener should not be used directly in React components.',
     },
   ],
 }
@@ -107,6 +109,101 @@ tests.addValid(
   defaultOptions,
 )
 
+tests.addValid(
+  'React component using setTimeout inside allowed function',
+  `
+    function MyComponent() {
+      function getCurrentPlan(plan) {
+        setTimeout(() => {
+          console.log('hello')
+        }, 1000)
+        return plan
+      }
+      return <div>test</div>
+    }
+  `,
+  {
+    disallowedFunctions: [
+      {
+        name: 'setTimeout',
+        hookAlternative: 'useTimeout',
+        allowUseInside: ['getCurrentPlan'],
+      },
+    ],
+  },
+)
+
+tests.addValid(
+  'React component using setInterval inside allowed arrow function',
+  `
+    function MyComponent() {
+      const getCurrentPlan = (plan) => {
+        setInterval(() => {
+          console.log('hello')
+        }, 1000)
+        return plan
+      }
+      return <div>test</div>
+    }
+  `,
+  {
+    disallowedFunctions: [
+      {
+        name: 'setInterval',
+        hookAlternative: 'useInterval',
+        allowUseInside: ['getCurrentPlan'],
+      },
+    ],
+  },
+)
+
+tests.addValid(
+  'React component using disallowed function inside allowed function call',
+  `
+    function MyComponent() {
+      return userDocRef.value.store.useSelector((state) =>
+        getCurrentPlan(state.data?.plan),
+      )
+    }
+    
+    function getCurrentPlan(plan) {
+      setTimeout(() => {
+        console.log('processing plan')
+      }, 100)
+      return plan
+    }
+  `,
+  {
+    disallowedFunctions: [
+      {
+        name: 'setTimeout',
+        hookAlternative: 'useTimeout',
+        allowUseInside: ['getCurrentPlan'],
+      },
+    ],
+  },
+)
+
+tests.addValid(
+  'React hook calling allowed function with useSelector',
+  `
+    export function useCurrentPlan(): CurrentPlan {
+      return userDocRef.value.store.useSelector((state) =>
+        getCurrentPlan(state.data?.plan),
+      );
+    }
+  `,
+  {
+    disallowedFunctions: [
+      {
+        name: 'getCurrentPlan',
+        hookAlternative: 'useCurrentPlanHook',
+        allowUseInside: ['useSelector'],
+      },
+    ],
+  },
+)
+
 tests.addInvalid(
   'React component using setTimeout',
   `
@@ -121,8 +218,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        message: 'setTimeout should not be used in React components.',
-        hookAlternative: 'useTimeout',
+        message: ' use useTimeout instead',
       },
       suggestions: [
         {
@@ -158,8 +254,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        message: 'setInterval should not be used in React components.',
-        hookAlternative: 'useInterval',
+        message: ' use useInterval instead',
       },
       suggestions: [
         {
@@ -194,8 +289,7 @@ tests.addInvalid(
       messageId: 'preferHookAlternative',
       data: {
         message:
-          'addEventListener should not be used directly in React components.',
-        hookAlternative: 'useEventListener',
+          ' addEventListener should not be used directly in React components.',
       },
       suggestions: [
         {
@@ -229,8 +323,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        message: 'setTimeout should not be used in React components.',
-        hookAlternative: 'useTimeout',
+        message: ' use useTimeout instead',
       },
       suggestions: [
         {
@@ -266,8 +359,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        message: 'setTimeout should not be used in React components.',
-        hookAlternative: 'useTimeout',
+        message: ' use useTimeout instead',
       },
       suggestions: [
         {
@@ -303,8 +395,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        message: 'setTimeout should not be used in React components.',
-        hookAlternative: 'useTimeout',
+        message: ' use useTimeout instead',
       },
       suggestions: [
         {
@@ -340,7 +431,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        hookAlternative: 'useTimeout',
+        message: ' use useTimeout instead',
       },
       suggestions: [
         {
@@ -376,7 +467,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        hookAlternative: 'useTimeout',
+        message: ' use useTimeout instead',
       },
       suggestions: [
         {
@@ -412,8 +503,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        message: 'setTimeout should not be used in React components.',
-        hookAlternative: 'useTimeout',
+        message: ' use useTimeout instead',
       },
       suggestions: [
         {
@@ -449,7 +539,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        hookAlternative: 'useTimeout',
+        message: ' use useTimeout instead',
       },
       suggestions: [
         {
@@ -487,8 +577,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        message: 'setTimeout should not be used in React components.',
-        hookAlternative: 'useTimeout',
+        message: ' use useTimeout instead',
       },
       suggestions: [
         {
@@ -523,7 +612,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        hookAlternative: 'useTimeout',
+        message: ' use useTimeout instead',
       },
       suggestions: [
         {
@@ -554,8 +643,7 @@ tests.addInvalid(
       messageId: 'preferHookAlternative',
       data: {
         message:
-          'addEventListener should not be used directly in React components.',
-        hookAlternative: 'useEventListener',
+          ' addEventListener should not be used directly in React components.',
       },
       suggestions: [
         {
@@ -585,7 +673,7 @@ tests.addInvalid(
     {
       messageId: 'preferHookAlternative',
       data: {
-        hookAlternative: 'useInterval',
+        message: ' use useInterval instead',
       },
       suggestions: [
         {
@@ -601,6 +689,193 @@ tests.addInvalid(
   ],
   {
     options: defaultOptions,
+  },
+)
+
+tests.addInvalid(
+  'React component using setTimeout with allowedFunctions but not inside allowed function',
+  `
+    function MyComponent() {
+      setTimeout(() => {
+        console.log('hello')
+      }, 1000)
+      return <div>test</div>
+    }
+  `,
+  [
+    {
+      messageId: 'preferHookAlternative',
+      data: {
+        message: ' use useTimeout instead',
+      },
+      suggestions: [
+        {
+          messageId: 'preferHookAlternative',
+          output: `
+    function MyComponent() {
+      useTimeout(() => {
+        console.log('hello')
+      }, 1000)
+      return <div>test</div>
+    }
+  `,
+        },
+      ],
+    },
+  ],
+  {
+    options: {
+      disallowedFunctions: [
+        {
+          name: 'setTimeout',
+          hookAlternative: 'useTimeout',
+        },
+      ],
+    },
+  },
+)
+
+tests.addInvalid(
+  'React component using setTimeout inside non-allowed function',
+  `
+    function MyComponent() {
+      function someOtherFunction(plan) {
+        setTimeout(() => {
+          console.log('hello')
+        }, 1000)
+        return plan
+      }
+      return <div>test</div>
+    }
+  `,
+  [
+    {
+      messageId: 'preferHookAlternative',
+      data: {
+        message: ' use useTimeout instead',
+      },
+      suggestions: [
+        {
+          messageId: 'preferHookAlternative',
+          output: `
+    function MyComponent() {
+      function someOtherFunction(plan) {
+        useTimeout(() => {
+          console.log('hello')
+        }, 1000)
+        return plan
+      }
+      return <div>test</div>
+    }
+  `,
+        },
+      ],
+    },
+  ],
+  {
+    options: {
+      disallowedFunctions: [
+        {
+          name: 'setTimeout',
+          hookAlternative: 'useTimeout',
+          allowUseInside: ['getCurrentPlan'],
+        },
+      ],
+    },
+  },
+)
+
+tests.addValid(
+  'React component using different disallowed functions with different allowed lists',
+  `
+    function MyComponent() {
+      function getCurrentPlan(plan) {
+        setTimeout(() => {
+          console.log('allowed setTimeout')
+        }, 1000)
+        return plan
+      }
+      
+      function processData(data) {
+        setInterval(() => {
+          console.log('allowed setInterval')
+        }, 1000)
+        return data
+      }
+      
+      return <div>test</div>
+    }
+  `,
+  {
+    disallowedFunctions: [
+      {
+        name: 'setTimeout',
+        hookAlternative: 'useTimeout',
+        allowUseInside: ['getCurrentPlan'],
+      },
+      {
+        name: 'setInterval',
+        hookAlternative: 'useInterval',
+        allowUseInside: ['processData'],
+      },
+    ],
+  },
+)
+
+tests.addInvalid(
+  'React component using setTimeout in wrong allowed function',
+  `
+    function MyComponent() {
+      function processData(data) {
+        setTimeout(() => {
+          console.log('not allowed here')
+        }, 1000)
+        return data
+      }
+      
+      return <div>test</div>
+    }
+  `,
+  [
+    {
+      messageId: 'preferHookAlternative',
+      data: {
+        message: ' use useTimeout instead',
+      },
+      suggestions: [
+        {
+          messageId: 'preferHookAlternative',
+          output: `
+    function MyComponent() {
+      function processData(data) {
+        useTimeout(() => {
+          console.log('not allowed here')
+        }, 1000)
+        return data
+      }
+      
+      return <div>test</div>
+    }
+  `,
+        },
+      ],
+    },
+  ],
+  {
+    options: {
+      disallowedFunctions: [
+        {
+          name: 'setTimeout',
+          hookAlternative: 'useTimeout',
+          allowUseInside: ['getCurrentPlan'],
+        },
+        {
+          name: 'setInterval',
+          hookAlternative: 'useInterval',
+          allowUseInside: ['processData'],
+        },
+      ],
+    },
   },
 )
 
