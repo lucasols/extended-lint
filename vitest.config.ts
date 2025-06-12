@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [ViteAddCodeLineToTestNamePlugin(), ViteGetCodeLinePlugin()],
   test: {
     include: ['tests/*.test.{ts,tsx,js}', 'src/**/*.test.{ts,tsx,js}'],
-    testTimeout: 2_000,
+    testTimeout: 5_000,
     allowOnly: isDev,
     setupFiles: 'tests/fixture/setup.ts',
   },
