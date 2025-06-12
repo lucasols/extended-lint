@@ -16,6 +16,24 @@ const optionSchema = t.object({
       }),
     ),
   ),
+  disallowFnCalls: t.optional(
+    t.array(
+      t.object({
+        fn: t.string(),
+        withArgs: t.optional(
+          t.array(
+            t.object({
+              atIndex: t.integer(),
+              value: t.any(t.string(), t.number(), t.boolean()),
+            }),
+          ),
+        ),
+        message: t.string(),
+        replaceWith: t.optional(t.string()),
+        ignoreRegex: t.optional(t.string()),
+      }),
+    ),
+  ),
   __dev_simulateFileName: t.optional(t.string()),
   mustMatchSyntax: t.optional(
     t.array(
@@ -78,7 +96,12 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
       (node: TSESTree.Node | TSESTree.Token) => void
     > = {}
 
-    const { mustMatchSyntax, __dev_simulateFileName, disallow } = options
+    const {
+      mustMatchSyntax,
+      __dev_simulateFileName,
+      disallow,
+      disallowFnCalls,
+    } = options
 
     const fileName = __dev_simulateFileName ?? context.filename
 
@@ -88,6 +111,43 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
 
     const mustMatchSomeCallRemaining = new Set<string>()
     const mustMatchSomeSelectorRemaining = new Map<string, string>()
+
+    const functionAliases = new Map<string, string>()
+
+    function trackImportAliases(node: TSESTree.ImportDeclaration) {
+      for (const specifier of node.specifiers) {
+        if (specifier.type === AST_NODE_TYPES.ImportSpecifier) {
+          if (
+            specifier.imported.type === AST_NODE_TYPES.Identifier &&
+            specifier.local.type === AST_NODE_TYPES.Identifier &&
+            specifier.imported.name !== specifier.local.name
+          ) {
+            functionAliases.set(specifier.local.name, specifier.imported.name)
+          }
+        }
+      }
+    }
+
+    function trackVariableAliases(node: TSESTree.VariableDeclarator) {
+      if (
+        node.id.type === AST_NODE_TYPES.Identifier &&
+        node.init?.type === AST_NODE_TYPES.Identifier
+      ) {
+        functionAliases.set(node.id.name, node.init.name)
+      }
+    }
+
+    function getOriginalFunctionName(calleeName: string): string {
+      return functionAliases.get(calleeName) ?? calleeName
+    }
+
+    function matchesFunctionName(
+      calleeName: string,
+      targetFn: string,
+    ): boolean {
+      const originalName = getOriginalFunctionName(calleeName)
+      return originalName === targetFn || calleeName === targetFn
+    }
 
     for (const {
       includeRegex,
@@ -198,6 +258,80 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
       }
     }
 
+    for (const {
+      fn,
+      withArgs,
+      message,
+      replaceWith,
+      ignoreRegex,
+    } of disallowFnCalls ?? []) {
+      if (ignoreRegex && new RegExp(ignoreRegex).test(fileName)) {
+        continue
+      }
+
+      callExpressionSelectors.push((node) => {
+        const { callee } = node
+
+        if (callee.type !== AST_NODE_TYPES.Identifier) return
+
+        if (!matchesFunctionName(callee.name, fn)) return
+
+        if (withArgs) {
+          for (const arg of withArgs) {
+            const calledArg = node.arguments[arg.atIndex]
+
+            if (!calledArg) {
+              context.report({
+                node,
+                messageId: 'default',
+                data: {
+                  message: `Missing argument with value "${arg.value}" at index ${arg.atIndex}: ${message}`,
+                },
+              })
+              return
+            }
+
+            if (calledArg.type !== AST_NODE_TYPES.Literal) {
+              context.report({
+                node: calledArg,
+                messageId: 'default',
+                data: {
+                  message: `Argument at position ${arg.atIndex} should be the literal "${arg.value}": ${message}`,
+                },
+              })
+              return
+            }
+
+            if (calledArg.value !== arg.value) {
+              return
+            }
+          }
+        }
+
+        const fixFn: ReportFixFunction = (fixer) => {
+          if (!replaceWith) return null
+          return fixer.replaceText(node, replaceWith)
+        }
+
+        context.report({
+          node,
+          messageId: 'default',
+          data: { message },
+          suggest: replaceWith
+            ? [
+                {
+                  messageId: 'default',
+                  data: {
+                    message: `Replace with "${replaceWith}"`,
+                  },
+                  fix: fixFn,
+                },
+              ]
+            : undefined,
+        })
+      })
+    }
+
     function addSelector(
       selector: string,
       checkSelectorFn: (selectorNode: TSESTree.Node | TSESTree.Token) => void,
@@ -247,6 +381,16 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
           checkCallFn(node)
         }
       }
+    }
+
+    result['ImportDeclaration'] = (node) => {
+      if (node.type !== AST_NODE_TYPES.ImportDeclaration) return
+      trackImportAliases(node)
+    }
+
+    result['VariableDeclarator'] = (node) => {
+      if (node.type !== AST_NODE_TYPES.VariableDeclarator) return
+      trackVariableAliases(node)
     }
 
     result['Program:exit'] = (node) => {

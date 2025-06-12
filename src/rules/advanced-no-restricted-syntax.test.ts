@@ -737,4 +737,253 @@ tests.describe('mustMatchSelector', () => {
   )
 })
 
+tests.describe('disallowFnCalls', () => {
+  tests.addValid('different function call', 'someOtherFunction();', {
+    disallowFnCalls: [
+      {
+        fn: 'openModal',
+        message: 'Use openManagePlan function instead',
+        replaceWith: 'openManagePlan()',
+      },
+    ],
+  })
+
+  tests.addValid(
+    'function call with different argument',
+    'openModal("otherArg");',
+    {
+      disallowFnCalls: [
+        {
+          fn: 'openModal',
+          withArgs: [{ atIndex: 0, value: 'managePlan' }],
+          message: 'Use openManagePlan function instead',
+          replaceWith: 'openManagePlan()',
+        },
+      ],
+    },
+  )
+
+  tests.addInvalid(
+    'disallow function call with specific argument',
+    'openModal("managePlan");',
+    [
+      {
+        data: { message: 'Use openManagePlan function instead' },
+        suggestions: [
+          {
+            messageId: 'default',
+            data: { message: 'Replace with "openManagePlan()"' },
+            output: 'openManagePlan();',
+          },
+        ],
+      },
+    ],
+    {
+      options: {
+        disallowFnCalls: [
+          {
+            fn: 'openModal',
+            withArgs: [{ atIndex: 0, value: 'managePlan' }],
+            message: 'Use openManagePlan function instead',
+            replaceWith: 'openManagePlan()',
+          },
+        ],
+      },
+    },
+  )
+
+  tests.addInvalid(
+    'disallow function call with import alias',
+    `
+import { openModal as om } from 'modals';
+om("managePlan");
+    `,
+    [
+      {
+        data: { message: 'Use openManagePlan function instead' },
+        suggestions: [
+          {
+            messageId: 'default',
+            data: { message: 'Replace with "openManagePlan()"' },
+            output: `
+import { openModal as om } from 'modals';
+openManagePlan();
+     `,
+          },
+        ],
+      },
+    ],
+    {
+      options: {
+        disallowFnCalls: [
+          {
+            fn: 'openModal',
+            withArgs: [{ atIndex: 0, value: 'managePlan' }],
+            message: 'Use openManagePlan function instead',
+            replaceWith: 'openManagePlan()',
+          },
+        ],
+      },
+    },
+  )
+
+  tests.addInvalid(
+    'disallow function call with variable alias',
+    `
+const om = openModal;
+om("managePlan");
+    `,
+    [
+      {
+        data: { message: 'Use openManagePlan function instead' },
+        suggestions: [
+          {
+            messageId: 'default',
+            data: { message: 'Replace with "openManagePlan()"' },
+            output: `
+const om = openModal;
+openManagePlan();
+     `,
+          },
+        ],
+      },
+    ],
+    {
+      options: {
+        disallowFnCalls: [
+          {
+            fn: 'openModal',
+            withArgs: [{ atIndex: 0, value: 'managePlan' }],
+            message: 'Use openManagePlan function instead',
+            replaceWith: 'openManagePlan()',
+          },
+        ],
+      },
+    },
+  )
+
+  tests.addValid(
+    'import alias with different argument',
+    `
+import { openModal as om } from 'modals';
+om("otherArg");
+  `,
+    {
+      disallowFnCalls: [
+        {
+          fn: 'openModal',
+          withArgs: [{ atIndex: 0, value: 'managePlan' }],
+          message: 'Use openManagePlan function instead',
+          replaceWith: 'openManagePlan()',
+        },
+      ],
+    },
+  )
+
+  tests.addValid(
+    'variable alias with different argument',
+    `
+const om = openModal;
+om("otherArg");
+  `,
+    {
+      disallowFnCalls: [
+        {
+          fn: 'openModal',
+          withArgs: [{ atIndex: 0, value: 'managePlan' }],
+          message: 'Use openManagePlan function instead',
+          replaceWith: 'openManagePlan()',
+        },
+      ],
+    },
+  )
+})
+
+tests.describe('disallowFnCalls with ignoreRegex', () => {
+  tests.addValid(
+    'ignored file with matching pattern',
+    'openModal("managePlan");',
+    {
+      __dev_simulateFileName: 'test.spec.ts',
+      disallowFnCalls: [
+        {
+          fn: 'openModal',
+          withArgs: [{ atIndex: 0, value: 'managePlan' }],
+          message: 'Use openManagePlan function instead',
+          replaceWith: 'openManagePlan()',
+          ignoreRegex: '\\.spec\\.',
+        },
+      ],
+    },
+  )
+
+  tests.addValid(
+    'ignored file with wildcard pattern',
+    'openModal("managePlan");',
+    {
+      __dev_simulateFileName: 'components/test.stories.tsx',
+      disallowFnCalls: [
+        {
+          fn: 'openModal',
+          withArgs: [{ atIndex: 0, value: 'managePlan' }],
+          message: 'Use openManagePlan function instead',
+          replaceWith: 'openManagePlan()',
+          ignoreRegex: '\\.(stories|spec|test)\\.',
+        },
+      ],
+    },
+  )
+
+  tests.addInvalid(
+    'non-ignored file still triggers error',
+    'openModal("managePlan");',
+    [
+      {
+        data: { message: 'Use openManagePlan function instead' },
+        suggestions: [
+          {
+            messageId: 'default',
+            data: { message: 'Replace with "openManagePlan()"' },
+            output: 'openManagePlan();',
+          },
+        ],
+      },
+    ],
+    {
+      options: {
+        __dev_simulateFileName: 'components/Modal.tsx',
+        disallowFnCalls: [
+          {
+            fn: 'openModal',
+            withArgs: [{ atIndex: 0, value: 'managePlan' }],
+            message: 'Use openManagePlan function instead',
+            replaceWith: 'openManagePlan()',
+            ignoreRegex: '\\.spec\\.',
+          },
+        ],
+      },
+    },
+  )
+
+  tests.addValid(
+    'alias in ignored file',
+    `
+import { openModal as om } from 'modals';
+om("managePlan");
+  `,
+    {
+      __dev_simulateFileName: 'Modal.test.ts',
+      disallowFnCalls: [
+        {
+          fn: 'openModal',
+          withArgs: [{ atIndex: 0, value: 'managePlan' }],
+          message: 'Use openManagePlan function instead',
+          replaceWith: 'openManagePlan()',
+          ignoreRegex: '\\.test\\.',
+        },
+      ],
+    },
+  )
+})
+
 tests.run()
