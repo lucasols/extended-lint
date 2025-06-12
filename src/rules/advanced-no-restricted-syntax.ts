@@ -292,13 +292,6 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
             }
 
             if (calledArg.type !== AST_NODE_TYPES.Literal) {
-              context.report({
-                node: calledArg,
-                messageId: 'default',
-                data: {
-                  message: `Argument at position ${arg.atIndex} should be the literal "${arg.value}": ${message}`,
-                },
-              })
               return
             }
 

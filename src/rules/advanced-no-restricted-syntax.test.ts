@@ -897,6 +897,75 @@ om("otherArg");
       ],
     },
   )
+
+  tests.addValid('ignore when argument is variable', 'openModal(modalId);', {
+    disallowFnCalls: [
+      {
+        fn: 'openModal',
+        withArgs: [{ atIndex: 0, value: 'managePlan' }],
+        message: 'Use openManagePlan function instead',
+        replaceWith: 'openManagePlan()',
+      },
+    ],
+  })
+
+  tests.addValid(
+    'ignore when argument is expression',
+    'openModal(getModalId());',
+    {
+      disallowFnCalls: [
+        {
+          fn: 'openModal',
+          withArgs: [{ atIndex: 0, value: 'managePlan' }],
+          message: 'Use openManagePlan function instead',
+          replaceWith: 'openManagePlan()',
+        },
+      ],
+    },
+  )
+
+  tests.addValid(
+    'ignore when argument is object property',
+    'openModal(config.modalId);',
+    {
+      disallowFnCalls: [
+        {
+          fn: 'openModal',
+          withArgs: [{ atIndex: 0, value: 'managePlan' }],
+          message: 'Use openManagePlan function instead',
+          replaceWith: 'openManagePlan()',
+        },
+      ],
+    },
+  )
+
+  tests.addInvalid(
+    'trigger when no withArgs specified',
+    'openModal(modalId);',
+    [
+      {
+        data: { message: 'Use openManagePlan function instead' },
+        suggestions: [
+          {
+            messageId: 'default',
+            data: { message: 'Replace with "openManagePlan()"' },
+            output: 'openManagePlan();',
+          },
+        ],
+      },
+    ],
+    {
+      options: {
+        disallowFnCalls: [
+          {
+            fn: 'openModal',
+            message: 'Use openManagePlan function instead',
+            replaceWith: 'openManagePlan()',
+          },
+        ],
+      },
+    },
+  )
 })
 
 tests.describe('disallowFnCalls with ignoreRegex', () => {
