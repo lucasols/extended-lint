@@ -233,7 +233,14 @@ const rule = createRule<[Options], 'singleLineProp'>({
           return
         }
 
-        if (tokenAfterNode?.loc.start.line === node.loc.end.line) {
+        const nextTokenIsTemplate =
+          tokenAfterNode?.type === AST_TOKEN_TYPES.Template &&
+          tokenAfterNode.value.startsWith('}\n')
+
+        if (
+          tokenAfterNode?.loc.start.line === node.loc.end.line &&
+          !nextTokenIsTemplate
+        ) {
           return
         }
       }

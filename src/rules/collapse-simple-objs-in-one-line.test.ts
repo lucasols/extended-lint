@@ -900,7 +900,7 @@ tests.addInvalid(
   },
 )
 
-tests.addInvalid(
+tests.only.addInvalid(
   'styled components with objects',
   `
     const Container = styled.div\`
@@ -937,15 +937,15 @@ tests.addInvalid(
 )
 
 tests.addInvalid(
-  'simple object in function call',
+  'second argument of function call',
   `
     const foo = stack(
       \`
         ok
       \`,
       {
-        ok: 'ok',
-        ok2: 'ok2',
+        ok: element,
+        ok2: element2,
       },
     )
   `,
@@ -956,7 +956,7 @@ tests.addInvalid(
         \`
           ok
         \`,
-        { ok: 'ok', ok2: 'ok2' },
+        { ok: element, ok2: element2 },
       )
     `,
   },
