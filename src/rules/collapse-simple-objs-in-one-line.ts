@@ -140,9 +140,13 @@ const rule = createRule<[Options], 'singleLineProp'>({
           return { text: sourceCode.getText(property), isNested, propsSize: 1 }
         }
 
+        if (node.parent.type === AST_NODE_TYPES.TSIntersectionType) {
+          return false
+        }
+
         if (
-          node.parent.type === AST_NODE_TYPES.TSIntersectionType ||
-          node.parent.type === AST_NODE_TYPES.TSUnionType
+          node.parent.type === AST_NODE_TYPES.TSUnionType &&
+          node.parent.types[0] !== node
         ) {
           return false
         }

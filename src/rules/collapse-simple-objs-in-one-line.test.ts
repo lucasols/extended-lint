@@ -880,4 +880,24 @@ tests.addInvalidWithOptions(
   },
 )
 
+tests.addInvalid(
+  'union type with object that should be collapsed',
+  `
+    type NewLinks = 
+    | {
+        uuid: string;
+        status: undefined;
+      }
+    | ProcessLink;
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      type NewLinks = 
+      | { uuid: string; status: undefined }
+      | ProcessLink;
+    `,
+  },
+)
+
 tests.run()
