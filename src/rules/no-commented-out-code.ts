@@ -27,6 +27,11 @@ const startsWithPatterns = [
   'finally {',
   'async ',
   'await ',
+  'case ',
+  'switch (',
+  'while (',
+  'for (',
+  'default:',
 ]
 
 const codePatterns: (string | RegExp)[] = [
@@ -36,11 +41,6 @@ const codePatterns: (string | RegExp)[] = [
   'if (',
   'else {',
   'else if (',
-  'for (',
-  'while (',
-  'switch (',
-  'case ',
-  'default:',
   '/>',
   '</',
   '< ',
