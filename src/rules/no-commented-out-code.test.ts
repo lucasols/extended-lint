@@ -628,4 +628,13 @@ tests.addInvalid(
   1,
 )
 
+tests.addValid(
+  'valid eslint comment',
+  `
+    /* slint react-compiler/react-compiler: ["error"] */
+    import { css } from '@linaria/core';
+    import { styled } from '@linaria/react';
+  `,
+)
+
 tests.run()
