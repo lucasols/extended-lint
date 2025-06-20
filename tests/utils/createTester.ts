@@ -8,6 +8,7 @@ import {
 } from '@typescript-eslint/rule-tester'
 import { TSESLint } from '@typescript-eslint/utils'
 import { fileURLToPath } from 'node:url'
+import { rules } from '../../src/rules/rules'
 
 const ruleTester = new RuleTester({
   linterOptions: {
@@ -37,6 +38,12 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
     defaultErrorId?: string
   } = {},
 ) {
+  const allRules = rules
+
+  if (!allRules[rule.name]) {
+    throw new Error(`Rule ${rule.name} not found in "rules.ts" file`)
+  }
+
   const valid: ValidTestCase<any[]>[] = []
   const invalid: InvalidTestCase<string, any[]>[] = []
 

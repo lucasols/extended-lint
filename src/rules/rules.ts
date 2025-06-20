@@ -12,6 +12,7 @@ import { noLeakedTextInJSX } from './no-leaked-text-in-jsx'
 import { noNonCamelCaseFunctions } from './no-non-camel-case-functions'
 import { noOptionalRootProps } from './no-optional-root-props'
 import { noRelativeImports } from './no-relative-imports'
+import { noUnnecessaryAsyncOnJsxProps } from './no-unnecessary-async-on-jsx-props'
 import { noUnnecessaryCasting } from './no-unnecessary-casting'
 import { noUnnecessaryTyping } from './no-unnecessary-typing'
 import { noUnusedObjProps } from './no-unused-obj-props'
@@ -51,4 +52,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedTStateField.name]: noUnusedTStateField.rule,
   [noUnusedObjProps.name]: noUnusedObjProps.rule,
   [preferReactHookAlternative.name]: preferReactHookAlternative.rule,
+  [noUnnecessaryAsyncOnJsxProps.name]: noUnnecessaryAsyncOnJsxProps.rule,
 }
