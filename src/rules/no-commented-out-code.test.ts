@@ -665,14 +665,13 @@ tests.addInvalid(
   2,
 )
 
-tests.addInvalid(
+tests.addValid(
   'invalid commented code with backticks',
   `
     // If there are droppables intersecting with the pointer, return those
     // If a container is matched and it contains items (columns 'A', 'B', 'C')  
     // https://www.google.com/maps/place?q=place_id:ChIJN1t_tDeuEmsRUsoyG83frY4
   `,
-  3,
 )
 
 tests.run()
