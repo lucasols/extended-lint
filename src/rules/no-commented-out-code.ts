@@ -184,13 +184,51 @@ const rule = createRule({
       return false
     }
 
+    function stripInlineCodeIfTextOutside(
+      original: string,
+      commentType: 'Block' | 'Line',
+    ): string {
+      let cleaned = original
+
+      // 0. If comment is just a back-ticked string (optionally ending with ',' or ';')
+      const trimmed = cleaned.trim()
+      if (trimmed.startsWith('`')) {
+        if (
+          trimmed.endsWith('`,') ||
+          trimmed.endsWith('`;') ||
+          trimmed.endsWith('`')
+        ) {
+          return cleaned // treat as pure code – do not strip
+        }
+      }
+
+      // 1. Handle fenced blocks ``` ... ``` only for block comments.
+      if (commentType === 'Block' && cleaned.includes('```')) {
+        const parts = cleaned.split(/```[\s\S]*?```/g)
+        const hasText = parts.some((p) => /[a-zA-Z0-9]/.test(p))
+        if (hasText) cleaned = parts.join('')
+      }
+
+      // 2. Handle single-backtick inline code
+      if (!cleaned.includes('`')) return cleaned
+
+      const segments = cleaned.split(/`[^`]*`/g)
+      const hasOuterText = segments.some((seg) => /[a-zA-Z0-9]/.test(seg))
+
+      return hasOuterText ? segments.join('') : cleaned
+    }
+
     return {
       Program() {
         const sourceCode = context.sourceCode
         const comments = sourceCode.getAllComments()
 
         for (const comment of comments) {
-          const commentedCode = isCommentedCode(comment.value, comment.type)
+          const processed = stripInlineCodeIfTextOutside(
+            comment.value,
+            comment.type,
+          )
+          const commentedCode = isCommentedCode(processed, comment.type)
 
           if (commentedCode) {
             context.report({

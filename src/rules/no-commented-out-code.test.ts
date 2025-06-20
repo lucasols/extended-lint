@@ -637,4 +637,42 @@ tests.addValid(
   `,
 )
 
+tests.addValid(
+  'valid comments with inline code examples',
+  `
+    // The \`dataTransfer.setDragImage(element)\` method only works if element is attached
+    // Use \`useState()\` hook for state management  
+    // Call \`myObject.method()\` to execute the function
+    // Set config option \`enabled: true\` in the settings
+  `,
+)
+
+tests.addValid(
+  'valid comments with markdown inline code',
+  `
+    // This function uses \`Array.map()\` internally
+    // The \`console.log()\` is for debugging purposes
+    // Set \`config.enabled = true\` to activate
+  `,
+)
+
+tests.addInvalid(
+  'invalid commented code should still be detected outside backticks',
+  `
+    // This is a comment but console.log() is actual code
+    // Array.map() without backticks should be detected
+  `,
+  2,
+)
+
+tests.addInvalid(
+  'invalid commented code with backticks',
+  `
+    // If there are droppables intersecting with the pointer, return those
+    // If a container is matched and it contains items (columns 'A', 'B', 'C')  
+    // https://www.google.com/maps/place?q=place_id:ChIJN1t_tDeuEmsRUsoyG83frY4
+  `,
+  3,
+)
+
 tests.run()
