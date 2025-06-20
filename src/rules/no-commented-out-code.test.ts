@@ -604,4 +604,28 @@ tests.addValid(
   `,
 )
 
+tests.addValid(
+  'valid regular block comment',
+  `
+    /* This is a regular block comment */
+    const test = 1;
+    
+    /* 
+     * Multi-line block comment
+     * with code-like patterns like function() 
+     * and const x = 1 should be allowed
+     */
+    const test2 = 2;
+  `,
+)
+
+tests.addInvalid(
+  'invalid jsx in block comment',
+  `
+    /* <div>JSX content</div> */
+    const test = 1;
+  `,
+  1,
+)
+
 tests.run()

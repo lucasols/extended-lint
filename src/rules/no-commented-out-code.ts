@@ -71,6 +71,17 @@ const codePatterns: (string | RegExp)[] = [
   '=>',
 ]
 
+const jsxPatterns: (string | RegExp)[] = [
+  '/>',
+  '</',
+  /^<[A-Z]\w*(\s|>|\/)/,
+  /^<[a-z]+(\s|>|\/)/,
+  /<[A-Z]\w*(\s.*)?>/,
+  /<\/[A-Z]\w*>/,
+  /<[a-z]+(\s.*)?>/,
+  /<\/[a-z]+>/,
+]
+
 const allowedPrefixes = [
   'INFO:',
   'TODO:',
@@ -87,6 +98,7 @@ const allowedPrefixes = [
   'TEMPORARY:',
   'XXX:',
   'REVIEW:',
+  'eslint',
 ]
 
 const rule = createRule({
@@ -106,6 +118,7 @@ const rule = createRule({
   create(context) {
     function isCommentedCode(
       comment: string,
+      commentType: 'Block' | 'Line',
     ): false | { wrongPattern: string } {
       if (comment.startsWith('/')) {
         return false
@@ -135,6 +148,21 @@ const rule = createRule({
         }
       }
 
+      if (commentType === 'Block') {
+        for (const pattern of jsxPatterns) {
+          if (typeof pattern === 'string') {
+            if (comment.includes(pattern)) {
+              return { wrongPattern: pattern }
+            }
+          } else {
+            if (pattern.test(comment)) {
+              return { wrongPattern: `regex(${pattern.toString()})` }
+            }
+          }
+        }
+        return false
+      }
+
       for (const pattern of startsWithPatterns) {
         if (commentWithTrimmedStart.startsWith(pattern)) {
           return { wrongPattern: pattern }
@@ -162,7 +190,7 @@ const rule = createRule({
         const comments = sourceCode.getAllComments()
 
         for (const comment of comments) {
-          const commentedCode = isCommentedCode(comment.value)
+          const commentedCode = isCommentedCode(comment.value, comment.type)
 
           if (commentedCode) {
             context.report({
