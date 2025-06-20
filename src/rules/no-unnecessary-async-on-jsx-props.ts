@@ -6,7 +6,7 @@ const name = 'no-unnecessary-async-on-jsx-props'
 function isUnnecessaryAsyncPattern(
   node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression,
 ): boolean {
-  if (!node.body || node.body.type !== AST_NODE_TYPES.BlockStatement) {
+  if (node.body.type !== AST_NODE_TYPES.BlockStatement) {
     return false
   }
 
@@ -18,30 +18,11 @@ function isUnnecessaryAsyncPattern(
 
   const statement = statements[0]
 
-  if (statement.type !== AST_NODE_TYPES.ExpressionStatement) {
+  if (!statement || statement.type !== AST_NODE_TYPES.ExpressionStatement) {
     return false
   }
 
   return statement.expression.type === AST_NODE_TYPES.AwaitExpression
-}
-
-function isJSXPropFunction(
-  node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression,
-): boolean {
-  let parent: TSESTree.Node | undefined = node.parent
-
-  while (parent) {
-    if (parent.type === AST_NODE_TYPES.JSXExpressionContainer) {
-      const grandParent = parent.parent
-      return grandParent && grandParent.type === AST_NODE_TYPES.JSXAttribute
-    }
-    if (parent.type === AST_NODE_TYPES.JSXAttribute) {
-      return true
-    }
-    parent = parent.parent
-  }
-
-  return false
 }
 
 export const noUnnecessaryAsyncOnJsxProps = createExtendedLintRule<
@@ -67,10 +48,6 @@ export const noUnnecessaryAsyncOnJsxProps = createExtendedLintRule<
     function checkAsyncFunction(
       node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression,
     ) {
-      if (!node.async) return
-
-      if (!isJSXPropFunction(node)) return
-
       if (isUnnecessaryAsyncPattern(node)) {
         context.report({
           node,
@@ -133,8 +110,9 @@ export const noUnnecessaryAsyncOnJsxProps = createExtendedLintRule<
     }
 
     return {
-      ArrowFunctionExpression: checkAsyncFunction,
-      FunctionExpression: checkAsyncFunction,
+      // ESQuery selector: async arrow functions and function expressions inside JSX attributes
+      'JSXAttribute ArrowFunctionExpression[async=true]': checkAsyncFunction,
+      'JSXAttribute FunctionExpression[async=true]': checkAsyncFunction,
     }
   },
 })
