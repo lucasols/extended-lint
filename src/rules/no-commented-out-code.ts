@@ -1,4 +1,4 @@
-import { ESLintUtils, TSESTree } from '@typescript-eslint/utils'
+import { ESLintUtils } from '@typescript-eslint/utils'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -19,23 +19,74 @@ const startsWithPatterns = [
   'let ',
   'var ',
   'return ',
+  'throw ',
+  'break',
+  'continue',
+  'try {',
+  'catch (',
+  'finally {',
+  'async ',
+  'await ',
 ]
 
 const codePatterns: (string | RegExp)[] = [
   ') {',
   'return;',
+  'return ',
   'if (',
   'else {',
+  'else if (',
   'for (',
+  'while (',
   'switch (',
+  'case ',
+  'default:',
   '/>',
   '</',
+  '< ',
   '},',
   ': {',
   ' } = ',
   '={',
-  /\w=("|')/,
+  /\w=("|'|`)/,
   ');',
+  /\w+:\s*('|"|`)/,
+  /\[['"][^'"]*['"]\]:\s*('|"|`|[^'"`\s])/,
+  /\w+-\w+:/,
+  /\w+_\w+:/,
+  '&&',
+  '||',
+  '()',
+  /('|"|`),/,
+  /\?\s+\w/,
+  /:\s+\w/,
+  /^\s*('|"|`)[^'"]*('|"|`),?\s*$/,
+  /^\s*\d+[,}]/,
+  /^\s*\[[^\]]*\][,}]/,
+  /^\s*\{[^}]*\}[,}]/,
+  /\.\w+\(/,
+  /\[\w+\]/,
+  '?.(',
+  '??',
+  '=>',
+]
+
+const allowedPrefixes = [
+  'INFO:',
+  'TODO:',
+  'DOCS:',
+  'FIX:',
+  'FIXME:',
+  'HACK:',
+  'NOTE:',
+  'WARNING:',
+  'WARN:',
+  'BUG:',
+  'ISSUE:',
+  'TEMP:',
+  'TEMPORARY:',
+  'XXX:',
+  'REVIEW:',
 ]
 
 const rule = createRule({
@@ -47,7 +98,7 @@ const rule = createRule({
     },
     messages: {
       commentedOutCode:
-        'Commented code is not allowed. Detected pattern: `{{ wrongPattern }}` Use a comment starting with `INFO:` if you want to keep this code commented out.',
+        'Commented code is not allowed. Detected pattern: `{{ wrongPattern }}` Use a comment starting with one of these prefixes if you want to keep this code commented out: {{ allowedPrefixes }}',
     },
     schema: [],
   },
@@ -64,15 +115,24 @@ const rule = createRule({
 
       if (
         comment.startsWith('*') ||
-        commentWithTrimmedStart.startsWith('INFO:') ||
-        commentWithTrimmedStart.startsWith('TODO:') ||
-        commentWithTrimmedStart.startsWith('DOCS:') ||
-        commentWithTrimmedStart.startsWith('FIX:') ||
         commentWithTrimmedStart.startsWith('eslint-disable') ||
         comment.includes('@deprecated') ||
-        comment.includes('@example')
+        comment.includes('@example') ||
+        comment.includes('@param') ||
+        comment.includes('@returns') ||
+        comment.includes('@throws') ||
+        comment.includes('typescript-eslint') ||
+        comment.includes('@ts-') ||
+        comment.includes('prettier-ignore') ||
+        /^\s*[*\s]*$/.test(comment)
       ) {
         return false
+      }
+
+      for (const prefix of allowedPrefixes) {
+        if (commentWithTrimmedStart.startsWith(prefix)) {
+          return false
+        }
       }
 
       for (const pattern of startsWithPatterns) {
@@ -102,21 +162,17 @@ const rule = createRule({
         const comments = sourceCode.getAllComments()
 
         for (const comment of comments) {
-          if (
-            comment.type === TSESTree.AST_TOKEN_TYPES.Line ||
-            comment.type === TSESTree.AST_TOKEN_TYPES.Block
-          ) {
-            const commentedCode = isCommentedCode(comment.value)
+          const commentedCode = isCommentedCode(comment.value)
 
-            if (commentedCode) {
-              context.report({
-                node: comment,
-                messageId: 'commentedOutCode',
-                data: {
-                  wrongPattern: commentedCode.wrongPattern,
-                },
-              })
-            }
+          if (commentedCode) {
+            context.report({
+              node: comment,
+              messageId: 'commentedOutCode',
+              data: {
+                wrongPattern: commentedCode.wrongPattern,
+                allowedPrefixes: allowedPrefixes.join(', '),
+              },
+            })
           }
         }
       },

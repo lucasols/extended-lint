@@ -13,6 +13,7 @@ import { noNonCamelCaseFunctions } from './no-non-camel-case-functions'
 import { noOptionalRootProps } from './no-optional-root-props'
 import { noRelativeImports } from './no-relative-imports'
 import { noUnnecessaryCasting } from './no-unnecessary-casting'
+import { noUnnecessaryTyping } from './no-unnecessary-typing'
 import { noUnusedObjProps } from './no-unused-obj-props'
 import { noUnusedSelectedValues } from './no-unused-selected-values'
 import { noUnusedTStateField } from './no-unused-t-state-field'
@@ -45,6 +46,7 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [reactCompilerExtra.name]: reactCompilerExtra.rule,
   [improvedNoUnnecessaryCondition.name]: improvedNoUnnecessaryCondition.rule,
   [noUnnecessaryCasting.name]: noUnnecessaryCasting.rule,
+  [noUnnecessaryTyping.name]: noUnnecessaryTyping.rule,
   [noUnusedSelectedValues.name]: noUnusedSelectedValues.rule,
   [noUnusedTStateField.name]: noUnusedTStateField.rule,
   [noUnusedObjProps.name]: noUnusedObjProps.rule,

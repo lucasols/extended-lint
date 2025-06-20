@@ -9,4 +9,4 @@ When creating new rules follow these rules:
 - Start by writing tests for the rule first, only then write the rule implementation
 - Use the structure of rules like [react-compiler-extra.ts](mdc:src/react-compiler-extra.ts)
 - Add the rule to @rules.ts index
-- use createExtendedLintRule from [createRule.ts](mdc:src/createRule.ts)
+- use `createExtendedLintRule` from [createRule.ts](mdc:src/createRule.ts) instead of `ESLintUtils.RuleCreator`
