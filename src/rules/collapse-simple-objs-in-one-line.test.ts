@@ -900,7 +900,7 @@ tests.addInvalid(
   },
 )
 
-tests.only.addInvalid(
+tests.addInvalid(
   'styled components with objects',
   `
     const Container = styled.div\`
