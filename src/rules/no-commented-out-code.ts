@@ -32,7 +32,7 @@ const startsWithPatterns = [
 const codePatterns: (string | RegExp)[] = [
   ') {',
   'return;',
-  'return ',
+  /^\s*return\s+/,
   'if (',
   'else {',
   'else if (',
@@ -57,7 +57,6 @@ const codePatterns: (string | RegExp)[] = [
   '&&',
   '||',
   '()',
-  /('|"|`),/,
   /\?\s+\w/,
   /:\s+\w/,
   /^\s*('|"|`)[^'"]*('|"|`),?\s*$/,
@@ -69,6 +68,7 @@ const codePatterns: (string | RegExp)[] = [
   '?.(',
   '??',
   '=>',
+  /^\s*(['"`]).+?\1\s*:/,
 ]
 
 const jsxPatterns: (string | RegExp)[] = [
@@ -148,6 +148,12 @@ const rule = createRule({
         }
       }
 
+      // Check if comment contains URLs - treat as descriptive text
+      if (comment.includes('https://')) {
+        return false
+      }
+
+      // Generic structural detection without relying on specific words
       if (commentType === 'Block') {
         for (const pattern of jsxPatterns) {
           if (typeof pattern === 'string') {

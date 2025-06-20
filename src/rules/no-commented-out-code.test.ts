@@ -674,4 +674,14 @@ tests.addValid(
   `,
 )
 
+tests.addInvalid(
+  'invalid commented code with return',
+  `
+    function test() {
+      // return 'test'
+    }
+  `,
+  1,
+)
+
 tests.run()
