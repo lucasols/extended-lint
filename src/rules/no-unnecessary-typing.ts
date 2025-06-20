@@ -3,7 +3,7 @@ import * as z from 'zod/v4'
 import { createExtendedLintRule } from '../createRule'
 
 const optionsSchema = z.object({
-  methods: z.union([z.array(z.string()), z.enum(['array', 'any'])]),
+  methods: z.union([z.array(z.string()), z.literal('array')]),
 })
 
 type Options = z.infer<typeof optionsSchema>
@@ -26,7 +26,7 @@ export const noUnnecessaryTyping = createExtendedLintRule<
     fixable: 'code',
     schema: [z.toJSONSchema(optionsSchema) as any],
   },
-  defaultOptions: [{ methods: 'any' }],
+  defaultOptions: [{ methods: 'array' }],
   create(context, [options]) {
     const methods = options.methods
 
@@ -46,12 +46,9 @@ export const noUnnecessaryTyping = createExtendedLintRule<
       if (Array.isArray(methods)) {
         // Specific methods mode - check if method is in the array
         return methods.includes(methodName)
-      } else if (methods === 'array') {
+      } else {
         // Array methods mode - check built-in array methods
         return defaultArrayMethods.has(methodName)
-      } else {
-        // 'any' mode - check all methods
-        return true
       }
     }
 
