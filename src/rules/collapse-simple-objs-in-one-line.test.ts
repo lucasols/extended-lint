@@ -900,4 +900,66 @@ tests.addInvalid(
   },
 )
 
+tests.addInvalid(
+  'styled components with objects',
+  `
+    const Container = styled.div\`
+      padding: 12px 18px 15px;
+      \${stack({
+        display: 'flex',
+      })}
+    \`;
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      const Container = styled.div\`
+        padding: 12px 18px 15px;
+        \${stack({ display: 'flex' })}
+      \`;
+    `,
+  },
+)
+
+tests.addInvalid(
+  'simple object in function call',
+  `
+    const foo = stack({
+      display: 'flex',
+    });
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      const foo = stack({ display: 'flex' });
+    `,
+  },
+)
+
+tests.addInvalid(
+  'simple object in function call',
+  `
+    const foo = stack(
+      \`
+        ok
+      \`,
+      {
+        ok: 'ok',
+        ok2: 'ok2',
+      },
+    )
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      const foo = stack(
+        \`
+          ok
+        \`,
+        { ok: 'ok', ok2: 'ok2' },
+      )
+    `,
+  },
+)
+
 tests.run()
