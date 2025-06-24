@@ -200,10 +200,13 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
       if (node.parent.type !== AST_NODE_TYPES.JSXExpressionContainer) {
         let skippedTokens = 0
+        let stopCounting = false
 
         const tokenAfterNode = sourceCode.getTokenAfter(node, {
           filter: (token) => {
             if (token.type !== AST_TOKEN_TYPES.Punctuator) return true
+
+            if (stopCounting) return true
 
             if (token.value === ',') {
               skippedTokens++
@@ -212,6 +215,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
             if (token.value === ';') {
               skippedTokens++
+              stopCounting = true
               return false
             }
 

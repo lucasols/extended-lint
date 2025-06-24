@@ -962,4 +962,33 @@ tests.addInvalid(
   },
 )
 
+tests.addInvalid(
+  'object arg in function call',
+  `
+    mock.createRoute(
+      'POST',
+      { path: 'path' },
+      (req, res) => {
+        res.sendData({});
+        logCall(req, res, {
+          suffix: 'Download CSV',
+        });
+      },
+    );
+  `,
+  [{ messageId: 'singleLineProp' }],
+  {
+    output: `
+      mock.createRoute(
+        'POST',
+        { path: 'path' },
+        (req, res) => {
+          res.sendData({});
+          logCall(req, res, { suffix: 'Download CSV' });
+        },
+      );
+    `,
+  },
+)
+
 tests.run()
