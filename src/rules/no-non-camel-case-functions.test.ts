@@ -62,4 +62,19 @@ tests.addInvalid(
   [{ data: { functionName: 'UPPERCASE' } }],
 )
 
+tests.addValid(
+  'Allow $ prefixed functions',
+  `
+    function $camelCase() {}
+  `,
+)
+
+tests.addInvalid(
+  'Check invalid $ prefixed functions',
+  `
+    function $UPPERCASE() {}
+  `,
+  [{ data: { functionName: '$UPPERCASE' } }],
+)
+
 tests.run()

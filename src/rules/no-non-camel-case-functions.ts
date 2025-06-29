@@ -6,15 +6,19 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'no-non-camel-case-functions'
 
-const camelCaseRegex = /^[a-z][a-zA-Z0-9]*$/
+const camelCaseRegex = /^(\$?[a-z][a-zA-Z0-9]*)$/
 
 function isJsxElementType(typeAnnotation: TSESTree.TSTypeReference): boolean {
+  if (typeAnnotation.typeName.type !== AST_NODE_TYPES.TSQualifiedName) {
+    return false
+  }
+
+  const { left, right } = typeAnnotation.typeName
+
   return (
-    typeAnnotation.typeName.type === AST_NODE_TYPES.TSQualifiedName &&
-    typeAnnotation.typeName.left.type === AST_NODE_TYPES.Identifier &&
-    typeAnnotation.typeName.left.name === 'JSX' &&
-    typeAnnotation.typeName.right.type === AST_NODE_TYPES.Identifier &&
-    typeAnnotation.typeName.right.name === 'Element'
+    left.type === AST_NODE_TYPES.Identifier &&
+    left.name === 'JSX' &&
+    right.name === 'Element'
   )
 }
 
