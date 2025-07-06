@@ -1055,4 +1055,310 @@ om("managePlan");
   )
 })
 
+tests.describe('mustHaveExport', () => {
+  tests.addValid(
+    'export function matches requirement',
+    `
+export function testFunction() {
+  return 'test';
+}
+    `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustHaveExport: [
+            {
+              name: 'testFunction',
+              type: 'function',
+              message: 'Must export testFunction',
+            },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.addValid(
+    'export variable matches requirement',
+    `
+export const testVar = 'test';
+    `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustHaveExport: [
+            {
+              name: 'testVar',
+              type: 'variable',
+              message: 'Must export testVar',
+            },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.addValid(
+    'export with type "any" matches function',
+    `
+export function testFunction() {
+  return 'test';
+}
+    `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustHaveExport: [
+            {
+              name: 'testFunction',
+              type: 'any',
+              message: 'Must export testFunction',
+            },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.addValid(
+    'export with type "any" matches variable',
+    `
+export const testVar = 'test';
+    `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustHaveExport: [
+            {
+              name: 'testVar',
+              type: 'any',
+              message: 'Must export testVar',
+            },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.addValid(
+    'named export specifier matches requirement',
+    `
+const testFunction = () => 'test';
+export { testFunction };
+    `,
+    {
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          mustHaveExport: [
+            {
+              name: 'testFunction',
+              type: 'any',
+              message: 'Must export testFunction',
+            },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.addValid(
+    'export with filename variables',
+    `
+export function TestComponent() {
+  return 'test';
+}
+    `,
+    {
+      __dev_simulateFileName: 'TestComponent.tsx',
+      mustMatchSyntax: [
+        {
+          includeRegex: '(.*)\\.tsx$',
+          mustHaveExport: [
+            {
+              name: '$1',
+              type: 'function',
+              message: 'Must export $1',
+            },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.addInvalid(
+    'missing required export function',
+    `
+const testVar = 'test';
+    `,
+    [
+      {
+        data: {
+          message:
+            'Missing required export "testFunction" of type function: Must export testFunction',
+        },
+      },
+    ],
+    {
+      options: {
+        mustMatchSyntax: [
+          {
+            includeRegex: '.*',
+            mustHaveExport: [
+              {
+                name: 'testFunction',
+                type: 'function',
+                message: 'Must export testFunction',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  )
+
+  tests.addInvalid(
+    'missing required export variable',
+    `
+export function testFunction() {
+  return 'test';
+}
+    `,
+    [
+      {
+        data: {
+          message:
+            'Missing required export "testVar" of type variable: Must export testVar',
+        },
+      },
+    ],
+    {
+      options: {
+        mustMatchSyntax: [
+          {
+            includeRegex: '.*',
+            mustHaveExport: [
+              {
+                name: 'testVar',
+                type: 'variable',
+                message: 'Must export testVar',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  )
+
+  tests.addInvalid(
+    'wrong export type (function when variable required)',
+    `
+export function testVar() {
+  return 'test';
+}
+    `,
+    [
+      {
+        data: {
+          message:
+            'Missing required export "testVar" of type variable: Must export testVar',
+        },
+      },
+    ],
+    {
+      options: {
+        mustMatchSyntax: [
+          {
+            includeRegex: '.*',
+            mustHaveExport: [
+              {
+                name: 'testVar',
+                type: 'variable',
+                message: 'Must export testVar',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  )
+
+  tests.addInvalid(
+    'wrong export type (variable when function required)',
+    `
+export const testFunction = () => 'test';
+    `,
+    [
+      {
+        data: {
+          message:
+            'Missing required export "testFunction" of type function: Must export testFunction',
+        },
+      },
+    ],
+    {
+      options: {
+        mustMatchSyntax: [
+          {
+            includeRegex: '.*',
+            mustHaveExport: [
+              {
+                name: 'testFunction',
+                type: 'function',
+                message: 'Must export testFunction',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  )
+
+  tests.addInvalid(
+    'multiple missing exports',
+    `
+export const testVar = 'test';
+    `,
+    [
+      {
+        data: {
+          message:
+            'Missing required export "testFunction" of type function: Must export testFunction',
+        },
+      },
+      {
+        data: {
+          message:
+            'Missing required export "anotherFunction" of type any: Must export anotherFunction',
+        },
+      },
+    ],
+    {
+      options: {
+        mustMatchSyntax: [
+          {
+            includeRegex: '.*',
+            mustHaveExport: [
+              {
+                name: 'testFunction',
+                type: 'function',
+                message: 'Must export testFunction',
+              },
+              {
+                name: 'anotherFunction',
+                type: 'any',
+                message: 'Must export anotherFunction',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  )
+})
+
 tests.run()

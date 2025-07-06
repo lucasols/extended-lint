@@ -1,67 +1,79 @@
 import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
 import { ReportFixFunction } from '@typescript-eslint/utils/ts-eslint'
-import * as t from 'tschema'
+import * as z from 'zod/v4'
 import { createExtendedLintRule } from '../createRule'
 
-const optionSchema = t.object({
-  disallow: t.optional(
-    t.array(
-      t.object({
-        selector: t.string(),
-        message: t.string(),
-        replace: t.optional(
-          t.any(t.string(), t.object({ regex: t.string(), with: t.string() })),
+const optionSchema = z.object({
+  disallow: z
+    .array(
+      z.object({
+        selector: z.string(),
+        message: z.string(),
+        replace: z.optional(
+          z.union([
+            z.string(),
+            z.object({ regex: z.string(), with: z.string() }),
+          ]),
         ),
-        replaceType: t.optional(t.enum(['suggestion', 'autofix'])),
+        replaceType: z.optional(z.enum(['suggestion', 'autofix'])),
       }),
-    ),
-  ),
-  disallowFnCalls: t.optional(
-    t.array(
-      t.object({
-        fn: t.string(),
-        withArgs: t.optional(
-          t.array(
-            t.object({
-              atIndex: t.integer(),
-              value: t.any(t.string(), t.number(), t.boolean()),
+    )
+    .optional(),
+  disallowFnCalls: z.optional(
+    z.array(
+      z.object({
+        fn: z.string(),
+        withArgs: z.optional(
+          z.array(
+            z.object({
+              atIndex: z.number(),
+              value: z.union([z.string(), z.number(), z.boolean()]),
             }),
           ),
         ),
-        message: t.string(),
-        replaceWith: t.optional(t.string()),
-        ignoreRegex: t.optional(t.string()),
+        message: z.string(),
+        replaceWith: z.optional(z.string()),
+        ignoreRegex: z.optional(z.string()),
       }),
     ),
   ),
-  __dev_simulateFileName: t.optional(t.string()),
-  mustMatchSyntax: t.optional(
-    t.array(
-      t.object({
-        includeRegex: t.string(),
-        mustCallFn: t.optional(
-          t.array(
-            t.object({
-              anyCall: t.array(
-                t.object({
-                  fn: t.string(),
-                  withArgs: t.array(
-                    t.object({
-                      atIndex: t.integer(),
-                      literal: t.any(t.string(), t.number(), t.boolean()),
+  __dev_simulateFileName: z.optional(z.string()),
+  mustMatchSyntax: z.optional(
+    z.array(
+      z.object({
+        includeRegex: z.string(),
+        mustCallFn: z.optional(
+          z.array(
+            z.object({
+              anyCall: z.array(
+                z.object({
+                  fn: z.string(),
+                  withArgs: z.array(
+                    z.object({
+                      atIndex: z.number(),
+                      literal: z.union([z.string(), z.number(), z.boolean()]),
                     }),
                   ),
                 }),
               ),
-              message: t.optional(t.string()),
+              message: z.optional(z.string()),
             }),
           ),
         ),
-        mustMatchSelector: t.optional(
-          t.array(
-            t.object({
-              selector: t.string(),
-              message: t.string(),
+        mustMatchSelector: z.optional(
+          z.array(
+            z.object({
+              selector: z.string(),
+              message: z.string(),
+            }),
+          ),
+        ),
+        mustHaveExport: z.optional(
+          z.array(
+            z.object({
+              name: z.string(),
+              type: z.enum(['function', 'variable', 'any']).default('any'),
+              message: z.string(),
             }),
           ),
         ),
@@ -70,7 +82,7 @@ const optionSchema = t.object({
   ),
 })
 
-export type Options = t.Infer<typeof optionSchema>
+export type Options = z.infer<typeof optionSchema>
 
 export const advancedNoRestrictedSyntax = createExtendedLintRule<
   [Options],
@@ -82,7 +94,7 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
     docs: {
       description: 'Disallow specific syntax patterns',
     },
-    schema: [optionSchema as any],
+    schema: [z.toJSONSchema(optionSchema) as any],
     messages: {
       default: '{{message}}',
     },
@@ -111,6 +123,7 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
 
     const mustMatchSomeCallRemaining = new Set<string>()
     const mustMatchSomeSelectorRemaining = new Map<string, string>()
+    const mustHaveExportRemaining = new Set<string>()
 
     const functionAliases = new Map<string, string>()
 
@@ -119,10 +132,58 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
         if (specifier.type === AST_NODE_TYPES.ImportSpecifier) {
           if (
             specifier.imported.type === AST_NODE_TYPES.Identifier &&
-            specifier.local.type === AST_NODE_TYPES.Identifier &&
             specifier.imported.name !== specifier.local.name
           ) {
             functionAliases.set(specifier.local.name, specifier.imported.name)
+          }
+        }
+      }
+    }
+
+    function trackExports(node: TSESTree.ExportNamedDeclaration) {
+      if (node.declaration) {
+        if (
+          node.declaration.type === AST_NODE_TYPES.FunctionDeclaration &&
+          node.declaration.id
+        ) {
+          const exportName = node.declaration.id.name
+          for (const requirement of Array.from(mustHaveExportRemaining)) {
+            const [name, type] = requirement.split(':')
+            if (
+              name === exportName &&
+              (type === 'function' || type === 'any')
+            ) {
+              mustHaveExportRemaining.delete(requirement)
+            }
+          }
+        } else if (
+          node.declaration.type === AST_NODE_TYPES.VariableDeclaration
+        ) {
+          for (const declarator of node.declaration.declarations) {
+            if (declarator.id.type === AST_NODE_TYPES.Identifier) {
+              const exportName = declarator.id.name
+              for (const requirement of Array.from(mustHaveExportRemaining)) {
+                const [name, type] = requirement.split(':')
+                if (
+                  name === exportName &&
+                  (type === 'variable' || type === 'any')
+                ) {
+                  mustHaveExportRemaining.delete(requirement)
+                }
+              }
+            }
+          }
+        }
+      }
+
+      for (const specifier of node.specifiers) {
+        if (specifier.exported.type === AST_NODE_TYPES.Identifier) {
+          const exportName = specifier.exported.name
+          for (const requirement of Array.from(mustHaveExportRemaining)) {
+            const [name, type] = requirement.split(':')
+            if (name === exportName && type === 'any') {
+              mustHaveExportRemaining.delete(requirement)
+            }
           }
         }
       }
@@ -153,6 +214,7 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
       includeRegex,
       mustCallFn,
       mustMatchSelector,
+      mustHaveExport,
     } of mustMatchSyntax ?? []) {
       const fileNameVars = getFileNameVarsRegex(
         fileName,
@@ -255,6 +317,12 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
         mustMatchSelectorSelectors.set(replaceStringWithVars(selector), () => {
           mustMatchSomeSelectorRemaining.delete(selector)
         })
+      }
+
+      for (const { name, type, message } of mustHaveExport ?? []) {
+        const exportName = replaceStringWithVars(name)
+        const exportMessage = replaceStringWithVars(message)
+        mustHaveExportRemaining.add(`${exportName}:${type}:${exportMessage}`)
       }
     }
 
@@ -381,6 +449,11 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
       trackImportAliases(node)
     }
 
+    result['ExportNamedDeclaration'] = (node) => {
+      if (node.type !== AST_NODE_TYPES.ExportNamedDeclaration) return
+      trackExports(node)
+    }
+
     result['VariableDeclarator'] = (node) => {
       if (node.type !== AST_NODE_TYPES.VariableDeclarator) return
       trackVariableAliases(node)
@@ -400,6 +473,17 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
           node,
           messageId: 'default',
           data: { message },
+        })
+      }
+
+      for (const exportRequirement of mustHaveExportRemaining) {
+        const [name, type, message] = exportRequirement.split(':')
+        context.report({
+          node,
+          messageId: 'default',
+          data: {
+            message: `Missing required export "${name}" of type ${type}: ${message}`,
+          },
         })
       }
     }
