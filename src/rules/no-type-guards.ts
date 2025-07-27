@@ -2,8 +2,6 @@ import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
 import * as z from 'zod/v4'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
-const name = 'no-type-guards'
-
 const optionsSchema = z.object({
   alternativeMsgs: z
     .object({
@@ -54,7 +52,7 @@ export const noTypeGuards = createExtendedLintRule<
   [Options],
   'typeGuardNotAllowed' | 'useFilterWithTypeCheck' | 'useFindWithTypeCheck'
 >({
-  name,
+  name: 'no-type-guards',
   meta: {
     type: 'problem',
     docs: {
