@@ -4,14 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-- **Build**: `pnpm build` (runs tests, lint, and build)
-- **Build without tests**: `pnpm build:no-test`
-- **Build without minification**: `pnpm build:no-minify`
 - **Test**: `pnpm test` (vitest)
-- **Test with UI**: `pnpm test:ui`
 - **Lint**: `pnpm lint` (TypeScript compiler check)
 - **Type check**: `pnpm tsc`
-- **Debug in test project**: `pnpm run-in-test-project`
 
 ## Testing
 
