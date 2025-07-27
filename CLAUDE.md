@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Testing
 
-- Use Vitest for testing with the configuration in `vitest.config.ts`
+- Use Vitest for testing
 - Tests are located in `src/**/*.test.ts` and `tests/*.test.js`
 - Use the `createTester` utility from `tests/utils/createTester.ts` for rule testing
 - Test setup is in `tests/fixture/setup.ts`
