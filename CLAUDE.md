@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Use the `createTester` utility from `tests/utils/createTester.ts` for rule testing
 - Test setup is in `tests/fixture/setup.ts`
 - Single rule tests can be run with `pnpm test <rule-name>`
+- Use `__dev_simulateFileName` for simulating file names
 
 ## Architecture
 
@@ -33,6 +34,7 @@ This is an ESLint plugin that provides extended linting rules for TypeScript/Jav
 2. Follow the structure of existing rules like `react-compiler-extra.ts`
 3. Use `createExtendedLintRule` from `createRule.ts`
 4. Add the rule to the exports in `src/rules/rules.ts`
+5. Use `zod/v4` for options with `getJsonSchemaFromZod`
 
 ### Build System
 
@@ -49,3 +51,9 @@ This is an ESLint plugin that provides extended linting rules for TypeScript/Jav
 - Never use `array.reduce`
 - Never use `as` assertions except for `as const`
 - Write strongly typed TypeScript
+
+## Typesafety
+
+- Do not use `any`
+- Do not use `as Type` casts, except for `as const`
+- Do not use non-null assertions (`!`)

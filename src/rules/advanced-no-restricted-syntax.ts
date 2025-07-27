@@ -1,7 +1,7 @@
 import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
 import { ReportFixFunction } from '@typescript-eslint/utils/ts-eslint'
 import * as z from 'zod/v4'
-import { createExtendedLintRule } from '../createRule'
+import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const optionSchema = z.object({
   disallow: z
@@ -94,7 +94,7 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
     docs: {
       description: 'Disallow specific syntax patterns',
     },
-    schema: [z.toJSONSchema(optionSchema) as any],
+    schema: [getJsonSchemaFromZod(optionSchema)],
     messages: {
       default: '{{message}}',
     },
