@@ -34,10 +34,37 @@ const startsWithPatterns = [
   'default:',
 ]
 
+const regexPatterns = {
+  returnStatement: /^\s*return\s+/,
+  stringAssignment: /\w=("|'|`)/,
+  objectPropertyWithQuotes: /\w+:\s*('|"|`)/,
+  computedPropertyAssignment: /\[['"][^'"]*['"]\]:\s*('|"|`|[^'"`\s])/,
+  kebabCaseProperty: /\w+-\w+:/,
+  snakeCaseProperty: /\w+_\w+:/,
+  ternaryOperator: /\?\s+\w/,
+  colonWithWord: /:\s+\w/,
+  quotedString: /^\s*('|"|`)[^'"]*('|"|`),?\s*$/,
+  numberWithComma: /^\s*\d+[,}]/,
+  arrayWithComma: /^\s*\[[^\]]*\][,}]/,
+  objectWithComma: /^\s*\{[^}]*\}[,}]/,
+  methodCall: /\.\w+\(/,
+  arrayAccess: /\[\w+\]/,
+  quotedPropertyKey: /^\s*(['"`]).+?\1\s*:/,
+  jsxSelfClosing: /^<[A-Z]\w*(\s|>|\/)/,
+  jsxElement: /^<[a-z]+(\s|>|\/)/,
+  jsxOpeningTag: /<[A-Z]\w*(\s.*)?>/,
+  jsxClosingTag: /<\/[A-Z]\w*>/,
+  htmlOpeningTag: /<[a-z]+(\s.*)?>/,
+  htmlClosingTag: /<\/[a-z]+>/,
+  colonDescriptiveComment:
+    /^[a-zA-Z]+(\s+[a-zA-Z]+)*:\s+[a-zA-Z]+\s+[a-zA-Z][^{=,'"]*$/,
+  jsdocComment: /^\s*[*\s]*$/,
+}
+
 const codePatterns: (string | RegExp)[] = [
   ') {',
   'return;',
-  /^\s*return\s+/,
+  regexPatterns.returnStatement,
   'if (',
   'else {',
   'else if (',
@@ -48,38 +75,38 @@ const codePatterns: (string | RegExp)[] = [
   ': {',
   ' } = ',
   '={',
-  /\w=("|'|`)/,
+  regexPatterns.stringAssignment,
   ');',
-  /\w+:\s*('|"|`)/,
-  /\[['"][^'"]*['"]\]:\s*('|"|`|[^'"`\s])/,
-  /\w+-\w+:/,
-  /\w+_\w+:/,
+  regexPatterns.objectPropertyWithQuotes,
+  regexPatterns.computedPropertyAssignment,
+  regexPatterns.kebabCaseProperty,
+  regexPatterns.snakeCaseProperty,
   '&&',
   '||',
   '()',
-  /\?\s+\w/,
-  /:\s+\w/,
-  /^\s*('|"|`)[^'"]*('|"|`),?\s*$/,
-  /^\s*\d+[,}]/,
-  /^\s*\[[^\]]*\][,}]/,
-  /^\s*\{[^}]*\}[,}]/,
-  /\.\w+\(/,
-  /\[\w+\]/,
+  regexPatterns.ternaryOperator,
+  regexPatterns.colonWithWord,
+  regexPatterns.quotedString,
+  regexPatterns.numberWithComma,
+  regexPatterns.arrayWithComma,
+  regexPatterns.objectWithComma,
+  regexPatterns.methodCall,
+  regexPatterns.arrayAccess,
   '?.(',
   '??',
   '=>',
-  /^\s*(['"`]).+?\1\s*:/,
+  regexPatterns.quotedPropertyKey,
 ]
 
 const jsxPatterns: (string | RegExp)[] = [
   '/>',
   '</',
-  /^<[A-Z]\w*(\s|>|\/)/,
-  /^<[a-z]+(\s|>|\/)/,
-  /<[A-Z]\w*(\s.*)?>/,
-  /<\/[A-Z]\w*>/,
-  /<[a-z]+(\s.*)?>/,
-  /<\/[a-z]+>/,
+  regexPatterns.jsxSelfClosing,
+  regexPatterns.jsxElement,
+  regexPatterns.jsxOpeningTag,
+  regexPatterns.jsxClosingTag,
+  regexPatterns.htmlOpeningTag,
+  regexPatterns.htmlClosingTag,
 ]
 
 const allowedPrefixes = [
@@ -137,7 +164,7 @@ const rule = createRule({
         comment.includes('typescript-eslint') ||
         comment.includes('@ts-') ||
         comment.includes('prettier-ignore') ||
-        /^\s*[*\s]*$/.test(comment)
+        regexPatterns.jsdocComment.test(comment)
       ) {
         return false
       }
@@ -150,6 +177,18 @@ const rule = createRule({
 
       // Check if comment contains URLs - treat as descriptive text
       if (comment.includes('https://')) {
+        return false
+      }
+
+      // Check for descriptive comments with colon pattern (e.g., "Third pass: find exported constants", "Second: this is a fine comment too")
+      // Match: "descriptive text: more descriptive text" but not code patterns like "prop: value"
+      // Allow single or multiple words before colon, followed by multiple words after
+      if (
+        commentWithTrimmedStart.includes(':') &&
+        regexPatterns.colonDescriptiveComment.test(
+          commentWithTrimmedStart.trim(),
+        )
+      ) {
         return false
       }
 

@@ -684,4 +684,12 @@ tests.addInvalid(
   1,
 )
 
+tests.addValid(
+  'Comment with colon and text should be allowed',
+  `
+    // Third pass: find exported constants
+    // Second: this if a fine comment too
+  `,
+)
+
 tests.run()
