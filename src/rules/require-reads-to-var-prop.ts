@@ -9,8 +9,6 @@ const optionsSchema = z.object({
       fromFnCall: z.string().optional(),
       prop: z.string(),
       errorMsg: z.string().optional(),
-    }).refine(data => data.selector || data.fromFnCall, {
-      message: 'Either selector or fromFnCall must be provided',
     }),
   ),
 })
@@ -41,47 +39,60 @@ export const requireReadsToVarProp = createExtendedLintRule<
     >()
 
     // Helper function to match function call patterns
-    function matchesFnCall(callExpression: TSESTree.CallExpression, pattern: string): boolean {
+    function matchesFnCall(
+      callExpression: TSESTree.CallExpression,
+      pattern: string,
+    ): boolean {
       if (callExpression.callee.type === AST_NODE_TYPES.Identifier) {
         // Simple function call: fnName()
         return callExpression.callee.name === pattern
       }
-      
-      if (callExpression.callee.type === AST_NODE_TYPES.MemberExpression &&
-          callExpression.callee.property.type === AST_NODE_TYPES.Identifier) {
+
+      if (
+        callExpression.callee.type === AST_NODE_TYPES.MemberExpression &&
+        callExpression.callee.property.type === AST_NODE_TYPES.Identifier
+      ) {
         // Member call: obj.method()
         const methodName = callExpression.callee.property.name
-        
+
         if (pattern.startsWith('*.')) {
           // Wildcard pattern: *.useElement matches any.useElement
           const expectedMethod = pattern.slice(2)
           return methodName === expectedMethod
         }
-        
+
         if (pattern.includes('.')) {
           // Specific pattern: test.useElement
           const [expectedObj, expectedMethod] = pattern.split('.')
           if (callExpression.callee.object.type === AST_NODE_TYPES.Identifier) {
-            return callExpression.callee.object.name === expectedObj && methodName === expectedMethod
+            return (
+              callExpression.callee.object.name === expectedObj &&
+              methodName === expectedMethod
+            )
           }
         }
       }
-      
+
       return false
     }
 
     // Helper function to check if a variable declarator should be tracked
-    function shouldTrackVariable(node: TSESTree.VariableDeclarator, check: typeof options.varsToCheck[0]): boolean {
-      if (node.id.type !== AST_NODE_TYPES.Identifier || 
-          !node.init || 
-          node.init.type !== AST_NODE_TYPES.CallExpression) {
+    function shouldTrackVariable(
+      node: TSESTree.VariableDeclarator,
+      check: (typeof options.varsToCheck)[0],
+    ): boolean {
+      if (
+        node.id.type !== AST_NODE_TYPES.Identifier ||
+        !node.init ||
+        node.init.type !== AST_NODE_TYPES.CallExpression
+      ) {
         return false
       }
-      
+
       if (check.fromFnCall) {
         return matchesFnCall(node.init, check.fromFnCall)
       }
-      
+
       return false // selector-based matching handled separately
     }
 
@@ -108,7 +119,7 @@ export const requireReadsToVarProp = createExtendedLintRule<
 
     return {
       ...selectors,
-      
+
       VariableDeclarator(node) {
         // Check fromFnCall patterns
         for (const check of options.varsToCheck) {
