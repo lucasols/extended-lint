@@ -67,7 +67,7 @@ tests.addInvalidWithOptions(
         customMsg: 'The data from createTest() should be used.',
       },
     },
-  ]
+  ],
 )
 
 tests.addValid(
@@ -220,7 +220,7 @@ tests.addInvalidWithOptions(
         customMsg: 'The data from createTest() should be used.',
       },
     },
-  ]
+  ],
 )
 
 tests.addInvalidWithOptions(
@@ -247,7 +247,7 @@ tests.addInvalidWithOptions(
         customMsg: 'The data from createTest() should be used.',
       },
     },
-  ]
+  ],
 )
 
 // Invalid cases - only when variable is completely unused
@@ -275,7 +275,7 @@ tests.addInvalidWithOptions(
         customMsg: 'The data from createTest() should be used.',
       },
     },
-  ]
+  ],
 )
 
 tests.addInvalidWithOptions(
@@ -305,7 +305,7 @@ tests.addInvalidWithOptions(
         customMsg: 'The data from createTest() should be used.',
       },
     },
-  ]
+  ],
 )
 
 // Test with different selector and property
@@ -323,7 +323,7 @@ tests.addInvalidWithOptions(
       },
     ],
   },
-  [{ data: { prop: 'isLoading', varName: 'queryResult', customMsg: '' } }]
+  [{ data: { prop: 'isLoading', varName: 'queryResult', customMsg: '' } }],
 )
 
 tests.addValid(
@@ -367,7 +367,7 @@ tests.addInvalidWithOptions(
       },
     ],
   },
-  [{ data: { prop: 'isLoading', varName: 'queryResult', customMsg: '' } }]
+  [{ data: { prop: 'isLoading', varName: 'queryResult', customMsg: '' } }],
 )
 
 // Test fromFnCall patterns
@@ -428,7 +428,7 @@ tests.addInvalidWithOptions(
         customMsg: 'Elements from useElement() should be used.',
       },
     },
-  ]
+  ],
 )
 
 tests.addValid(
@@ -471,7 +471,7 @@ tests.addInvalidWithOptions(
         customMsg: 'Chat messages should be used.',
       },
     },
-  ]
+  ],
 )
 
 tests.addValid(
@@ -576,7 +576,22 @@ tests.addInvalidWithOptions(
   {
     varsToCheck: [{ fromFnCall: 'useActionFn', prop: 'call' }],
   },
-  [{ data: { prop: 'call', varName: 'onConfirm', customMsg: '' } }]
+  [{ data: { prop: 'call', varName: 'onConfirm', customMsg: '' } }],
+)
+
+tests.addValid(
+  'property used in variable assignment',
+  `
+    const tableFieldsWithArchived = tableFieldsWithArchivedCollection.useItem(
+      showInTrash ? tableId : undefined,
+      { isOffScreen },
+    );
+
+    const tableFields = showInTrash ? tableFieldsWithArchived : tableFields_;
+  `,
+  {
+    varsToCheck: [{ fromFnCall: '*.useItem', prop: 'data' }],
+  },
 )
 
 tests.run()
