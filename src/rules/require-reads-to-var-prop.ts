@@ -39,67 +39,11 @@ export const requireReadsToVarProp = createExtendedLintRule<
       { prop: string; errorMsg?: string; node: TSESTree.Node }
     >()
 
-    // Helper function to match function call patterns
-    function matchesFnCall(
-      callExpression: TSESTree.CallExpression,
-      pattern: string,
-    ): boolean {
-      if (callExpression.callee.type === AST_NODE_TYPES.Identifier) {
-        // Simple function call: fnName()
-        return callExpression.callee.name === pattern
-      }
 
-      if (
-        callExpression.callee.type === AST_NODE_TYPES.MemberExpression &&
-        callExpression.callee.property.type === AST_NODE_TYPES.Identifier
-      ) {
-        // Member call: obj.method()
-        const methodName = callExpression.callee.property.name
-
-        if (pattern.startsWith('*.')) {
-          // Wildcard pattern: *.useElement matches any.useElement
-          const expectedMethod = pattern.slice(2)
-          return methodName === expectedMethod
-        }
-
-        if (pattern.includes('.')) {
-          // Specific pattern: test.useElement
-          const [expectedObj, expectedMethod] = pattern.split('.')
-          if (callExpression.callee.object.type === AST_NODE_TYPES.Identifier) {
-            return (
-              callExpression.callee.object.name === expectedObj &&
-              methodName === expectedMethod
-            )
-          }
-        }
-      }
-
-      return false
-    }
-
-    // Helper function to check if a variable declarator should be tracked
-    function shouldTrackVariable(
-      node: TSESTree.VariableDeclarator,
-      check: (typeof options.varsToCheck)[0],
-    ): boolean {
-      if (
-        node.id.type !== AST_NODE_TYPES.Identifier ||
-        !node.init ||
-        node.init.type !== AST_NODE_TYPES.CallExpression
-      ) {
-        return false
-      }
-
-      if (check.fromFnCall) {
-        return matchesFnCall(node.init, check.fromFnCall)
-      }
-
-      return false // selector-based matching handled separately
-    }
-
-    // Create AST selectors for each configured check that uses selectors
+    // Create AST selectors for each configured check
     const selectors: Record<string, (node: TSESTree.Node) => void> = {}
 
+    // Handle selector-based checks
     for (const check of options.varsToCheck) {
       if (check.selector) {
         selectors[check.selector] = (node: TSESTree.Node) => {
@@ -118,23 +62,70 @@ export const requireReadsToVarProp = createExtendedLintRule<
       }
     }
 
-    return {
-      ...selectors,
-
-      VariableDeclarator(node) {
-        // Check fromFnCall patterns
-        for (const check of options.varsToCheck) {
-          if (check.fromFnCall && shouldTrackVariable(node, check)) {
-            if (node.id.type === AST_NODE_TYPES.Identifier) {
-              varsToTrack.set(node.id.name, {
+    // Handle fromFnCall-based checks with specific selectors
+    for (const check of options.varsToCheck) {
+      if (check.fromFnCall) {
+        const pattern = check.fromFnCall
+        
+        if (pattern.startsWith('*.')) {
+          // Wildcard pattern: *.useElement -> VariableDeclarator > CallExpression > MemberExpression[property.name="useElement"]
+          const methodName = pattern.slice(2)
+          const selectorKey = `VariableDeclarator > CallExpression > MemberExpression[property.name="${methodName}"]`
+          
+          selectors[selectorKey] = (node: TSESTree.Node) => {
+            if (node.type !== AST_NODE_TYPES.MemberExpression) return
+            const callExpr = node.parent as TSESTree.CallExpression
+            const varDeclarator = callExpr.parent as TSESTree.VariableDeclarator
+            
+            if (varDeclarator.id.type === AST_NODE_TYPES.Identifier) {
+              varsToTrack.set(varDeclarator.id.name, {
                 prop: check.prop,
                 errorMsg: check.errorMsg,
-                node: node.id,
+                node: varDeclarator.id,
+              })
+            }
+          }
+        } else if (pattern.includes('.')) {
+          // Specific pattern: test.useElement
+          const [objName, methodName] = pattern.split('.')
+          const selectorKey = `VariableDeclarator > CallExpression > MemberExpression[object.name="${objName}"][property.name="${methodName}"]`
+          
+          selectors[selectorKey] = (node: TSESTree.Node) => {
+            if (node.type !== AST_NODE_TYPES.MemberExpression) return
+            const callExpr = node.parent as TSESTree.CallExpression
+            const varDeclarator = callExpr.parent as TSESTree.VariableDeclarator
+            
+            if (varDeclarator.id.type === AST_NODE_TYPES.Identifier) {
+              varsToTrack.set(varDeclarator.id.name, {
+                prop: check.prop,
+                errorMsg: check.errorMsg,
+                node: varDeclarator.id,
+              })
+            }
+          }
+        } else {
+          // Simple function call: fnName
+          const selectorKey = `VariableDeclarator > CallExpression > Identifier[name="${pattern}"]`
+          
+          selectors[selectorKey] = (node: TSESTree.Node) => {
+            if (node.type !== AST_NODE_TYPES.Identifier) return
+            const callExpr = node.parent as TSESTree.CallExpression
+            const varDeclarator = callExpr.parent as TSESTree.VariableDeclarator
+            
+            if (varDeclarator.id.type === AST_NODE_TYPES.Identifier) {
+              varsToTrack.set(varDeclarator.id.name, {
+                prop: check.prop,
+                errorMsg: check.errorMsg,
+                node: varDeclarator.id,
               })
             }
           }
         }
-      },
+      }
+    }
+
+    return {
+      ...selectors,
 
       'Program:exit'() {
         // Check each tracked variable to see if its required property was accessed
