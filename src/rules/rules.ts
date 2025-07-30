@@ -20,11 +20,13 @@ import { noUnusedObjProps } from './no-unused-obj-props'
 import { noUnusedSelectedValues } from './no-unused-selected-values'
 import { noUnusedTStateField } from './no-unused-t-state-field'
 import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
+import { noWriteOnlyRef } from './no-write-only-ref'
 import { preferNamedFunction } from './prefer-named-functions'
 import { preferReactHookAlternative } from './prefer-react-hook-alternative'
 import { preferSingleLineIf } from './prefer-single-line-if'
 import { reactCompilerMigration } from './react-compiler-migration'
 import { requireDescription } from './require-description'
+import { requireReadsToVarProp } from './require-reads-to-var-prop'
 import { rulesOfHooksESLintRule } from './rules-of-hooks'
 import { useTopLevelRegex } from './use-top-level-regex'
 
@@ -57,4 +59,6 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noUnnecessaryAsyncOnJsxProps.name]: noUnnecessaryAsyncOnJsxProps.rule,
   [noTypeGuards.name]: noTypeGuards.rule,
   [useTopLevelRegex.name]: useTopLevelRegex.rule,
+  [noWriteOnlyRef.name]: noWriteOnlyRef.rule,
+  [requireReadsToVarProp.name]: requireReadsToVarProp.rule,
 }

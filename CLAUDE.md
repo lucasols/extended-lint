@@ -12,10 +12,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Use Vitest for testing
 - Tests are located in `src/**/*.test.ts` and `tests/*.test.js`
-- Use the `createTester` utility from `tests/utils/createTester.ts` for rule testing
+- Use the `createTester` utility from @tests/utils/createTester.ts for rule testing
 - Test setup is in `tests/fixture/setup.ts`
 - Single rule tests can be run with `pnpm test <rule-name>`
-- Use `__dev_simulateFileName` for simulating file names
+- Use `__dev_simulateFileName` for simulating file names if needed
+- Use the same test structure of `src/rules/react-compiler-extra.test.ts`, using `tests.addValid`, `tests.addInvalid` and `tests.addInvalidWithOptions`
 
 ## Architecture
 
@@ -24,7 +25,7 @@ This is an ESLint plugin that provides extended linting rules for TypeScript/Jav
 ### Core Structure
 
 - **Entry point**: `src/extended-lint.ts` exports the plugin
-- **Rule creation**: Use `createExtendedLintRule` from `src/createRule.ts` instead of direct ESLint rule creation
+- **Rule creation**: Use `createExtendedLintRule` from @src/createRule.ts instead of direct ESLint rule creation
 - **Rules registry**: All rules are exported from `src/rules/rules.ts`
 - **Individual rules**: Each rule is in `src/rules/` with corresponding `.test.ts` file
 

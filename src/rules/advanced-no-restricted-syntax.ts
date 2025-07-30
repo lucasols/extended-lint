@@ -1,6 +1,6 @@
 import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
 import { ReportFixFunction } from '@typescript-eslint/utils/ts-eslint'
-import * as z from 'zod/v4'
+import { z } from 'zod/v4'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const optionSchema = z.object({
