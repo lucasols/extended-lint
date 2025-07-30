@@ -57,3 +57,7 @@ This is an ESLint plugin that provides extended linting rules for TypeScript/Jav
 - Do not use `any`
 - Do not use `as Type` casts, except for `as const`
 - Do not use non-null assertions (`!`)
+
+## Performance Considerations
+
+- Prefer using ast selector when using it will make the rule more optimized
