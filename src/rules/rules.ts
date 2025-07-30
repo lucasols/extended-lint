@@ -26,6 +26,7 @@ import { preferSingleLineIf } from './prefer-single-line-if'
 import { reactCompilerMigration } from './react-compiler-migration'
 import { requireDescription } from './require-description'
 import { rulesOfHooksESLintRule } from './rules-of-hooks'
+import { useTopLevelRegex } from './use-top-level-regex'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -55,4 +56,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [preferReactHookAlternative.name]: preferReactHookAlternative.rule,
   [noUnnecessaryAsyncOnJsxProps.name]: noUnnecessaryAsyncOnJsxProps.rule,
   [noTypeGuards.name]: noTypeGuards.rule,
+  [useTopLevelRegex.name]: useTopLevelRegex.rule,
 }
