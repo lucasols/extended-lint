@@ -27,7 +27,8 @@ export const requireReadsToVarProp = createExtendedLintRule<
         'Require specific properties from variables to be read or ensure the variable is passed to functions/components',
     },
     messages: {
-      propNotRead: 'Property "{{prop}}" from variable "{{varName}}" is never read. {{customMsg}}',
+      propNotRead:
+        'Property "{{prop}}" from variable "{{varName}}" is never read. {{customMsg}}',
     },
     schema: [getJsonSchemaFromZod(optionsSchema)],
   },
@@ -151,7 +152,7 @@ export const requireReadsToVarProp = createExtendedLintRule<
 
               // Skip the declaration itself
               if (
-                parent?.type === AST_NODE_TYPES.VariableDeclarator &&
+                parent.type === AST_NODE_TYPES.VariableDeclarator &&
                 parent.id === refNode
               ) {
                 continue
@@ -159,7 +160,7 @@ export const requireReadsToVarProp = createExtendedLintRule<
 
               // Check if this reference accesses the required property
               if (
-                parent?.type === AST_NODE_TYPES.MemberExpression &&
+                parent.type === AST_NODE_TYPES.MemberExpression &&
                 parent.object === refNode &&
                 parent.property.type === AST_NODE_TYPES.Identifier &&
                 parent.property.name === prop
@@ -170,7 +171,7 @@ export const requireReadsToVarProp = createExtendedLintRule<
 
               // Check for destructuring that accesses the property
               if (
-                parent?.type === AST_NODE_TYPES.VariableDeclarator &&
+                parent.type === AST_NODE_TYPES.VariableDeclarator &&
                 parent.init === refNode &&
                 parent.id.type === AST_NODE_TYPES.ObjectPattern
               ) {
@@ -186,16 +187,17 @@ export const requireReadsToVarProp = createExtendedLintRule<
                 }
                 if (propWasRead) break
               }
-              
+
               // Check if the variable is passed to a function or used in JSX
               // These cases could potentially access the property
               if (
-                parent?.type === AST_NODE_TYPES.CallExpression ||
-                parent?.type === AST_NODE_TYPES.JSXExpressionContainer ||
-                parent?.type === AST_NODE_TYPES.ArrayExpression ||
-                parent?.type === AST_NODE_TYPES.ObjectExpression ||
-                parent?.type === AST_NODE_TYPES.ReturnStatement ||
-                parent?.type === AST_NODE_TYPES.SpreadElement
+                parent.type === AST_NODE_TYPES.CallExpression ||
+                parent.type === AST_NODE_TYPES.JSXExpressionContainer ||
+                parent.type === AST_NODE_TYPES.ArrayExpression ||
+                parent.type === AST_NODE_TYPES.ObjectExpression ||
+                parent.type === AST_NODE_TYPES.ReturnStatement ||
+                parent.type === AST_NODE_TYPES.SpreadElement ||
+                parent.type === AST_NODE_TYPES.ConditionalExpression
               ) {
                 propWasRead = true
                 break
