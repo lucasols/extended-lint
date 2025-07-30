@@ -188,20 +188,19 @@ export const requireReadsToVarProp = createExtendedLintRule<
                 if (propWasRead) break
               }
 
-              // Check if the variable is passed to a function or used in JSX
-              // These cases could potentially access the property
+              // If this is accessing a different property, skip this reference
               if (
-                parent.type === AST_NODE_TYPES.CallExpression ||
-                parent.type === AST_NODE_TYPES.JSXExpressionContainer ||
-                parent.type === AST_NODE_TYPES.ArrayExpression ||
-                parent.type === AST_NODE_TYPES.ObjectExpression ||
-                parent.type === AST_NODE_TYPES.ReturnStatement ||
-                parent.type === AST_NODE_TYPES.SpreadElement ||
-                parent.type === AST_NODE_TYPES.ConditionalExpression
+                parent.type === AST_NODE_TYPES.MemberExpression &&
+                parent.object === refNode &&
+                parent.property.type === AST_NODE_TYPES.Identifier &&
+                parent.property.name !== prop
               ) {
-                propWasRead = true
-                break
+                continue
               }
+
+              // Any other reference (variable without member access) is considered valid
+              propWasRead = true
+              break
             }
 
             if (!propWasRead) {
