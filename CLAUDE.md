@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Test setup is in `tests/fixture/setup.ts`
 - Single rule tests can be run with `pnpm test <rule-name>`
 - Use `__dev_simulateFileName` for simulating file names if needed
-- Use the same test structure of `src/rules/react-compiler-extra.test.ts`, using `tests.addValid`, `tests.addInvalid` and `tests.addInvalidWithOptions`
+- Use the same test structure of `src/rules/react-compiler-extra.test.ts`, using `tests.addValid`, `tests.addInvalid` and `tests.addInvalidWithOptions` if the rule has options
 - Prefer inline test configurations directly in the test calls instead of creating separate config objects. Prefer to abstract the config elements instead.
 
 ## Architecture

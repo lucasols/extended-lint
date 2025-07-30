@@ -43,8 +43,8 @@ tests.addValid(
   },
 )
 
-tests.addValid(
-  'variable used - different property access',
+tests.addInvalidWithOptions(
+  'different property accessed but not required one',
   `
     const result = createTest()
     console.log(result.otherProp)
@@ -59,6 +59,15 @@ tests.addValid(
       },
     ],
   },
+  [
+    {
+      data: {
+        prop: 'data',
+        varName: 'result',
+        customMsg: 'The data from createTest() should be used.',
+      },
+    },
+  ]
 )
 
 tests.addValid(
@@ -187,92 +196,89 @@ tests.addValid(
   },
 )
 
-tests.addInvalid(
+tests.addInvalidWithOptions(
   'detects missing property with let',
   `
     let result = createTest()
     console.log('no data access')
   `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: 'data',
+        errorMsg: 'The data from createTest() should be used.',
+      },
+    ],
+  },
   [
     {
       data: {
+        prop: 'data',
         varName: 'result',
         customMsg: 'The data from createTest() should be used.',
       },
     },
-  ],
-  {
-    options: {
-      varsToCheck: [
-        {
-          selector:
-            'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
-          prop: 'data',
-          errorMsg: 'The data from createTest() should be used.',
-        },
-      ],
-    },
-  },
+  ]
 )
 
-tests.addInvalid(
+tests.addInvalidWithOptions(
   'detects missing property with var',
   `
     var result = createTest()
     console.log('no data access')
   `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: 'data',
+        errorMsg: 'The data from createTest() should be used.',
+      },
+    ],
+  },
   [
     {
       data: {
+        prop: 'data',
         varName: 'result',
         customMsg: 'The data from createTest() should be used.',
       },
     },
-  ],
-  {
-    options: {
-      varsToCheck: [
-        {
-          selector:
-            'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
-          prop: 'data',
-          errorMsg: 'The data from createTest() should be used.',
-        },
-      ],
-    },
-  },
+  ]
 )
 
 // Invalid cases - only when variable is completely unused
-tests.addInvalid(
+tests.addInvalidWithOptions(
   'variable never used',
   `
     const result = createTest()
     console.log('done')
   `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: 'data',
+        errorMsg: 'The data from createTest() should be used.',
+      },
+    ],
+  },
   [
     {
       data: {
+        prop: 'data',
         varName: 'result',
         customMsg: 'The data from createTest() should be used.',
       },
     },
-  ],
-  {
-    options: {
-      varsToCheck: [
-        {
-          selector:
-            'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
-          prop: 'data',
-          errorMsg: 'The data from createTest() should be used.',
-        },
-      ],
-    },
-  },
+  ]
 )
 
-tests.addInvalid(
+tests.addInvalidWithOptions(
   'multiple variables, some unused',
   `
     const result1 = createTest()
@@ -281,6 +287,16 @@ tests.addInvalid(
     console.log(result1.data)
     console.log('result2 not used')
   `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: 'data',
+        errorMsg: 'The data from createTest() should be used.',
+      },
+    ],
+  },
   [
     {
       data: {
@@ -289,39 +305,25 @@ tests.addInvalid(
         customMsg: 'The data from createTest() should be used.',
       },
     },
-  ],
-  {
-    options: {
-      varsToCheck: [
-        {
-          selector:
-            'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
-          prop: 'data',
-          errorMsg: 'The data from createTest() should be used.',
-        },
-      ],
-    },
-  },
+  ]
 )
 
 // Test with different selector and property
-tests.addInvalid(
+tests.addInvalidWithOptions(
   'useQuery variable unused',
   `
     const queryResult = useQuery()
     console.log('not using queryResult')
   `,
-  [{ data: { varName: 'queryResult', customMsg: '' } }],
   {
-    options: {
-      varsToCheck: [
-        {
-          fromFnCall: 'useQuery',
-          prop: 'isLoading',
-        },
-      ],
-    },
+    varsToCheck: [
+      {
+        fromFnCall: 'useQuery',
+        prop: 'isLoading',
+      },
+    ],
   },
+  [{ data: { prop: 'isLoading', varName: 'queryResult', customMsg: '' } }]
 )
 
 tests.addValid(
@@ -343,7 +345,7 @@ tests.addValid(
   },
 )
 
-tests.addInvalid(
+tests.addInvalidWithOptions(
   'multiple selectors with mixed usage',
   `
     const testResult = createTest()
@@ -352,22 +354,20 @@ tests.addInvalid(
     console.log(testResult.data) // used
     console.log('queryResult not used') // unused
   `,
-  [{ data: { varName: 'queryResult', customMsg: '' } }],
   {
-    options: {
-      varsToCheck: [
-        {
-          selector:
-            'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
-          prop: 'data',
-        },
-        {
-          fromFnCall: 'useQuery',
-          prop: 'isLoading',
-        },
-      ],
-    },
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: 'data',
+      },
+      {
+        fromFnCall: 'useQuery',
+        prop: 'isLoading',
+      },
+    ],
   },
+  [{ data: { prop: 'isLoading', varName: 'queryResult', customMsg: '' } }]
 )
 
 // Test fromFnCall patterns
@@ -405,31 +405,30 @@ tests.addValid(
   },
 )
 
-tests.addInvalid(
+tests.addInvalidWithOptions(
   'wildcard member call pattern unused',
   `
     const element = api.useElement()
     console.log('not using element')
   `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: '*.useElement',
+        prop: 'data',
+        errorMsg: 'Elements from useElement() should be used.',
+      },
+    ],
+  },
   [
     {
       data: {
+        prop: 'data',
         varName: 'element',
         customMsg: 'Elements from useElement() should be used.',
       },
     },
-  ],
-  {
-    options: {
-      varsToCheck: [
-        {
-          fromFnCall: '*.useElement',
-          prop: 'data',
-          errorMsg: 'Elements from useElement() should be used.',
-        },
-      ],
-    },
-  },
+  ]
 )
 
 tests.addValid(
@@ -449,31 +448,30 @@ tests.addValid(
   },
 )
 
-tests.addInvalid(
+tests.addInvalidWithOptions(
   'specific member call pattern unused',
   `
     const chatMessages = chatMessagesList.useListQuery()
     console.log('messages not used')
   `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: 'chatMessagesList.useListQuery',
+        prop: 'data',
+        errorMsg: 'Chat messages should be used.',
+      },
+    ],
+  },
   [
     {
       data: {
+        prop: 'data',
         varName: 'chatMessages',
         customMsg: 'Chat messages should be used.',
       },
     },
-  ],
-  {
-    options: {
-      varsToCheck: [
-        {
-          fromFnCall: 'chatMessagesList.useListQuery',
-          prop: 'data',
-          errorMsg: 'Chat messages should be used.',
-        },
-      ],
-    },
-  },
+  ]
 )
 
 tests.addValid(
@@ -510,7 +508,7 @@ tests.addValid(
 )
 
 tests.addInvalidWithOptions(
-  'useActionFn with isLoading check',
+  'useActionFn without call property used',
   `
     type Props = {
       title: string | null;
@@ -578,6 +576,7 @@ tests.addInvalidWithOptions(
   {
     varsToCheck: [{ fromFnCall: 'useActionFn', prop: 'call' }],
   },
+  [{ data: { prop: 'call', varName: 'onConfirm', customMsg: '' } }]
 )
 
 tests.run()

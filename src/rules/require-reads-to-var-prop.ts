@@ -24,10 +24,10 @@ export const requireReadsToVarProp = createExtendedLintRule<
     type: 'suggestion',
     docs: {
       description:
-        'Require variables from specific function calls to be used (any usage counts as potentially accessing required properties)',
+        'Require specific properties from variables to be read or ensure the variable is passed to functions/components',
     },
     messages: {
-      propNotRead: 'Variable "{{varName}}" is never used. {{customMsg}}',
+      propNotRead: 'Property "{{prop}}" from variable "{{varName}}" is never read. {{customMsg}}',
     },
     schema: [getJsonSchemaFromZod(optionsSchema)],
   },
@@ -136,13 +136,13 @@ export const requireReadsToVarProp = createExtendedLintRule<
       },
 
       'Program:exit'() {
-        // Check each tracked variable to see if it has any meaningful usage
+        // Check each tracked variable to see if its required property was accessed
         for (const [varName, { prop, errorMsg, node }] of varsToTrack) {
           const scope = context.sourceCode.getScope(node)
           const variable = scope.set.get(varName)
 
           if (variable) {
-            let hasUsage = false
+            let propWasRead = false
 
             // Check all references to this variable
             for (const reference of variable.references) {
@@ -151,19 +151,58 @@ export const requireReadsToVarProp = createExtendedLintRule<
 
               // Skip the declaration itself
               if (
-                parent.type === AST_NODE_TYPES.VariableDeclarator &&
+                parent?.type === AST_NODE_TYPES.VariableDeclarator &&
                 parent.id === refNode
               ) {
                 continue
               }
 
-              // Any other usage of the variable counts as potentially accessing the property
-              // Functions, JSX props, expressions, etc. could all access the required property
-              hasUsage = true
-              break
+              // Check if this reference accesses the required property
+              if (
+                parent?.type === AST_NODE_TYPES.MemberExpression &&
+                parent.object === refNode &&
+                parent.property.type === AST_NODE_TYPES.Identifier &&
+                parent.property.name === prop
+              ) {
+                propWasRead = true
+                break
+              }
+
+              // Check for destructuring that accesses the property
+              if (
+                parent?.type === AST_NODE_TYPES.VariableDeclarator &&
+                parent.init === refNode &&
+                parent.id.type === AST_NODE_TYPES.ObjectPattern
+              ) {
+                for (const property of parent.id.properties) {
+                  if (
+                    property.type === AST_NODE_TYPES.Property &&
+                    property.key.type === AST_NODE_TYPES.Identifier &&
+                    property.key.name === prop
+                  ) {
+                    propWasRead = true
+                    break
+                  }
+                }
+                if (propWasRead) break
+              }
+              
+              // Check if the variable is passed to a function or used in JSX
+              // These cases could potentially access the property
+              if (
+                parent?.type === AST_NODE_TYPES.CallExpression ||
+                parent?.type === AST_NODE_TYPES.JSXExpressionContainer ||
+                parent?.type === AST_NODE_TYPES.ArrayExpression ||
+                parent?.type === AST_NODE_TYPES.ObjectExpression ||
+                parent?.type === AST_NODE_TYPES.ReturnStatement ||
+                parent?.type === AST_NODE_TYPES.SpreadElement
+              ) {
+                propWasRead = true
+                break
+              }
             }
 
-            if (!hasUsage) {
+            if (!propWasRead) {
               context.report({
                 node,
                 messageId: 'propNotRead',
