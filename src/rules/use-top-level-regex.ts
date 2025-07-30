@@ -8,27 +8,6 @@ function hasStatefulFlags(node: TSESTree.Literal): boolean {
   return flags.includes('g') || flags.includes('y')
 }
 
-function isRegexLiteral(node: TSESTree.Node): node is TSESTree.Literal {
-  return node.type === AST_NODE_TYPES.Literal && 'regex' in node && !!node.regex
-}
-
-function isTopLevel(node: TSESTree.Node): boolean {
-  let current = node.parent
-
-  while (current) {
-    if (
-      current.type === AST_NODE_TYPES.FunctionDeclaration ||
-      current.type === AST_NODE_TYPES.FunctionExpression ||
-      current.type === AST_NODE_TYPES.ArrowFunctionExpression ||
-      current.type === AST_NODE_TYPES.MethodDefinition
-    ) {
-      return false
-    }
-    current = current.parent
-  }
-
-  return true
-}
 
 function isInRegexConstructor(node: TSESTree.Node): boolean {
   const parent = node.parent
@@ -60,11 +39,7 @@ export const useTopLevelRegex = createExtendedLintRule<
   defaultOptions: [],
   create(context) {
     function checkRegexLiteral(node: TSESTree.Literal) {
-      if (!isRegexLiteral(node)) return
-
       if (hasStatefulFlags(node)) return
-
-      if (isTopLevel(node)) return
 
       if (isInRegexConstructor(node)) return
 
@@ -75,7 +50,7 @@ export const useTopLevelRegex = createExtendedLintRule<
     }
 
     return {
-      Literal: checkRegexLiteral,
+      'FunctionDeclaration Literal[regex], FunctionExpression Literal[regex], ArrowFunctionExpression Literal[regex], MethodDefinition Literal[regex]': checkRegexLiteral,
     }
   },
 })
