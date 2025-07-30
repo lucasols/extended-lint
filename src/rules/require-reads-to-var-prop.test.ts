@@ -509,4 +509,145 @@ tests.addValid(
   },
 )
 
+tests.addInvalidWithOptions(
+  'useActionFn with isLoading check',
+  `
+    import { css } from '@linaria/core';
+    import { ActionModalContent } from '@src/_components/ActionModal';
+    import { RichTextVisualizer } from '@src/_components/RichTextVisualizer';
+    import { NewTextField } from '@src/components/newInputs/TextField/NewTextField';
+    import { colorScheme } from '@src/style/lightDark';
+    import { cx } from '@utils/cx';
+    import { useActionFn } from '@utils/hooks/useAsyncActionFn';
+    import { __ } from '@utils/i18n/i18n';
+    import { type FC, useState } from 'react';
+    import type { Result } from 't-result';
+
+    type Props = {
+      title: string | null;
+      description?: string;
+      placeholder?: string;
+      inputType?: 'text' | 'number';
+      confirmBtnLabel: string;
+      variant?: 'danger' | 'default';
+      onConfirm: (value: string) => Promise<Result<void, { retryErrMsg: string }>>;
+      onClose: () => void;
+      initialValue?: string;
+      optional?: boolean;
+      isValid?: (value: string) => true | string;
+      hint?: string;
+      headerTitle?: string;
+    };
+
+    export const PromptModalContent: FC<Props> = ({
+      title,
+      description,
+      placeholder,
+      inputType,
+      confirmBtnLabel,
+      variant,
+      onConfirm: onConfirmFn,
+      onClose,
+      initialValue,
+      optional,
+      isValid: isValidFn,
+      hint,
+      headerTitle,
+    }) => {
+      const [inputValue, setInputValue] = useState(initialValue ?? '');
+
+      const [forceShowErrors, setForceShowErrors] = useState(false);
+
+      const [confirmError, setConfirmError] = useState<string | undefined>(
+        undefined,
+      );
+
+      const requiredError =
+        !optional && !inputValue.trim() ? 'This field is required' : undefined;
+
+      const isValid = isValidFn?.(inputValue);
+      const validationError = isValid === true ? undefined : isValid;
+
+      const onConfirm = useActionFn(async (newValue: string) => {
+        const result = await onConfirmFn(newValue.trim());
+
+        if (result.error) {
+          setConfirmError(result.error.retryErrMsg);
+        }
+      });
+
+      const hasError = !!confirmError || !!requiredError || !!validationError;
+
+      return (
+        <ActionModalContent
+          title={title}
+          header={headerTitle}
+          description={
+            <>
+              {description && <RichTextVisualizer markdown={description} />}
+              <NewTextField
+                autoFocus
+                label={null}
+                value={inputValue}
+                onChange={(latestValue) => {
+                  setInputValue(latestValue);
+                  setConfirmError(undefined);
+                }}
+                onPressEnter={(latestValue) => {
+                  if (!hasError) {
+                    const validLatestValue = latestValue.trim();
+
+                    if (isValidFn && isValidFn(validLatestValue) !== true) {
+                      return true;
+                    }
+
+                    // onConfirm.call(validLatestValue);
+                  }
+
+                  setForceShowErrors(true);
+
+                  return true;
+                }}
+                onKeyDown={(e) => {
+                  if (onConfirm.isInProgress) {
+                    e.preventDefault();
+                  }
+                }}
+                debounce={0}
+                placeholder={placeholder}
+                type={inputType}
+                showErrorOnFocus={!!confirmError || forceShowErrors}
+                hint={hint}
+                errors={
+                  confirmError ? confirmError
+                  : forceShowErrors && requiredError ?
+                    requiredError
+                  : validationError ?
+                    validationError
+                  : undefined
+                }
+              />
+            </>
+          }
+          actionLabel={confirmBtnLabel}
+          onClose={onClose}
+          confirmButtonColor={variant === 'danger' ? 'newCustomRed' : 'newPrimary'}
+          closeOnConfirm={false}
+          disableButton={hasError || onConfirm.isInProgress}
+          isConfirming={onConfirm.isInProgress}
+          onClickDisabled={() => {
+            setForceShowErrors(true);
+          }}
+          onConfirm={() => {
+            // onConfirm.call(inputValue);
+          }}
+        />
+      );
+    };
+  `,
+  {
+    varsToCheck: [{ fromFnCall: 'useActionFn', prop: 'call' }],
+  },
+)
+
 tests.run()
