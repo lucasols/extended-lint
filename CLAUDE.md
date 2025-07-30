@@ -62,4 +62,6 @@ This is an ESLint plugin that provides extended linting rules for TypeScript/Jav
 
 ## Performance Considerations
 
-- Prefer using ast selector when using it will make the rule more optimized
+- Prefer using specific AST selectors instead of generic visitors (e.g., `VariableDeclarator > CallExpression > Identifier[name="functionName"]` instead of `VariableDeclarator`)
+- Use targeted selectors that match exact patterns to reduce unnecessary AST traversal
+- Replace helper functions with selector-based pattern matching when possible
