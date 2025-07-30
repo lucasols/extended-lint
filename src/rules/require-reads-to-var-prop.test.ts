@@ -582,12 +582,33 @@ tests.addInvalidWithOptions(
 tests.addValid(
   'property used in variable assignment',
   `
-    const tableFieldsWithArchived = tableFieldsWithArchivedCollection.useItem(
-      showInTrash ? tableId : undefined,
-      { isOffScreen },
-    );
+    const tableFieldsWithArchived = test.useItem();
 
     const tableFields = showInTrash ? tableFieldsWithArchived : tableFields_;
+  `,
+  {
+    varsToCheck: [{ fromFnCall: '*.useItem', prop: 'data' }],
+  },
+)
+
+tests.addValid(
+  'property used in object assignment',
+  `
+    const tableFieldsWithArchived = test.useItem();
+
+    const tableFields = { tableFieldsWithArchived };
+  `,
+  {
+    varsToCheck: [{ fromFnCall: '*.useItem', prop: 'data' }],
+  },
+)
+
+tests.addValid(
+  'property used in nested object assignment',
+  `
+    const tableFieldsWithArchived = test.useItem();
+
+    const tableFields = { nested: { tableFieldsWithArchived } };
   `,
   {
     varsToCheck: [{ fromFnCall: '*.useItem', prop: 'data' }],
