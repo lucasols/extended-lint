@@ -63,3 +63,4 @@ This is an ESLint plugin that provides extended linting rules for TypeScript/Jav
 ## Performance Considerations
 
 - Prefer using ast selector when using it will make the rule more optimized
+- Write with performance in mind, the rules should be fast and efficient as they will be used in a large codebase
