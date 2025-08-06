@@ -63,7 +63,7 @@ tests.addInvalidWithOptions(
     {
       data: {
         prop: 'data',
-        varName: 'result',
+        fnName: 'createTest',
         customMsg: 'The data from createTest() should be used.',
       },
     },
@@ -216,7 +216,7 @@ tests.addInvalidWithOptions(
     {
       data: {
         prop: 'data',
-        varName: 'result',
+        fnName: 'createTest',
         customMsg: 'The data from createTest() should be used.',
       },
     },
@@ -243,7 +243,7 @@ tests.addInvalidWithOptions(
     {
       data: {
         prop: 'data',
-        varName: 'result',
+        fnName: 'createTest',
         customMsg: 'The data from createTest() should be used.',
       },
     },
@@ -271,7 +271,7 @@ tests.addInvalidWithOptions(
     {
       data: {
         prop: 'data',
-        varName: 'result',
+        fnName: 'createTest',
         customMsg: 'The data from createTest() should be used.',
       },
     },
@@ -301,7 +301,7 @@ tests.addInvalidWithOptions(
     {
       data: {
         prop: 'data',
-        varName: 'result2',
+        fnName: 'createTest',
         customMsg: 'The data from createTest() should be used.',
       },
     },
@@ -323,7 +323,7 @@ tests.addInvalidWithOptions(
       },
     ],
   },
-  [{ data: { prop: 'isLoading', varName: 'queryResult', customMsg: '' } }],
+  [{ data: { prop: 'isLoading', fnName: 'useQuery', customMsg: '' } }],
 )
 
 tests.addValid(
@@ -367,7 +367,7 @@ tests.addInvalidWithOptions(
       },
     ],
   },
-  [{ data: { prop: 'isLoading', varName: 'queryResult', customMsg: '' } }],
+  [{ data: { prop: 'isLoading', fnName: 'useQuery', customMsg: '' } }],
 )
 
 // Test fromFnCall patterns
@@ -424,7 +424,7 @@ tests.addInvalidWithOptions(
     {
       data: {
         prop: 'data',
-        varName: 'element',
+        fnName: '*.useElement',
         customMsg: 'Elements from useElement() should be used.',
       },
     },
@@ -467,7 +467,7 @@ tests.addInvalidWithOptions(
     {
       data: {
         prop: 'data',
-        varName: 'chatMessages',
+        fnName: 'chatMessagesList.useListQuery',
         customMsg: 'Chat messages should be used.',
       },
     },
@@ -576,7 +576,7 @@ tests.addInvalidWithOptions(
   {
     varsToCheck: [{ fromFnCall: 'useActionFn', prop: 'call' }],
   },
-  [{ data: { prop: 'call', varName: 'onConfirm', customMsg: '' } }],
+  [{ data: { prop: 'call', fnName: 'useActionFn', customMsg: '' } }],
 )
 
 tests.addValid(
@@ -612,6 +612,403 @@ tests.addValid(
   `,
   {
     varsToCheck: [{ fromFnCall: '*.useItem', prop: 'data' }],
+  },
+)
+
+tests.addValid(
+  'multiple props - all accessed via member expression',
+  `
+    const result = createTest()
+    console.log(result.data)
+    console.log(result.loading)
+  `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: ['data', 'loading'],
+        errorMsg: 'Both data and loading should be used.',
+      },
+    ],
+  },
+)
+
+tests.addValid(
+  'multiple props - all accessed via destructuring',
+  `
+    const result = createTest()
+    const { data, loading } = result
+    console.log(data, loading)
+  `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: ['data', 'loading'],
+        errorMsg: 'Both data and loading should be used.',
+      },
+    ],
+  },
+)
+
+tests.addValid(
+  'multiple props - mixed access patterns',
+  `
+    const result = createTest()
+    console.log(result.data)
+    const { loading } = result
+    console.log(loading)
+  `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: ['data', 'loading'],
+        errorMsg: 'Both data and loading should be used.',
+      },
+    ],
+  },
+)
+
+tests.addValid(
+  'multiple props - variable passed entirely',
+  `
+    const result = createTest()
+    doSomething(result)
+  `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: ['data', 'loading'],
+        errorMsg: 'Both data and loading should be used.',
+      },
+    ],
+  },
+)
+
+tests.addInvalidWithOptions(
+  'multiple props - only one accessed',
+  `
+    const result = createTest()
+    console.log(result.data)
+  `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: ['data', 'loading'],
+        errorMsg: 'Both data and loading should be used.',
+      },
+    ],
+  },
+  [
+    {
+      data: {
+        prop: 'loading',
+        fnName: 'createTest',
+        customMsg: 'Both data and loading should be used.',
+      },
+    },
+  ],
+)
+
+tests.addInvalidWithOptions(
+  'multiple props - none accessed',
+  `
+    const result = createTest()
+    console.log('no props accessed')
+  `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: ['data', 'loading'],
+        errorMsg: 'Both data and loading should be used.',
+      },
+    ],
+  },
+  [
+    {
+      messageId: 'propsNotRead',
+      data: {
+        props: '"data", "loading"',
+        fnName: 'createTest',
+        customMsg: 'Both data and loading should be used.',
+      },
+    },
+  ],
+)
+
+tests.addInvalidWithOptions(
+  'multiple props - partial destructuring',
+  `
+    const result = createTest()
+    const { data } = result
+    console.log(data)
+  `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: ['data', 'loading', 'error'],
+        errorMsg: 'All props should be used.',
+      },
+    ],
+  },
+  [
+    {
+      messageId: 'propsNotRead',
+      data: {
+        props: '"loading", "error"',
+        fnName: 'createTest',
+        customMsg: 'All props should be used.',
+      },
+    },
+  ],
+)
+
+tests.addValid(
+  'multiple props - accessing different property not required',
+  `
+    const result = createTest()
+    console.log(result.data)
+    console.log(result.loading)
+    console.log(result.otherProp)
+  `,
+  {
+    varsToCheck: [
+      {
+        selector:
+          'VariableDeclarator[init.type="CallExpression"][init.callee.name="createTest"]',
+        prop: ['data', 'loading'],
+        errorMsg: 'Both data and loading should be used.',
+      },
+    ],
+  },
+)
+
+// Direct destructuring tests
+tests.addValid(
+  'direct destructuring - single required prop present',
+  `
+    const { data } = useQuery()
+    console.log(data)
+  `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: 'useQuery',
+        prop: 'data',
+        errorMsg: 'The data should be used.',
+      },
+    ],
+  },
+)
+
+tests.addInvalidWithOptions(
+  'direct destructuring - single required prop missing',
+  `
+    const { isLoading } = useQuery()
+    console.log(isLoading)
+  `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: 'useQuery',
+        prop: 'data',
+        errorMsg: 'The data should be used.',
+      },
+    ],
+  },
+  [
+    {
+      data: {
+        prop: 'data',
+        fnName: 'useQuery',
+        customMsg: 'The data should be used.',
+      },
+    },
+  ],
+)
+
+tests.addValid(
+  'direct destructuring - multiple required props present',
+  `
+    const { data, isLoading } = useQuery()
+    console.log(data, isLoading)
+  `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: 'useQuery',
+        prop: ['data', 'isLoading'],
+        errorMsg: 'Both data and isLoading should be destructured.',
+      },
+    ],
+  },
+)
+
+tests.addInvalidWithOptions(
+  'direct destructuring - multiple required props partial',
+  `
+    const { data } = useQuery()
+    console.log(data)
+  `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: 'useQuery',
+        prop: ['data', 'isLoading'],
+        errorMsg: 'Both data and isLoading should be destructured.',
+      },
+    ],
+  },
+  [
+    {
+      data: {
+        prop: 'isLoading',
+        fnName: 'useQuery',
+        customMsg: 'Both data and isLoading should be destructured.',
+      },
+    },
+  ],
+)
+
+tests.addInvalidWithOptions(
+  'direct destructuring - multiple required props none present',
+  `
+    const { error } = useQuery()
+    console.log(error)
+  `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: 'useQuery',
+        prop: ['data', 'isLoading'],
+        errorMsg: 'Both data and isLoading should be destructured.',
+      },
+    ],
+  },
+  [
+    {
+      messageId: 'propsNotRead',
+      data: {
+        props: '"data", "isLoading"',
+        fnName: 'useQuery',
+        customMsg: 'Both data and isLoading should be destructured.',
+      },
+    },
+  ],
+)
+
+tests.addValid(
+  'direct destructuring - wildcard member call',
+  `
+    const { data } = api.useElement()
+    console.log(data)
+  `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: '*.useElement',
+        prop: 'data',
+        errorMsg: 'Element data should be destructured.',
+      },
+    ],
+  },
+)
+
+tests.addInvalidWithOptions(
+  'direct destructuring - wildcard member call missing prop',
+  `
+    const { status } = store.useElement()
+    console.log(status)
+  `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: '*.useElement',
+        prop: 'data',
+        errorMsg: 'Element data should be destructured.',
+      },
+    ],
+  },
+  [
+    {
+      data: {
+        prop: 'data',
+        fnName: '*.useElement',
+        customMsg: 'Element data should be destructured.',
+      },
+    },
+  ],
+)
+
+tests.addValid(
+  'direct destructuring - specific member call',
+  `
+    const { data } = chatMessagesList.useListQuery()
+    console.log(data)
+  `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: 'chatMessagesList.useListQuery',
+        prop: 'data',
+        errorMsg: 'Chat messages data should be destructured.',
+      },
+    ],
+  },
+)
+
+tests.addInvalidWithOptions(
+  'direct destructuring - specific member call missing prop',
+  `
+    const { loading } = chatMessagesList.useListQuery()
+    console.log(loading)
+  `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: 'chatMessagesList.useListQuery',
+        prop: 'data',
+        errorMsg: 'Chat messages data should be destructured.',
+      },
+    ],
+  },
+  [
+    {
+      data: {
+        prop: 'data',
+        fnName: 'chatMessagesList.useListQuery',
+        customMsg: 'Chat messages data should be destructured.',
+      },
+    },
+  ],
+)
+
+tests.addValid(
+  'direct destructuring - extra props allowed',
+  `
+    const { data, isLoading, error, extra } = useQuery()
+    console.log(data, isLoading, error, extra)
+  `,
+  {
+    varsToCheck: [
+      {
+        fromFnCall: 'useQuery',
+        prop: ['data', 'isLoading'],
+        errorMsg: 'Required props should be destructured.',
+      },
+    ],
   },
 )
 
