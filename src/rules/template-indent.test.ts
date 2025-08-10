@@ -704,7 +704,6 @@ tests.addInvalid(
 tests.addValid(
   'trailing spaces matching the indent should be allowed',
   fixInput(`
-      /* HTML */
       const template = dedent\`
       ••<div>
       ••••<span>hello</span>
