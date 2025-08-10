@@ -727,4 +727,22 @@ tests.addInvalid(
   },
 )
 
+tests.only.addValid(
+  'lines with empty spaces in toMatchInlineSnapshot',
+  fixInput(`
+    describe('test', () => {
+    ••test('should adjust floating button tableId references', () => {
+    ••••expect(structure).toMatchInlineSnapshot(\`
+    ••••••"
+    ••••••homePage:
+    ••••••••createRecordFloatingButton: { tableId: 'hash_id_1', label: 'Add Main Record' }
+    ••••••
+    ••••••subPages:
+    ••••••"
+    ••••\`);
+    ••});
+    });
+  `),
+)
+
 tests.run()

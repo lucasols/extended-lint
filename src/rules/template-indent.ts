@@ -327,7 +327,9 @@ export const templateIndent = createExtendedLintRule<
 
       const normalizedJoined = joinedLines
         .map((line, i) =>
-          i !== joinedLines.length - 1 && line === indentStr ? '' : line,
+          i !== joinedLines.length - 1 && line === indentStr + parentMargin
+            ? ''
+            : line,
         )
         .join(joiner)
 
