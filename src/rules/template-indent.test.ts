@@ -727,7 +727,7 @@ tests.addInvalid(
   },
 )
 
-tests.only.addValid(
+tests.addValid(
   'lines with empty spaces in toMatchInlineSnapshot',
   fixInput(`
     describe('test', () => {
