@@ -13,298 +13,705 @@ const fixInput = (text: string): string => {
     .replaceAll('→→', '\t')
 }
 
-tests.addValid('single line template', `foo = dedent\`one two three\``)
-
-tests.addValid(
-  'template without tag or function',
-  `const text = \`
-      Hello
-      World
-    \``,
-)
-
-tests.addValid('empty template', `\`\``)
-
 tests.addInvalid(
-  'improperly indented template with dedent tag',
+  'basic dedent template',
   fixInput(`
-      foo = dedent\`
-      ••••••••one
-      ••••••••two
-      ••••••••••three
-      ••••••••\`
-    `),
+    foo = dedent\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+  `),
   1,
   {
     output: fixInput(`
-        foo = dedent\`
-        one
-        ••two
-        ••••three
-        \`
-      `),
-  },
-)
-
-tests.addInvalid(
-  'improperly indented with CRLF line endings',
-  ['dedent`', 'one', 'two', '`'].join('\r\n'),
-  1,
-  {
-    output: ['dedent`', 'one', '  two', '`'].join('\r\n'),
-  },
-)
-
-tests.addInvalid(
-  'improperly indented template with function',
-  fixInput(`
-      function foo() {
-      ••return dedent\`
-      ••••••••one
-      ••••••••two
-      ••••••••••three
-      ••••••••\`
-      }
-    `),
-  1,
-  {
-    output: fixInput(`
-        function foo() {
-        ••return dedent\`
-        one
-        ••••two
-        ••••••three
-        ••\`
-        }
-      `),
-  },
-)
-
-tests.addInvalid(
-  'gql template with improper indentation',
-  fixInput(`
-      foo = gql\`
-      ••••••••query GetUser {
-      ••••••••••user {
-      ••••••••••••id
-      ••••••••••}
-      ••••••••}
-      ••••••••\`
-    `),
-  1,
-  {
-    output: fixInput(`
-        foo = gql\`
-        query GetUser {
-        ••••user {
-        ••••••id
-        ••••}
-        ••}
-        \`
-      `),
-  },
-)
-
-tests.addInvalid(
-  'stripIndent function call',
-  fixInput(`
-      foo = stripIndent(\`
-      ••••••••one
-      ••••••••two
-      ••••••••••three
-      ••••••••\`)
-    `),
-  1,
-  {
-    output: fixInput(`
-        foo = stripIndent(\`
-        one
-        ••two
-        ••••three
-        \`)
-      `),
-  },
-)
-
-tests.addInvalid(
-  'HTML comment',
-  fixInput(`
-      html = /* HTML */ \`
-      ••••••••<div>
-      ••••••••••<span>hello</span>
-      ••••••••</div>
-      ••••••••\`
-    `),
-  1,
-  {
-    output: fixInput(`
-        html = /* HTML */ \`
-        <div>
-        ••••<span>hello</span>
-        ••</div>
-        \`
-      `),
-  },
-)
-
-tests.addInvalid(
-  'jest inline snapshot',
-  fixInput(`
-      expect(foo).toMatchInlineSnapshot(\`
-      ••••one
-      ••••••three
-      ••••\`)
-    `),
-  1,
-  {
-    output: fixInput(`
-        expect(foo).toMatchInlineSnapshot(\`
-        one
-        ••••three
-        \`)
-      `),
-  },
-)
-
-tests.addInvalidWithOptions(
-  'custom indent size',
-  fixInput(`
       foo = dedent\`
       ••one
       ••two
       ••••three
       \`
     `),
-  { indent: 4 },
+  },
+)
+
+tests.addInvalid(
+  'CRLF line endings',
+  ['dedent`', 'one', 'two', '`'].join('\r\n'),
   1,
   {
-    output: fixInput(`
-        foo = dedent\`
-        one
-        ••••two
-        ••••••three
-        \`
-      `),
+    output: ['dedent`', '  one', '  two', '`'].join('\r\n'),
   },
 )
 
 tests.addInvalidWithOptions(
-  'custom tag',
+  'custom indentable tag',
   fixInput(`
-      foo = customTag\`
-      ••••••••one
-      ••••••••two
-      ••••••••\`
-    `),
-  { tags: ['customTag'] },
+    foo = customIndentableTag\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+    foo = differentTagThatMightBeWhitespaceSensitive\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+    foo = \`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+  `),
+  { tags: ['customIndentableTag'] },
   1,
   {
     output: fixInput(`
-        foo = customTag\`
-        one
-        ••two
-        \`
-      `),
+      foo = customIndentableTag\`
+      ••one
+      ••two
+      ••••three
+      \`
+      foo = differentTagThatMightBeWhitespaceSensitive\`
+      ••••••••one
+      ••••••••two
+      ••••••••••three
+      ••••••••\`
+      foo = \`
+      ••••••••one
+      ••••••••two
+      ••••••••••three
+      ••••••••\`
+    `),
   },
 )
 
 tests.addInvalidWithOptions(
   'member expression tag',
   fixInput(`
-      foo = utils.dedent\`
-      ••••••••one
-      ••••••••two
-      ••••••••\`
-    `),
+    foo = utils.dedent\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+  `),
   { tags: ['utils.dedent'] },
   1,
   {
     output: fixInput(`
-        foo = utils.dedent\`
-        one
-        ••two
-        \`
-      `),
+      foo = utils.dedent\`
+      ••one
+      ••two
+      ••••three
+      \`
+    `),
   },
 )
 
-tests.addInvalidWithOptions(
-  'custom function',
+tests.addInvalid(
+  'function context indentation',
   fixInput(`
-      foo = customFunction(\`
-      ••••••••one
-      ••••••••two
-      ••••••••\`)
-    `),
-  { functions: ['customFunction'] },
+    function foo() {
+    ••return dedent\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+    }
+  `),
   1,
   {
     output: fixInput(`
-        foo = customFunction(\`
-        one
-        ••two
-        \`)
-      `),
+      function foo() {
+      ••return dedent\`
+      ••••one
+      ••••two
+      ••••••three
+      ••\`
+      }
+    `),
+  },
+)
+
+tests.addInvalid(
+  'complex template with expressions',
+  fixInput(`
+    // a
+    // bb
+    // ccc
+    // dddd
+    function foo() {
+    ••return dedent\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three \${3} four
+    ••••••••••••five
+    ••••••••••••••\${{f: 5}}
+    ••••••••••••six
+    ••••••••\`
+    }
+  `),
+  1,
+  {
+    output: fixInput(`
+      // a
+      // bb
+      // ccc
+      // dddd
+      function foo() {
+      ••return dedent\`
+      ••••one
+      ••••two
+      ••••••three \${3} four
+      ••••••••five
+      ••••••••••\${{f: 5}}
+      ••••••••six
+      ••\`
+      }
+    `),
+  },
+)
+
+tests.addInvalid(
+  'multiple template tags',
+  fixInput(`
+    foo = gql\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+    foo = sql\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+    foo = dedent\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+    foo = outdent\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+    foo = somethingElse\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+  `),
+  4,
+  {
+    output: fixInput(`
+      foo = gql\`
+      ••one
+      ••two
+      ••••three
+      \`
+      foo = sql\`
+      ••one
+      ••two
+      ••••three
+      \`
+      foo = dedent\`
+      ••one
+      ••two
+      ••••three
+      \`
+      foo = outdent\`
+      ••one
+      ••two
+      ••••three
+      \`
+      foo = somethingElse\`
+      ••••••••one
+      ••••••••two
+      ••••••••••three
+      ••••••••\`
+    `),
+  },
+)
+
+tests.addInvalid(
+  'stripIndent function',
+  fixInput(`
+    foo = stripIndent(\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`)
+  `),
+  1,
+  {
+    output: fixInput(`
+      foo = stripIndent(\`
+      ••one
+      ••two
+      ••••three
+      \`)
+    `),
+  },
+)
+
+tests.addInvalid(
+  'HTML comment',
+  fixInput(`
+    html = /* HTML */ \`
+    ••••••••<div>
+    ••••••••••<span>hello</span>
+    ••••••••</div>
+    ••••••••\`
+  `),
+  1,
+  {
+    output: fixInput(`
+      html = /* HTML */ \`
+      ••<div>
+      ••••<span>hello</span>
+      ••</div>
+      \`
+    `),
+  },
+)
+
+tests.addInvalid(
+  'html lowercase comment',
+  fixInput(`
+    html = /* html */ \`
+    ••••••••<div>
+    ••••••••••<span>hello</span>
+    ••••••••</div>
+    ••••••••\`
+  `),
+  1,
+  {
+    output: fixInput(`
+      html = /* html */ \`
+      ••<div>
+      ••••<span>hello</span>
+      ••</div>
+      \`
+    `),
+  },
+)
+
+tests.addInvalid(
+  'indent comment',
+  fixInput(`
+    html = /* indent */ \`
+    ••••••••<div>
+    ••••••••••<span>hello</span>
+    ••••••••</div>
+    ••••••••\`
+  `),
+  1,
+  {
+    output: fixInput(`
+      html = /* indent */ \`
+      ••<div>
+      ••••<span>hello</span>
+      ••</div>
+      \`
+    `),
   },
 )
 
 tests.addInvalidWithOptions(
   'custom comment',
   fixInput(`
-      /* HTML */
-      const template = \`
-      ••••••••<div>
-      ••••••••••<span>hello</span>
-      ••••••••</div>
-      ••••••••\`
-    `),
-  { comments: ['HTML'] },
+    html = /* please indent me! */ \`
+    ••••••••<div>
+    ••••••••••<span>hello</span>
+    ••••••••</div>
+    ••••••••\`
+  `),
+  { comments: ['please indent me!'] },
   1,
   {
     output: fixInput(`
-        /* HTML */
-        const template = \`
-        <div>
-        ••••<span>hello</span>
-        ••</div>
-        \`
-      `),
+      html = /* please indent me! */ \`
+      ••<div>
+      ••••<span>hello</span>
+      ••</div>
+      \`
+    `),
   },
 )
 
-tests.addValid(
-  'disabled tags',
+tests.addInvalidWithOptions(
+  'custom indent number',
   fixInput(`
+    foo = dedent\`
+    ••one
+    ••two
+    ••••three
+    \`
+  `),
+  { indent: 10 },
+  1,
+  {
+    output: fixInput(`
       foo = dedent\`
-      ••••••••one
-      ••••••••two
-      ••••••••\`
+      ••••••••••one
+      ••••••••••two
+      ••••••••••••three
+      \`
     `),
-  { tags: [] },
+  },
+)
+
+tests.addInvalidWithOptions(
+  'custom indent string',
+  fixInput(`
+    foo = dedent\`
+    ••one
+    ••two
+    ••••three
+    \`
+  `),
+  { indent: '\t\t\t\t' },
+  1,
+  {
+    output: fixInput(`
+      foo = dedent\`
+      →→→→→→→→one
+      →→→→→→→→two
+      →→→→→→→→••three
+      \`
+    `),
+  },
+)
+
+tests.addInvalidWithOptions(
+  'custom functions',
+  fixInput(`
+    foo = customDedentFunction1(\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`)
+    foo = utils.customDedentFunction2('some-other-arg', \`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`)
+  `),
+  { functions: ['customDedentFunction1', 'utils.customDedentFunction2'] },
+  2,
+  {
+    output: fixInput(`
+      foo = customDedentFunction1(\`
+      ••one
+      ••two
+      ••••three
+      \`)
+      foo = utils.customDedentFunction2('some-other-arg', \`
+      ••one
+      ••two
+      ••••three
+      \`)
+    `),
+  },
+)
+
+tests.addInvalid(
+  'template with expressions',
+  fixInput(`
+    outdent\`
+    before
+    before\${
+    expression
+    }after
+    after
+    \`
+  `),
+  1,
+  {
+    output: fixInput(`
+      outdent\`
+      ••before
+      ••before\${
+      expression
+      }after
+      ••after
+      \`
+    `),
+  },
+)
+
+tests.addInvalid(
+  'nested template',
+  fixInput(`
+    outdent\`
+    ••before
+    ••before\${
+    →→→→→→outdent\`
+    inner
+    →→→→→→\`
+    }after
+    ••after
+    \`
+  `),
+  1,
+  {
+    output: fixInput(`
+      outdent\`
+      ••before
+      ••before\${
+      →→→→→→outdent\`
+      →→→→→→→→inner
+      →→→→→→\`
+      }after
+      ••after
+      \`
+    `),
+  },
+)
+
+tests.addInvalid(
+  'lines with whitespaces are kept trimmed',
+  fixInput(`
+    outdent\`
+    ••Line1
+    ••
+    ••Line2
+    \`
+  `),
+  1,
+  {
+    output: fixInput(`
+      outdent\`
+      ••Line1
+
+      ••Line2
+      \`
+    `),
+  },
+)
+
+tests.addValid('single line template', 'foo = dedent`one two three`')
+
+tests.addValid(
+  'properly indented tabs',
+  fixInput(`
+    function f() {
+    →→foo = dedent\`
+    →→→→one
+    →→→→two
+    →→→→→→three
+    →→→→four
+    →→\`
+    }
+  `),
 )
 
 tests.addValid(
-  'disabled functions',
+  'properly indented with empty lines',
   fixInput(`
-      foo = stripIndent(\`
-      ••••••••one
-      ••••••••two
-      ••••••••\`)
-    `),
-  { functions: [] },
+    function f() {
+    →→foo = dedent\`
+    →→→→one
+
+    →→→→two
+    →→→→→→three
+    →→→→four
+    →→\`
+    }
+  `),
 )
+
+tests.addValid(
+  'properly indented spaces',
+  fixInput(`
+    function f() {
+    ••foo = dedent\`
+    ••••one
+    ••••two
+    ••••••three
+    ••••four
+    ••\`
+    }
+  `),
+)
+
+tests.addValid(
+  'disabled tags and functions',
+  fixInput(`
+    foo = stripIndent(\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`)
+    foo = dedent\`
+    ••••••••one
+    ••••••••two
+    ••••••••••three
+    ••••••••\`
+  `),
+  {
+    tags: ['somethingOtherThanDedent'],
+    functions: ['somethingOtherThanStripIndent'],
+  },
+)
+
+tests.addValid('function without template', 'stripIndent(foo)')
+
+tests.addValid('empty template', '``')
 
 tests.addValid(
   'disabled comments',
   fixInput(`
-      /* HTML */
-      const template = \`
-      ••••••••<div>
-      ••••••••••<span>hello</span>
-      ••••••••</div>
-      ••••••••\`
-    `),
+    foo = /* indent */ \`
+    ••••••one
+    ••••••two
+    ••••••••three
+    \`
+  `),
   { comments: [] },
+)
+
+tests.addValid(
+  'properly indented with expressions',
+  fixInput(`
+    outdent\`
+    ••before
+    ••before\${
+    expression
+    }after
+    ••after
+    \`
+  `),
+)
+
+tests.addValid(
+  'nested normal template',
+  fixInput(`
+    outdent\`
+    ••before
+    ••before\${
+    ••••••normalTemplate\`
+    inner
+    ••••••\`
+    }after
+    ••after
+    \`
+  `),
+)
+
+tests.addValid(
+  'trailing spaces in last line preserved',
+  fixInput(`
+    outdent\`
+    ••Line with trailing spaces••••
+    \`
+  `),
+)
+
+tests.addValid(
+  'trailing spaces in non-last line preserved',
+  fixInput(`
+    outdent\`
+    ••Line with trailing spaces••••
+    ••Line without trailing spaces
+    \`
+  `),
+)
+
+tests.addValid(
+  'empty lines preserved',
+  fixInput(`
+    outdent\`
+    ••Line1
+
+    ••Line2
+    \`
+  `),
+)
+
+tests.addValid(
+  'expect toMatchInlineSnapshot valid',
+  'expect(foo)[toMatchInlineSnapshot](`\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'expect toMatchInlineSnapshot optional call',
+  'expect(foo).toMatchInlineSnapshot?.(`\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'expect toMatchInlineSnapshot optional chaining',
+  'expect(foo)?.toMatchInlineSnapshot(`\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'expect toMatchInlineSnapshot with extra argument after',
+  'expect(foo).toMatchInlineSnapshot(`\n  one\n    three\n  `, extraArgument)',
+)
+tests.addValid(
+  'expect toMatchInlineSnapshot with extra argument before',
+  'expect(foo).toMatchInlineSnapshot(extraArgument, `\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'expect toMatchInlineSnapshot no args',
+  'expect(foo).toMatchInlineSnapshot()',
+)
+tests.addValid(
+  'expect with extra argument',
+  'expect(foo, extraArgument).toMatchInlineSnapshot(`\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'expect empty call',
+  'expect().toMatchInlineSnapshot(`\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'not toMatchInlineSnapshot',
+  'expect(foo).notToMatchInlineSnapshot(`\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'assert expect',
+  'assert.expect(foo).toMatchInlineSnapshot(`\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'expect property access',
+  'expect.toMatchInlineSnapshot(`\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'not expect function',
+  'notExpect(foo).toMatchInlineSnapshot(`\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'new expect',
+  'new expect(foo).toMatchInlineSnapshot(`\n  one\n    three\n  `)',
+)
+tests.addValid(
+  'new expect call',
+  'new (expect(foo).toMatchInlineSnapshot)(`\n  one\n    three\n  `)',
+)
+
+tests.addValid(
+  'properly indented snapshot',
+  fixInput(`
+    expect(foo).toMatchInlineSnapshot(\`
+    ••foo
+    ••bar
+    \`)
+  `),
+)
+
+tests.addInvalid(
+  'expect toMatchInlineSnapshot',
+  fixInput(`
+    expect(foo).toMatchInlineSnapshot(\`
+    ••••one
+    ••••••three
+    ••••\`)
+  `),
+  1,
+  {
+    output: fixInput(`
+      expect(foo).toMatchInlineSnapshot(\`
+      one
+      ••••three
+      \`)
+    `),
+  },
 )
 
 tests.addValid(
