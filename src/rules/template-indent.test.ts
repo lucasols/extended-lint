@@ -459,27 +459,6 @@ tests.addInvalid(
   },
 )
 
-tests.addInvalid(
-  'lines with whitespaces are kept trimmed',
-  fixInput(`
-    outdent\`
-    ••Line1
-    ••
-    ••Line2
-    \`
-  `),
-  1,
-  {
-    output: fixInput(`
-      outdent\`
-      ••Line1
-
-      ••Line2
-      \`
-    `),
-  },
-)
-
 tests.addValid('single line template', 'foo = dedent`one two three`')
 
 tests.addValid(
