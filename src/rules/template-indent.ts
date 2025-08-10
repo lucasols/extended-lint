@@ -2,6 +2,7 @@ import {
   AST_NODE_TYPES,
   AST_TOKEN_TYPES,
   TSESTree,
+  TSESLint,
 } from '@typescript-eslint/utils'
 import * as z from 'zod/v4'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
@@ -96,23 +97,6 @@ export const templateIndent = createExtendedLintRule<
       return null
     }
 
-    function getFunctionName(callee: TSESTree.Expression): string | null {
-      if (callee.type === AST_NODE_TYPES.Identifier) {
-        return callee.name
-      }
-      if (callee.type === AST_NODE_TYPES.MemberExpression) {
-        const object =
-          callee.object.type === AST_NODE_TYPES.Identifier
-            ? callee.object.name
-            : null
-        const property =
-          callee.property.type === AST_NODE_TYPES.Identifier
-            ? callee.property.name
-            : null
-        return object && property ? `${object}.${property}` : property
-      }
-      return null
-    }
 
     function isNodeMatches(
       node: TSESTree.Node | null,
@@ -217,12 +201,7 @@ export const templateIndent = createExtendedLintRule<
         return false
       }
 
-      const {
-        name,
-        argumentsLength,
-        optionalCall = true,
-        optionalMember = true,
-      } = options
+      const { name, argumentsLength, optionalCall = true } = options
 
       if (
         argumentsLength !== undefined &&
@@ -253,8 +232,7 @@ export const templateIndent = createExtendedLintRule<
         node.parent.type === AST_NODE_TYPES.CallExpression &&
         node.parent.arguments[0] === node &&
         isCallExpression(
-          node.parent.type === AST_NODE_TYPES.CallExpression &&
-            node.parent.callee.type === AST_NODE_TYPES.MemberExpression
+          node.parent.callee.type === AST_NODE_TYPES.MemberExpression
             ? node.parent.callee.object
             : null,
           {
@@ -320,7 +298,7 @@ export const templateIndent = createExtendedLintRule<
       if (!startLine) return
 
       const marginMatch = startLine.match(/^(\s*)\S/)
-      const parentMargin = marginMatch ? marginMatch[1] : ''
+      const parentMargin = marginMatch?.[1] ?? ''
 
       let indentStr: string
       if (typeof indent === 'string') {
@@ -351,7 +329,7 @@ export const templateIndent = createExtendedLintRule<
       return {
         node,
         messageId: 'improperlyIndented' as const,
-        fix: (fixer: any) =>
+        fix: (fixer: TSESLint.RuleFixer) =>
           fixed
             .split(delimiter)
             .map((replacement, index) => {
