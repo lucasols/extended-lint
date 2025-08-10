@@ -13,7 +13,6 @@ const optionsSchema = z.object({
   tags: z.array(z.string()).optional(),
   functions: z.array(z.string()).optional(),
   comments: z.array(z.string()).optional(),
-  selectors: z.array(z.string()).optional(),
 })
 
 type Options = z.infer<typeof optionsSchema>
@@ -41,7 +40,6 @@ export const templateIndent = createExtendedLintRule<
       comments = ['HTML', 'indent'],
       functions = ['dedent', 'stripIndent'],
       tags = ['outdent', 'dedent', 'gql', 'sql', 'html', 'styled'],
-      selectors = [],
       indent,
     } = context.options[0]
 
@@ -68,12 +66,18 @@ export const templateIndent = createExtendedLintRule<
       return lines.map((line) => line.slice(minIndent)).join('\n')
     }
 
-    function indentString(str: string, count: number, indentStr: string): string {
+    function indentString(
+      str: string,
+      count: number,
+      indentStr: string,
+    ): string {
       const lines = str.split(/\r?\n/)
-      return lines.map((line) => {
-        if (line.trim() === '') return line
-        return indentStr.repeat(count) + line
-      }).join('\n')
+      return lines
+        .map((line) => {
+          if (line.trim() === '') return line
+          return indentStr.repeat(count) + line
+        })
+        .join('\n')
     }
 
     function getTagName(tag: TSESTree.Expression): string | null {
@@ -110,9 +114,12 @@ export const templateIndent = createExtendedLintRule<
       return null
     }
 
-    function isNodeMatches(node: TSESTree.Node | null, patterns: string[]): boolean {
+    function isNodeMatches(
+      node: TSESTree.Node | null,
+      patterns: string[],
+    ): boolean {
       if (!node) return false
-      
+
       for (const pattern of patterns) {
         if (pattern.includes('.')) {
           const parts = pattern.split('.')
@@ -126,21 +133,27 @@ export const templateIndent = createExtendedLintRule<
             return true
           }
         } else {
-          if (node.type === AST_NODE_TYPES.Identifier && node.name === pattern) {
+          if (
+            node.type === AST_NODE_TYPES.Identifier &&
+            node.name === pattern
+          ) {
             return true
           }
         }
       }
-      
+
       return false
     }
 
-    function isTaggedTemplateLiteral(node: TSESTree.TemplateLiteral, tagPatterns: string[]): boolean {
+    function isTaggedTemplateLiteral(
+      node: TSESTree.TemplateLiteral,
+      tagPatterns: string[],
+    ): boolean {
       const parent = node.parent
       if (parent.type !== AST_NODE_TYPES.TaggedTemplateExpression) {
         return false
       }
-      
+
       const tagName = getTagName(parent.tag)
       return tagName ? tagPatterns.includes(tagName) : false
     }
@@ -152,34 +165,42 @@ export const templateIndent = createExtendedLintRule<
         argumentsLength?: number
         optionalCall?: boolean
         optionalMember?: boolean
-      }
+      },
     ): boolean {
       if (!node || node.type !== AST_NODE_TYPES.CallExpression) {
         return false
       }
-      
-      const { method, argumentsLength, optionalCall = true, optionalMember = true } = options
-      
-      if (argumentsLength !== undefined && node.arguments.length !== argumentsLength) {
+
+      const {
+        method,
+        argumentsLength,
+        optionalCall = true,
+        optionalMember = true,
+      } = options
+
+      if (
+        argumentsLength !== undefined &&
+        node.arguments.length !== argumentsLength
+      ) {
         return false
       }
-      
+
       if (!optionalCall && node.optional) {
         return false
       }
-      
+
       if (node.callee.type !== AST_NODE_TYPES.MemberExpression) {
         return false
       }
-      
+
       if (!optionalMember && node.callee.optional) {
         return false
       }
-      
+
       if (node.callee.property.type !== AST_NODE_TYPES.Identifier) {
         return false
       }
-      
+
       return node.callee.property.name === method
     }
 
@@ -190,26 +211,34 @@ export const templateIndent = createExtendedLintRule<
         argumentsLength?: number
         optionalCall?: boolean
         optionalMember?: boolean
-      }
+      },
     ): boolean {
       if (!node || node.type !== AST_NODE_TYPES.CallExpression) {
         return false
       }
-      
-      const { name, argumentsLength, optionalCall = true, optionalMember = true } = options
-      
-      if (argumentsLength !== undefined && node.arguments.length !== argumentsLength) {
+
+      const {
+        name,
+        argumentsLength,
+        optionalCall = true,
+        optionalMember = true,
+      } = options
+
+      if (
+        argumentsLength !== undefined &&
+        node.arguments.length !== argumentsLength
+      ) {
         return false
       }
-      
+
       if (!optionalCall && node.optional) {
         return false
       }
-      
+
       if (node.callee.type !== AST_NODE_TYPES.Identifier) {
         return false
       }
-      
+
       return node.callee.name === name
     }
 
@@ -225,7 +254,7 @@ export const templateIndent = createExtendedLintRule<
         node.parent.arguments[0] === node &&
         isCallExpression(
           node.parent.type === AST_NODE_TYPES.CallExpression &&
-          node.parent.callee.type === AST_NODE_TYPES.MemberExpression
+            node.parent.callee.type === AST_NODE_TYPES.MemberExpression
             ? node.parent.callee.object
             : null,
           {
@@ -233,7 +262,7 @@ export const templateIndent = createExtendedLintRule<
             argumentsLength: 1,
             optionalCall: false,
             optionalMember: false,
-          }
+          },
         )
       )
     }
@@ -286,7 +315,8 @@ export const templateIndent = createExtendedLintRule<
       }
 
       const eol = eolMatch[0]
-      const startLine = sourceCode.lines[sourceCode.getLocFromIndex(node.range[0]).line - 1]
+      const startLine =
+        sourceCode.lines[sourceCode.getLocFromIndex(node.range[0]).line - 1]
       if (!startLine) return
 
       const marginMatch = startLine.match(/^(\s*)\S/)
@@ -305,10 +335,14 @@ export const templateIndent = createExtendedLintRule<
       const dedented = stripIndent(joined)
       const trimmed = dedented.replace(
         new RegExp(`^${eol}|${eol}[ \t]*$`, 'g'),
-        ''
+        '',
       )
 
-      const fixed = eol + indentString(trimmed, 1, parentMargin + indentStr) + eol + parentMargin
+      const fixed =
+        eol +
+        indentString(trimmed, 1, parentMargin + indentStr) +
+        eol +
+        parentMargin
 
       if (fixed === joined) {
         return

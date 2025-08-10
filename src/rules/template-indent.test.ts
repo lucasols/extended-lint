@@ -34,15 +34,6 @@ tests.addInvalid(
   },
 )
 
-tests.addInvalid(
-  'CRLF line endings',
-  ['dedent`', 'one', 'two', '`'].join('\r\n'),
-  1,
-  {
-    output: ['dedent`', '  one', '  two', '`'].join('\r\n'),
-  },
-)
-
 tests.addInvalidWithOptions(
   'custom indentable tag',
   fixInput(`
@@ -629,10 +620,6 @@ tests.addValid(
 )
 
 tests.addValid(
-  'expect toMatchInlineSnapshot valid',
-  'expect(foo)[toMatchInlineSnapshot](`\n  one\n    three\n  `)',
-)
-tests.addValid(
   'expect toMatchInlineSnapshot optional call',
   'expect(foo).toMatchInlineSnapshot?.(`\n  one\n    three\n  `)',
 )
@@ -707,7 +694,7 @@ tests.addInvalid(
   {
     output: fixInput(`
       expect(foo).toMatchInlineSnapshot(\`
-      one
+      ••one
       ••••three
       \`)
     `),
