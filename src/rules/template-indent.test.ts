@@ -715,4 +715,16 @@ tests.addValid(
   { comments: [], tags: [], functions: [] },
 )
 
+tests.addValid(
+  'trailing spaces matching the indent should be allowed in toMatchInlineSnapshot',
+  fixInput(`
+    expect(foo).toMatchInlineSnapshot(\`
+    ••<div>
+    ••••<span>hello</span>
+    ••
+    ••</div>
+    \`)
+  `),
+)
+
 tests.run()
