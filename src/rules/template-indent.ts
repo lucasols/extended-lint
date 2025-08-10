@@ -1,8 +1,8 @@
 import {
   AST_NODE_TYPES,
   AST_TOKEN_TYPES,
-  TSESTree,
   TSESLint,
+  TSESTree,
 } from '@typescript-eslint/utils'
 import * as z from 'zod/v4'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
@@ -46,25 +46,36 @@ export const templateIndent = createExtendedLintRule<
 
     const normalizedComments = comments.map((comment) => comment.toLowerCase())
 
+    function stripIndent(str: string): string {
+      const lines = str.split(/\r?\n/)
 
+      const nonEmptyLines = lines.filter((line) => line.trim() !== '')
+      if (nonEmptyLines.length === 0) return str
 
+      let minIndent = Number.POSITIVE_INFINITY
+      for (const line of nonEmptyLines) {
+        const match = line.match(/^(\s*)/)
+        if (match) {
+          minIndent = Math.min(minIndent, match[1]?.length ?? 0)
+        }
+      }
 
+      if (!isFinite(minIndent) || minIndent === 0) {
+        return str
+      }
+
+      return lines.map((line) => line.slice(minIndent)).join('\n')
+    }
 
     function indentString(
       str: string,
       count: number,
       indentStr: string,
-      blankLinesToIndent?: Set<number>,
     ): string {
       const lines = str.split(/\r?\n/)
       return lines
-        .map((line, index) => {
-          if (line.trim() === '') {
-            if (blankLinesToIndent && blankLinesToIndent.has(index)) {
-              return indentStr.repeat(count)
-            }
-            return line
-          }
+        .map((line) => {
+          if (line.trim() === '') return line
           return indentStr.repeat(count) + line
         })
         .join('\n')
@@ -85,7 +96,6 @@ export const templateIndent = createExtendedLintRule<
       }
       return null
     }
-
 
     function isNodeMatches(
       node: TSESTree.Node | null,
@@ -275,7 +285,6 @@ export const templateIndent = createExtendedLintRule<
           return untrimmedText.slice(1, quasi.tail ? -1 : -2)
         })
         .join(delimiter)
-      
 
       const eolMatch = joined.match(/\r?\n/)
       if (!eolMatch) {
@@ -300,173 +309,31 @@ export const templateIndent = createExtendedLintRule<
         indentStr = tabs ? '\t' : '  '
       }
 
-      const originalLines = joined.split(eol)
-      const nonEmptyLines = originalLines.filter((line) => line.trim() !== '')
-      
-      if (nonEmptyLines.length === 0) {
-        const trimmed = joined.replace(
-          new RegExp(`^${eol}|${eol}[ \t]*$`, 'g'),
-          '',
-        )
-        const fixed =
-          eol +
-          indentString(trimmed, 1, parentMargin + indentStr) +
-          eol +
-          parentMargin
-
-        if (fixed === joined) {
-          return
-        }
-
-        return {
-          node,
-          messageId: 'improperlyIndented' as const,
-          fix: (fixer: TSESLint.RuleFixer) =>
-            fixed
-              .split(delimiter)
-              .map((replacement, index) => {
-                const quasi = node.quasis[index]
-                if (!quasi) return []
-                return fixer.replaceTextRange(
-                  [quasi.range[0] + 1, quasi.range[1] - (quasi.tail ? 1 : 2)],
-                  replacement,
-                )
-              })
-              .flat(),
-        }
-      }
-
-      let minIndent = Number.POSITIVE_INFINITY
-      for (const line of nonEmptyLines) {
-        const match = line.match(/^(\s*)/)
-        if (match) {
-          minIndent = Math.min(minIndent, match[1]?.length ?? 0)
-        }
-      }
-
-      if (!isFinite(minIndent)) {
-        minIndent = 0
-      }
-
-      const validIndentLevels = new Set<number>()
-      for (const line of nonEmptyLines) {
-        const match = line.match(/^(\s*)/)
-        if (match) {
-          validIndentLevels.add(match[1]?.length ?? 0)
-        }
-      }
-      
-      const blankLinesWithCorrectIndent = new Set<number>()
-      originalLines.forEach((line, index) => {
-        if (line.trim() === '') {
-          const lineIndent = line.length
-          if (validIndentLevels.has(lineIndent)) {
-            blankLinesWithCorrectIndent.add(index)
-          }
-        }
-      })
-
-      const dedentedLines = originalLines.map((line, index) => {
-        if (line.trim() === '') {
-          if (blankLinesWithCorrectIndent.has(index)) {
-            return ''
-          }
-          return line.slice(minIndent)
-        }
-        return line.slice(minIndent)
-      })
-      
-      const firstNonEmptyIndex = dedentedLines.findIndex(line => line.trim() !== '')
-      const lastNonEmptyIndex = dedentedLines.findLastIndex(line => line.trim() !== '')
-      
-      const contentLines = firstNonEmptyIndex === -1 
-        ? [] 
-        : dedentedLines.slice(firstNonEmptyIndex, lastNonEmptyIndex + 1)
-      
-      const adjustedBlankLines = new Set<number>()
-      for (const originalIndex of blankLinesWithCorrectIndent) {
-        const adjustedIndex = originalIndex - firstNonEmptyIndex
-        if (adjustedIndex >= 0 && adjustedIndex < contentLines.length) {
-          adjustedBlankLines.add(adjustedIndex)
-        }
-      }
-
-      const trimmed = contentLines.join(eol)
+      const dedented = stripIndent(joined)
+      const trimmed = dedented.replace(
+        new RegExp(`^${eol}|${eol}[ \t]*$`, 'g'),
+        '',
+      )
 
       const fixed =
         eol +
-        indentString(trimmed, 1, parentMargin + indentStr, adjustedBlankLines) +
+        indentString(trimmed, 1, parentMargin + indentStr) +
         eol +
         parentMargin
 
+      const joiner = joined.includes('\r\n') ? '\r\n' : '\n'
 
-      if (fixed === joined) {
+      const joinedLines = joined.split(/\r?\n/)
+
+      const normalizedJoined = joinedLines
+        .map((line, i) =>
+          i !== joinedLines.length - 1 && line === indentStr ? '' : line,
+        )
+        .join(joiner)
+
+      if (fixed === normalizedJoined) {
         return
       }
-      
-      // Check if template is acceptable with blank lines that have reasonable indentation
-      // Allow blank lines that match the indentation of surrounding non-empty lines
-      let hasAcceptableBlankLines = true
-      for (let i = 0; i < originalLines.length; i++) {
-        const line = originalLines[i]
-        if (line && line.trim() === '') {
-          const lineIndent = line.length
-          // Find surrounding non-empty lines to determine acceptable indentation
-          let prevLineIndent = -1
-          let nextLineIndent = -1
-          
-          // Look backwards for previous non-empty line
-          for (let j = i - 1; j >= 0; j--) {
-            if (originalLines[j]?.trim() !== '') {
-              const match = originalLines[j]?.match(/^(\s*)/)
-              prevLineIndent = match?.[1]?.length ?? -1
-              break
-            }
-          }
-          
-          // Look forwards for next non-empty line
-          for (let j = i + 1; j < originalLines.length; j++) {
-            if (originalLines[j]?.trim() !== '') {
-              const match = originalLines[j]?.match(/^(\s*)/)
-              nextLineIndent = match?.[1]?.length ?? -1
-              break
-            }
-          }
-          
-          // Allow blank line if its indentation matches either surrounding line or is empty
-          const isAcceptable = lineIndent === 0 || 
-                              lineIndent === prevLineIndent ||
-                              lineIndent === nextLineIndent ||
-                              (prevLineIndent !== -1 && nextLineIndent !== -1 && 
-                               lineIndent >= Math.min(prevLineIndent, nextLineIndent) &&
-                               lineIndent <= Math.max(prevLineIndent, nextLineIndent))
-          
-          if (!isAcceptable) {
-            hasAcceptableBlankLines = false
-            break
-          }
-        }
-      }
-      
-      if (hasAcceptableBlankLines && joined !== fixed) {
-        // Only accept if template has blank lines with non-zero indentation that match surrounding context
-        const hasIndentedBlankLines = originalLines.some(line => 
-          line && line.trim() === '' && line.length > 0
-        )
-        
-        // Special case: allow templates where the fix only adds consistent indentation to blank lines
-        // This handles cases like the test "trailing spaces matching the indent should be allowed"
-        const fixPattern = /\n {2}<div>\n {4}<span>hello<\/span>\n {2}\n {2}<\/div>\n/
-        if (fixPattern.test(fixed) && joined.includes('<div>') && joined.includes('<span>hello</span>')) {
-          // This matches the specific failing test pattern
-          return
-        }
-        
-        if (hasIndentedBlankLines) {
-          return
-        }
-      }
-      
 
       return {
         node,

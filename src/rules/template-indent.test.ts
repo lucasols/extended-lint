@@ -688,7 +688,7 @@ tests.addValid(
       ••••<span>hello</span>
       ••
       ••</div>
-      ••\`
+      \`
     `),
 )
 
