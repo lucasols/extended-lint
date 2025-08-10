@@ -34,8 +34,10 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
   },
   {
     defaultErrorId,
+    disableDedent,
   }: {
     defaultErrorId?: string
+    disableDedent?: boolean
   } = {},
 ) {
   const allRules = rules
@@ -76,7 +78,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
 
     valid.push({
       name: testName,
-      code: dedent(code),
+      code: disableDedent ? code : dedent(code),
       filename: fileName,
       options: ruleOptions
         ? Array.isArray(ruleOptions)
@@ -119,8 +121,8 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       name: testName,
       only,
       skip,
-      code: dedent(code),
-      output: output ? dedent(output) : undefined,
+      code: disableDedent ? code : dedent(code),
+      output: output ? (disableDedent ? output : dedent(output)) : undefined,
       options: options
         ? Array.isArray(options)
           ? options
@@ -139,7 +141,9 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
                 data: error.data,
                 suggestions: error.suggestions?.map((suggestion) => ({
                   ...suggestion,
-                  output: dedent(suggestion.output),
+                  output: disableDedent
+                    ? suggestion.output
+                    : dedent(suggestion.output),
                 })),
               }),
             ),
@@ -176,8 +180,8 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       name: testName,
       only,
       skip,
-      code: dedent(code),
-      output: output ? dedent(output) : undefined,
+      code: disableDedent ? code : dedent(code),
+      output: output ? (disableDedent ? output : dedent(output)) : undefined,
       options: options
         ? Array.isArray(options)
           ? options
@@ -196,7 +200,9 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
                 data: error.data,
                 suggestions: error.suggestions?.map((suggestion) => ({
                   ...suggestion,
-                  output: dedent(suggestion.output),
+                  output: disableDedent
+                    ? suggestion.output
+                    : dedent(suggestion.output),
                 })),
               }),
             ),
