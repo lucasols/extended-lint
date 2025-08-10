@@ -13,6 +13,7 @@ const optionsSchema = z.object({
   tags: z.array(z.string()).optional(),
   functions: z.array(z.string()).optional(),
   comments: z.array(z.string()).optional(),
+  selectors: z.array(z.string()).optional(),
 })
 
 type Options = z.infer<typeof optionsSchema>
@@ -40,20 +41,11 @@ export const templateIndent = createExtendedLintRule<
       comments = ['HTML', 'indent'],
       functions = ['dedent', 'stripIndent'],
       tags = ['outdent', 'dedent', 'gql', 'sql', 'html', 'styled'],
+      selectors = [],
       indent,
     } = context.options[0]
 
     const normalizedComments = comments.map((comment) => comment.toLowerCase())
-
-    function getIndentString(): string {
-      if (typeof indent === 'string') {
-        return indent
-      }
-      if (typeof indent === 'number') {
-        return ' '.repeat(indent)
-      }
-      return '  '
-    }
 
     function stripIndent(str: string): string {
       const lines = str.split(/\r?\n/)
@@ -74,6 +66,14 @@ export const templateIndent = createExtendedLintRule<
       }
 
       return lines.map((line) => line.slice(minIndent)).join('\n')
+    }
+
+    function indentString(str: string, count: number, indentStr: string): string {
+      const lines = str.split(/\r?\n/)
+      return lines.map((line) => {
+        if (line.trim() === '') return line
+        return indentStr.repeat(count) + line
+      }).join('\n')
     }
 
     function getTagName(tag: TSESTree.Expression): string | null {
@@ -110,59 +110,226 @@ export const templateIndent = createExtendedLintRule<
       return null
     }
 
-    function isJestInlineSnapshot(node: TSESTree.TemplateLiteral): boolean {
-      const parent = node.parent
-      if (
-        parent.type === AST_NODE_TYPES.CallExpression &&
-        parent.arguments[0] === node &&
-        parent.callee.type === AST_NODE_TYPES.MemberExpression &&
-        parent.callee.property.type === AST_NODE_TYPES.Identifier &&
-        parent.callee.property.name === 'toMatchInlineSnapshot' &&
-        parent.arguments.length === 1 &&
-        parent.callee.object.type === AST_NODE_TYPES.CallExpression &&
-        parent.callee.object.callee.type === AST_NODE_TYPES.Identifier &&
-        parent.callee.object.callee.name === 'expect' &&
-        parent.callee.object.arguments.length === 1
-      ) {
-        return true
+    function isNodeMatches(node: TSESTree.Node | null, patterns: string[]): boolean {
+      if (!node) return false
+      
+      for (const pattern of patterns) {
+        if (pattern.includes('.')) {
+          const parts = pattern.split('.')
+          if (
+            node.type === AST_NODE_TYPES.MemberExpression &&
+            node.object.type === AST_NODE_TYPES.Identifier &&
+            node.property.type === AST_NODE_TYPES.Identifier &&
+            node.object.name === parts[0] &&
+            node.property.name === parts[1]
+          ) {
+            return true
+          }
+        } else {
+          if (node.type === AST_NODE_TYPES.Identifier && node.name === pattern) {
+            return true
+          }
+        }
       }
+      
       return false
     }
 
+    function isTaggedTemplateLiteral(node: TSESTree.TemplateLiteral, tagPatterns: string[]): boolean {
+      const parent = node.parent
+      if (parent.type !== AST_NODE_TYPES.TaggedTemplateExpression) {
+        return false
+      }
+      
+      const tagName = getTagName(parent.tag)
+      return tagName ? tagPatterns.includes(tagName) : false
+    }
+
+    function isMethodCall(
+      node: TSESTree.Node | null,
+      options: {
+        method: string
+        argumentsLength?: number
+        optionalCall?: boolean
+        optionalMember?: boolean
+      }
+    ): boolean {
+      if (!node || node.type !== AST_NODE_TYPES.CallExpression) {
+        return false
+      }
+      
+      const { method, argumentsLength, optionalCall = true, optionalMember = true } = options
+      
+      if (argumentsLength !== undefined && node.arguments.length !== argumentsLength) {
+        return false
+      }
+      
+      if (!optionalCall && node.optional) {
+        return false
+      }
+      
+      if (node.callee.type !== AST_NODE_TYPES.MemberExpression) {
+        return false
+      }
+      
+      if (!optionalMember && node.callee.optional) {
+        return false
+      }
+      
+      if (node.callee.property.type !== AST_NODE_TYPES.Identifier) {
+        return false
+      }
+      
+      return node.callee.property.name === method
+    }
+
+    function isCallExpression(
+      node: TSESTree.Node | null,
+      options: {
+        name: string
+        argumentsLength?: number
+        optionalCall?: boolean
+        optionalMember?: boolean
+      }
+    ): boolean {
+      if (!node || node.type !== AST_NODE_TYPES.CallExpression) {
+        return false
+      }
+      
+      const { name, argumentsLength, optionalCall = true, optionalMember = true } = options
+      
+      if (argumentsLength !== undefined && node.arguments.length !== argumentsLength) {
+        return false
+      }
+      
+      if (!optionalCall && node.optional) {
+        return false
+      }
+      
+      if (node.callee.type !== AST_NODE_TYPES.Identifier) {
+        return false
+      }
+      
+      return node.callee.name === name
+    }
+
+    function isJestInlineSnapshot(node: TSESTree.TemplateLiteral): boolean {
+      return (
+        isMethodCall(node.parent, {
+          method: 'toMatchInlineSnapshot',
+          argumentsLength: 1,
+          optionalCall: false,
+          optionalMember: false,
+        }) &&
+        node.parent.type === AST_NODE_TYPES.CallExpression &&
+        node.parent.arguments[0] === node &&
+        isCallExpression(
+          node.parent.type === AST_NODE_TYPES.CallExpression &&
+          node.parent.callee.type === AST_NODE_TYPES.MemberExpression
+            ? node.parent.callee.object
+            : null,
+          {
+            name: 'expect',
+            argumentsLength: 1,
+            optionalCall: false,
+            optionalMember: false,
+          }
+        )
+      )
+    }
+
     function shouldIndent(node: TSESTree.TemplateLiteral): boolean {
-      const previousToken = sourceCode.getTokenBefore(node, {
-        includeComments: true,
-      })
-      if (
-        previousToken?.type === AST_TOKEN_TYPES.Block &&
-        normalizedComments.includes(previousToken.value.trim().toLowerCase())
-      ) {
-        return true
+      if (normalizedComments.length > 0) {
+        const previousToken = sourceCode.getTokenBefore(node, {
+          includeComments: true,
+        })
+        if (
+          previousToken?.type === AST_TOKEN_TYPES.Block &&
+          normalizedComments.includes(previousToken.value.trim().toLowerCase())
+        ) {
+          return true
+        }
       }
 
       if (isJestInlineSnapshot(node)) {
         return true
       }
 
-      const parent = node.parent
-      if (parent.type === AST_NODE_TYPES.TaggedTemplateExpression) {
-        const tagName = getTagName(parent.tag)
-        if (tagName && tags.includes(tagName)) {
-          return true
-        }
+      if (tags.length > 0 && isTaggedTemplateLiteral(node, tags)) {
+        return true
       }
 
       if (
-        parent.type === AST_NODE_TYPES.CallExpression &&
-        parent.arguments.includes(node)
+        functions.length > 0 &&
+        node.parent.type === AST_NODE_TYPES.CallExpression &&
+        node.parent.arguments.includes(node) &&
+        isNodeMatches(node.parent.callee, functions)
       ) {
-        const functionName = getFunctionName(parent.callee)
-        if (functionName && functions.includes(functionName)) {
-          return true
-        }
+        return true
       }
 
       return false
+    }
+
+    function getProblem(node: TSESTree.TemplateLiteral) {
+      const delimiter = `__PLACEHOLDER__${Math.random()}`
+      const joined = node.quasis
+        .map((quasi) => {
+          const untrimmedText = sourceCode.getText(quasi)
+          return untrimmedText.slice(1, quasi.tail ? -1 : -2)
+        })
+        .join(delimiter)
+
+      const eolMatch = joined.match(/\r?\n/)
+      if (!eolMatch) {
+        return
+      }
+
+      const eol = eolMatch[0]
+      const startLine = sourceCode.lines[sourceCode.getLocFromIndex(node.range[0]).line - 1]
+      if (!startLine) return
+
+      const marginMatch = startLine.match(/^(\s*)\S/)
+      const parentMargin = marginMatch ? marginMatch[1] : ''
+
+      let indentStr: string
+      if (typeof indent === 'string') {
+        indentStr = indent
+      } else if (typeof indent === 'number') {
+        indentStr = ' '.repeat(indent)
+      } else {
+        const tabs = parentMargin.startsWith('\t')
+        indentStr = tabs ? '\t' : '  '
+      }
+
+      const dedented = stripIndent(joined)
+      const trimmed = dedented.replace(
+        new RegExp(`^${eol}|${eol}[ \t]*$`, 'g'),
+        ''
+      )
+
+      const fixed = eol + indentString(trimmed, 1, parentMargin + indentStr) + eol + parentMargin
+
+      if (fixed === joined) {
+        return
+      }
+
+      return {
+        node,
+        messageId: 'improperlyIndented' as const,
+        fix: (fixer: any) =>
+          fixed
+            .split(delimiter)
+            .map((replacement, index) => {
+              const quasi = node.quasis[index]
+              if (!quasi) return []
+              return fixer.replaceTextRange(
+                [quasi.range[0] + 1, quasi.range[1] - (quasi.tail ? 1 : 2)],
+                replacement,
+              )
+            })
+            .flat(),
+      }
     }
 
     return {
@@ -171,68 +338,10 @@ export const templateIndent = createExtendedLintRule<
           return
         }
 
-        const delimiter = `__PLACEHOLDER__${Math.random()}`
-        const templateContent = node.quasis
-          .map((quasi) => {
-            const text = sourceCode.getText(quasi)
-            return text.slice(1, quasi.tail ? -1 : -2)
-          })
-          .join(delimiter)
-
-        const eolMatch = templateContent.match(/\r?\n/)
-        if (!eolMatch) {
-          return
+        const problem = getProblem(node)
+        if (problem) {
+          return context.report(problem)
         }
-
-        const eol = eolMatch[0]
-        const loc = sourceCode.getLocFromIndex(node.range[0])
-        const startLine = sourceCode.lines[loc.line - 1]
-        if (!startLine) return
-
-        const marginMatch = startLine.match(/^(\s*)\S/)
-        const parentMargin = marginMatch?.[1] ?? ''
-        const indentString = getIndentString()
-
-        const dedented = stripIndent(templateContent)
-        const trimmed = dedented.replace(
-          new RegExp(`^${eol}|${eol}[ \t]*$`, 'g'),
-          '',
-        )
-
-        const lines = trimmed.split(/\r?\n/)
-        const indentedLines = lines.map((line, index) => {
-          if (index === 0 || line.trim() === '') return line
-          return parentMargin + indentString + line
-        })
-
-        const fixed = eol + indentedLines.join(eol) + eol + parentMargin
-
-        if (fixed === templateContent) {
-          return
-        }
-
-        return context.report({
-          node,
-          messageId: 'improperlyIndented',
-          fix(fixer) {
-            const parts = fixed.split(delimiter)
-            const fixes = []
-            for (let i = 0; i < node.quasis.length; i++) {
-              const quasi = node.quasis[i]
-              if (!quasi) continue
-              const replacement = parts[i]
-              if (replacement !== undefined) {
-                fixes.push(
-                  fixer.replaceTextRange(
-                    [quasi.range[0] + 1, quasi.range[1] - (quasi.tail ? 1 : 2)],
-                    replacement,
-                  ),
-                )
-              }
-            }
-            return fixes
-          },
-        })
       },
     }
   },
