@@ -28,6 +28,7 @@ import { reactCompilerMigration } from './react-compiler-migration'
 import { requireDescription } from './require-description'
 import { requireReadsToVarProp } from './require-reads-to-var-prop'
 import { rulesOfHooksESLintRule } from './rules-of-hooks'
+import { templateIndent } from './template-indent'
 import { useTopLevelRegex } from './use-top-level-regex'
 
 export const rules: Record<string, LooseRuleDefinition> = {
@@ -61,4 +62,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [useTopLevelRegex.name]: useTopLevelRegex.rule,
   [noWriteOnlyRef.name]: noWriteOnlyRef.rule,
   [requireReadsToVarProp.name]: requireReadsToVarProp.rule,
+  [templateIndent.name]: templateIndent.rule,
 }
