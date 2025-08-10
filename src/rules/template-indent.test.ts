@@ -712,7 +712,6 @@ tests.addValid(
       ••</div>
       ••\`
     `),
-  { comments: [], tags: [], functions: [] },
 )
 
 tests.addValid(
