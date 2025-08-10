@@ -308,7 +308,7 @@ tests.addValid(
 )
 
 tests.addValid(
-  'trailing spaces in template',
+  'trailing spaces in template should be allowed',
   fixInput(`
       /* HTML */
       const template = dedent\`
@@ -318,7 +318,7 @@ tests.addValid(
       ••</div>
       ••\`
     `),
-  { comments: [] },
+  { comments: [], tags: [], functions: [] },
 )
 
 tests.run()
