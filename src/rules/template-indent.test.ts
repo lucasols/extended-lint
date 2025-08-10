@@ -704,4 +704,27 @@ tests.addValid(
   `),
 )
 
+tests.addInvalid(
+  'trailing spaces not matching the indent should be removed in toMatchInlineSnapshot',
+  fixInput(`
+    expect(foo).toMatchInlineSnapshot(\`
+    ••<div>
+    ••••<span>hello</span>
+    •
+    ••</div>
+    \`)
+  `),
+  1,
+  {
+    output: fixInput(`
+      expect(foo).toMatchInlineSnapshot(\`
+      ••<div>
+      ••••<span>hello</span>
+      
+      ••</div>
+      \`)
+    `),
+  },
+)
+
 tests.run()
