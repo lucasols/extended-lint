@@ -56,9 +56,32 @@ const regexPatterns = {
   jsxClosingTag: /<\/[A-Z]\w*>/,
   htmlOpeningTag: /<[a-z]+(\s.*)?>/,
   htmlClosingTag: /<\/[a-z]+>/,
-  colonDescriptiveComment:
-    /^[a-zA-Z]+(\s+[a-zA-Z]+)*:\s+[a-zA-Z]+\s+[a-zA-Z][^{=,'"]*$/,
   jsdocComment: /^\s*[*\s]*$/,
+}
+
+function isDescriptiveCommentText(text: string): boolean {
+  if (text.includes(':')) {
+    const headerThenText = text.split(':')[0]?.trim()
+
+    if (headerThenText) {
+      if (/^[a-zA-Z]/.test(headerThenText) && headerThenText.includes(' ')) {
+        return true
+      }
+    }
+  }
+
+  const trimmed = text.trim()
+  if (trimmed.length === 0) return false
+  if (/\.[A-Za-z_][A-Za-z0-9_]*\(/.test(trimmed)) return false
+  if (/[{}[\]()`=<>]/.test(trimmed)) return false
+  if (/:\s*(['"`[{(]|\w+\s*=>)/.test(trimmed)) return false
+  if (/\bif\s*\(|\belse\b|=>/.test(trimmed)) return false
+  if (trimmed.includes(':')) {
+    const headerThenText =
+      /^[A-Z][A-Za-z]*(?:\s+\d+)?(?:\s+[a-z]+)*:\s+[A-Za-z]/
+    if (headerThenText.test(trimmed)) return true
+  }
+  return false
 }
 
 const codePatterns: (string | RegExp)[] = [
@@ -180,15 +203,7 @@ const rule = createRule({
         return false
       }
 
-      // Check for descriptive comments with colon pattern (e.g., "Third pass: find exported constants", "Second: this is a fine comment too")
-      // Match: "descriptive text: more descriptive text" but not code patterns like "prop: value"
-      // Allow single or multiple words before colon, followed by multiple words after
-      if (
-        commentWithTrimmedStart.includes(':') &&
-        regexPatterns.colonDescriptiveComment.test(
-          commentWithTrimmedStart.trim(),
-        )
-      ) {
+      if (isDescriptiveCommentText(commentWithTrimmedStart)) {
         return false
       }
 
