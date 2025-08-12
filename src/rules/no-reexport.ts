@@ -17,12 +17,27 @@ export const noReexport = createExtendedLintRule<[], 'noReexport'>({
   create(context) {
     const importedIdentifiers = new Set<string>()
 
+    function containsImportedIdentifier(node: any): boolean {
+      if (!node) return false
+      
+      if (node.type === AST_NODE_TYPES.Identifier) {
+        return importedIdentifiers.has(node.name)
+      }
+      
+      if (node.type === AST_NODE_TYPES.MemberExpression) {
+        return containsImportedIdentifier(node.object)
+      }
+      
+      return false
+    }
+
     return {
       ImportDeclaration(node) {
         for (const specifier of node.specifiers) {
           if (
             specifier.type === AST_NODE_TYPES.ImportSpecifier ||
-            specifier.type === AST_NODE_TYPES.ImportDefaultSpecifier
+            specifier.type === AST_NODE_TYPES.ImportDefaultSpecifier ||
+            specifier.type === AST_NODE_TYPES.ImportNamespaceSpecifier
           ) {
             importedIdentifiers.add(specifier.local.name)
           }
@@ -36,11 +51,7 @@ export const noReexport = createExtendedLintRule<[], 'noReexport'>({
 
         if (node.declaration?.type === AST_NODE_TYPES.VariableDeclaration) {
           for (const declarator of node.declaration.declarations) {
-            if (
-              declarator.id.type === AST_NODE_TYPES.Identifier &&
-              declarator.init?.type === AST_NODE_TYPES.Identifier &&
-              importedIdentifiers.has(declarator.init.name)
-            ) {
+            if (containsImportedIdentifier(declarator.init)) {
               context.report({ node, messageId: 'noReexport' })
             }
           }

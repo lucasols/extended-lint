@@ -124,4 +124,51 @@ tests.addInvalid(
   `,
 )
 
+tests.addInvalid(
+  'namespace import and re-export',
+  `
+    import * as utils from './module'
+    export const helper = utils
+  `,
+)
+
+tests.addInvalid(
+  'destructuring re-export',
+  `
+    import { obj } from './module'
+    export const { prop } = obj
+  `,
+)
+
+tests.addInvalid(
+  'member access re-export',
+  `
+    import obj from './module'
+    export const prop = obj.prop
+  `,
+)
+
+tests.addInvalid(
+  'type re-export',
+  `
+    export type { MyType } from './module'
+  `,
+)
+
+tests.addInvalid(
+  'type import and re-export',
+  `
+    import type { MyType } from './module'
+    export type { MyType }
+  `,
+)
+
+tests.addValid(
+  'destructuring locally defined object',
+  `
+    const obj = { prop: 42 }
+    export const { prop } = obj
+  `,
+)
+
 tests.run()
