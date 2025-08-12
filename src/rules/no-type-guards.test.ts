@@ -155,4 +155,25 @@ addInvalidWithOptions(
   'default-error',
 )
 
+addInvalid(
+  'no suggestions when specific option not set',
+  `
+  const test = {
+    appLeftSidebarMenu: apiAppConfig.bundle?.menu_bar ? {
+      type: 'left_sidebar' as const,
+      title: apiAppConfig.bundle.menu_bar.title ?? '',
+      background_color: apiAppConfig.bundle.menu_bar.top_bg_color,
+      items: apiAppConfig.bundle.menu_bar.items
+        .map(convertMenuBarItemToSimplified)
+        .filter((item): item is MenuItem => item !== null),
+      show_shortcuts: {
+        apps: apiAppConfig.bundle.menu_bar.shortcuts.apps,
+        favorites: apiAppConfig.bundle.menu_bar.shortcuts.favorites,
+        settings: apiAppConfig.bundle.menu_bar.shortcuts.settings,
+      },
+    } : null,
+    }
+  `,
+)
+
 run()

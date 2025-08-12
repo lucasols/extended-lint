@@ -61,7 +61,7 @@ export const noTypeGuards = createExtendedLintRule<
     },
     messages: {
       typeGuardNotAllowed:
-        'Type guards are only allowed in *.typeGuards.(ts|tsx) or *.type-guards.(ts|tsx) files',
+        'Check if the type guard can be inferred by typescript, in most cases it can, e.g. `.filter((nullable) => nullable !== null)`. If not, type guards are only allowed in *.typeGuards.(ts|tsx) or *.type-guards.(ts|tsx) files',
       useFilterWithTypeCheck: '{{message}}',
       useFindWithTypeCheck: '{{message}}',
     },
