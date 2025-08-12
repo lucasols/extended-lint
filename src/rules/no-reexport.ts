@@ -9,7 +9,7 @@ export const noReexport = createExtendedLintRule<[], 'noReexport'>({
     },
     schema: [],
     messages: {
-      noReexport: 'Re-exports are not allowed. Import and export separately instead.',
+      noReexport: 'Re-exports are not allowed. Use direct exports only.',
     },
   },
   defaultOptions: [],
