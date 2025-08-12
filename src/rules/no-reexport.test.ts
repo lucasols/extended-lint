@@ -26,8 +26,8 @@ tests.addValid(
   `,
 )
 
-tests.addValid(
-  'import and use separately',
+tests.addInvalid(
+  'import and export (indirect reexport)',
   `
     import { something } from './other-module'
     export const myThing = something
@@ -80,6 +80,47 @@ tests.addInvalid(
   'default reexport with alias',
   `
     export { default as something } from './other-module'
+  `,
+)
+
+
+tests.addInvalid(
+  'import and export specifier (indirect reexport)',
+  `
+    import { test } from './other-module'
+    export { test }
+  `,
+)
+
+tests.addInvalid(
+  'export specifier with alias (indirect reexport)',
+  `
+    import { test } from './other-module'
+    export { test as renamed }
+  `,
+)
+
+tests.addInvalid(
+  'import default and export default',
+  `
+    import something from './other-module'
+    export default something
+  `,
+)
+
+tests.addInvalid(
+  'import named and export default',
+  `
+    import { something } from './other-module'
+    export default something
+  `,
+)
+
+tests.addInvalid(
+  'export locally defined variable (should use direct export)',
+  `
+    const test = 42
+    export { test }
   `,
 )
 
