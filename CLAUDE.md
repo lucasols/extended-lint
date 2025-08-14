@@ -83,6 +83,8 @@ export const ruleName = createExtendedLintRule<[Options], 'errorId'>({
 
 # Performance
 
+The rules will be used in large codebases, so performance should be a priority.
+
 - Use early returns when rule doesn't apply
 - Target specific AST node types only
 - Use Maps/Sets for lookups
