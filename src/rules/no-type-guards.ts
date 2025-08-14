@@ -82,7 +82,6 @@ export const noTypeGuards = createExtendedLintRule<
       }
 
       const filterOrFind = isInFilterOrFind(node)
-      const suggestions = []
 
       if (options.alternativeMsgs && filterOrFind) {
         const shouldSuggest =

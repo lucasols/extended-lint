@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES } from '@typescript-eslint/utils'
+import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
 import { createExtendedLintRule } from '../createRule'
 
 export const noReexport = createExtendedLintRule<[], 'noReexport'>({
@@ -17,8 +17,10 @@ export const noReexport = createExtendedLintRule<[], 'noReexport'>({
   create(context) {
     const importedIdentifiers = new Set<string>()
 
-    function containsImportedIdentifier(node: any): boolean {
-      if (!node) return false
+    function containsImportedIdentifier(node: TSESTree.Node | null | undefined): boolean {
+      if (!node) {
+        return false
+      }
       
       if (node.type === AST_NODE_TYPES.Identifier) {
         return importedIdentifiers.has(node.name)
@@ -34,13 +36,7 @@ export const noReexport = createExtendedLintRule<[], 'noReexport'>({
     return {
       ImportDeclaration(node) {
         for (const specifier of node.specifiers) {
-          if (
-            specifier.type === AST_NODE_TYPES.ImportSpecifier ||
-            specifier.type === AST_NODE_TYPES.ImportDefaultSpecifier ||
-            specifier.type === AST_NODE_TYPES.ImportNamespaceSpecifier
-          ) {
-            importedIdentifiers.add(specifier.local.name)
-          }
+          importedIdentifiers.add(specifier.local.name)
         }
       },
       ExportNamedDeclaration(node) {

@@ -22,7 +22,7 @@ export function dedent(strings: TemplateStringsArray, ...values: string[]) {
     const m = l.match(/^(\s+)\S+/)
     if (m) {
       const indent = m[1]!.length
-      if (!mindent) {
+      if (mindent === null) {
         // this is the first indented line
         mindent = indent
       } else {
@@ -31,7 +31,8 @@ export function dedent(strings: TemplateStringsArray, ...values: string[]) {
     }
   })
 
-  if (mindent !== null) {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (mindent) {
     const m = mindent // appease Flow
     result = lines.map((l) => (l.startsWith(' ') ? l.slice(m) : l)).join('\n')
   }
