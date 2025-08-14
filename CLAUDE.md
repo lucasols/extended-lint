@@ -89,3 +89,7 @@ The rules will be used in large codebases, so performance should be a priority.
 - Target specific AST node types only
 - Use Maps/Sets for lookups
 - Minimize expensive operations (regex, file system)
+
+# Code maintainability and readability
+
+Extract and reuse common utility functions in @src/astUtils.ts
