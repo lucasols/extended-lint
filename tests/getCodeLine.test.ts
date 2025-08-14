@@ -1,8 +1,10 @@
-import { test, expect } from 'vitest'
-// @ts-ignore
+import { expect, test } from 'vitest'
+// @ts-expect-error - getCodeLine is a virtual module
 import { getCodeLine } from 'virtual:get-code-line'
 
 test('getCodeLine', () => {
-  expect(getCodeLine()).toBe(6)
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   expect(getCodeLine()).toBe(7)
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+  expect(getCodeLine()).toBe(9)
 })

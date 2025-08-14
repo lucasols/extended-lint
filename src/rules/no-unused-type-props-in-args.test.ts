@@ -169,7 +169,7 @@ tests.addValid(
 `,
 )
 tests.addValid(
-  'ignored shared types',
+  'shared types still ignored by default (multiple references)',
   `
   type Test = {
     unusedType?: string;
@@ -619,7 +619,7 @@ tests.addInvalidWithOptions(
 )
 
 tests.addValid(
-  'props used in non fc functions with the matched name should not be checked even if referenced more than once',
+  'shared types in regular functions are still ignored (multiple references)',
   `
   type Props = {
     title: ReactNode;
@@ -637,7 +637,178 @@ tests.addValid(
     onClose,
   };
   `,
-  { forceCheckOnFCPropTypesWithName: ['Props$'] },
+)
+
+tests.addInvalid(
+  'always check function option types by default - exported type',
+  `
+  export type AppCreationContext = {
+    creationRequest: string;
+    contextTables: string[];
+    contextApps: string[];
+    language: string;
+    companyColor: string | null;
+    tenantId: string;
+    agentId: string;
+    attachments: { file: string; fileType: string }[];
+  };
+
+  function generateAppStructure({
+    creationRequest,
+  }: AppCreationContext): string {
+    return creationRequest; // only using creationRequest
+  }
+  `,
+  [
+    { data: { propertyName: 'contextTables' } },
+    { data: { propertyName: 'contextApps' } },
+    { data: { propertyName: 'language' } },
+    { data: { propertyName: 'companyColor' } },
+    { data: { propertyName: 'tenantId' } },
+    { data: { propertyName: 'agentId' } },
+    { data: { propertyName: 'attachments' } },
+  ],
+  {
+    output: `
+      export type AppCreationContext = {
+        creationRequest: string;
+        contextTables: string[];
+        contextApps: string[];
+        language: string;
+        companyColor: string | null;
+        tenantId: string;
+        agentId: string;
+        attachments: { file: string; fileType: string }[];
+      };
+
+      function generateAppStructure({
+        creationRequest, contextTables, contextApps, language, companyColor, tenantId, agentId, attachments,
+      }: AppCreationContext): string {
+        return creationRequest; // only using creationRequest
+      }
+    `,
+  },
+)
+
+tests.addValid(
+  'shared types should still be ignored even with alwaysCheckFunctionOptionTypes',
+  `
+  type RequestOptions = {
+    url: string;
+    method: string;
+    headers?: Record<string, string>;
+    body?: string;
+    timeout?: number;
+  };
+
+  function makeRequest({ url, method }: RequestOptions) {
+    return fetch(url, { method });
+  }
+
+  function anotherRequest({ url }: RequestOptions) {
+    return url;
+  }
+  `,
+)
+
+tests.addValid(
+  'disable always check function option types - shared type should be ignored',
+  `
+  type RequestOptions = {
+    url: string;
+    method: string;
+    headers?: Record<string, string>;
+    body?: string;
+    timeout?: number;
+  };
+
+  function makeRequest({ url, method }: RequestOptions) {
+    return fetch(url, { method });
+  }
+
+  function anotherRequest({ url }: RequestOptions) {
+    return url;
+  }
+  `,
+  { alwaysCheckFunctionOptionTypes: false },
+)
+
+tests.addValid(
+  'disable always check function option types - exported type should be ignored',
+  `
+  export type AppCreationContext = {
+    creationRequest: string;
+    contextTables: string[];
+  };
+
+  export async function generateAppStructure({
+    creationRequest,
+  }: AppCreationContext): Promise<string> {
+    return creationRequest;
+  }
+  `,
+  { alwaysCheckFunctionOptionTypes: false },
+)
+
+tests.addInvalid(
+  'always check function option types - single use type should still work',
+  `
+  function processData({ 
+    input, 
+  }: { 
+    input: string; 
+    output?: string;
+    config?: Record<string, any>;
+  }) {
+    return input;
+  }
+  `,
+  [
+    { data: { propertyName: 'output' } },
+    { data: { propertyName: 'config' } },
+  ],
+  {
+    output: `
+      function processData({ 
+        input, output, config, 
+      }: { 
+        input: string; 
+        output?: string;
+        config?: Record<string, any>;
+      }) {
+        return input;
+      }
+    `,
+  },
+)
+
+tests.addInvalid(
+  'debug - simple exported type test',
+  `
+  export type SimpleType = {
+    used: string;
+    unused: string;
+  };
+
+  function test({ used }: SimpleType) {
+    return used;
+  }
+  `,
+  [
+    { data: { propertyName: 'unused' } },
+  ],
+  {
+    output: `
+      export type SimpleType = {
+        used: string;
+        unused: string;
+      };
+
+      function test({ used, unused }: SimpleType) {
+        return used;
+      }
+    `,
+  },
 )
 
 tests.run()

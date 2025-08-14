@@ -37,6 +37,7 @@ function extendMap<K, V>(map: Map<K, V>, ...entries: [K, V][]): Map<K, V> {
 
 const optionsSchema = t.object({
   forceCheckOnFCPropTypesWithName: t.optional(t.array(t.string())),
+  alwaysCheckFunctionOptionTypes: t.optional(t.boolean()),
 })
 
 type Options = t.Infer<typeof optionsSchema>
@@ -63,9 +64,9 @@ const rule = createRule<
     schema: [optionsSchema as any],
     fixable: 'code',
   },
-  defaultOptions: [{}],
+  defaultOptions: [{ alwaysCheckFunctionOptionTypes: true }],
   create(context, [options]) {
-    const { forceCheckOnFCPropTypesWithName } = options
+    const { forceCheckOnFCPropTypesWithName, alwaysCheckFunctionOptionTypes = true } = options
 
     if (
       forceCheckOnFCPropTypesWithName &&
@@ -81,13 +82,14 @@ const rule = createRule<
       reference: TSESTree.Identifier,
       declaredProperties: Map<string, TSESTree.Node>,
       ignoreExported = true,
+      forceCheckFunctionOption = false,
     ) {
       const typeName = reference.name
 
       const resolved = context.sourceCode
         .getScope(scope)
         .references.find(
-          (reference) => reference.identifier.name === typeName,
+          (ref) => ref.identifier.name === typeName,
         )?.resolved
 
       const forceCheck =
@@ -96,20 +98,26 @@ const rule = createRule<
           regexp.test(typeName),
         )
 
+      const shouldForceCheckFunctionOption =
+        forceCheckFunctionOption && alwaysCheckFunctionOptionTypes
+
       if (
         !resolved ||
         (!forceCheck &&
-          resolved.references.filter((reference) => reference.isTypeReference)
+          resolved.references.filter((ref) => ref.isTypeReference)
             .length > 1)
       ) {
         return
       }
 
-      const type = resolved?.defs[0]?.node
+      const type = resolved!.defs[0]!.node
+
+      const isExported = type?.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration
 
       if (
         ignoreExported &&
-        type?.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration
+        isExported &&
+        !shouldForceCheckFunctionOption
       ) {
         return
       }
@@ -121,6 +129,7 @@ const rule = createRule<
           declaredProperties,
           type.typeAnnotation,
           true,
+          forceCheckFunctionOption,
         )
         return
       }
@@ -132,6 +141,7 @@ const rule = createRule<
           declaredProperties,
           type.body,
           true,
+          forceCheckFunctionOption,
         )
         return
       }
@@ -143,6 +153,7 @@ const rule = createRule<
       declaredProperties: Map<string, TSESTree.Node>,
       typeNode: TSESTree.TypeNode | TSESTree.TSInterfaceBody,
       ignoreReferences: boolean,
+      forceCheckFunctionOption = false,
     ) {
       if (typeNode.type === AST_NODE_TYPES.TSInterfaceBody) {
         for (const member of typeNode.body) {
@@ -164,7 +175,7 @@ const rule = createRule<
 
       if (typeNode.type === AST_NODE_TYPES.TSIntersectionType) {
         for (const type of typeNode.types) {
-          extendDeclaredTypeParams(isFC, scope, declaredProperties, type, true)
+          extendDeclaredTypeParams(isFC, scope, declaredProperties, type, true, forceCheckFunctionOption)
         }
         return
       }
@@ -179,6 +190,8 @@ const rule = createRule<
             scope,
             typeNode.typeName,
             declaredProperties,
+            true,
+            forceCheckFunctionOption,
           )
         }
       }
@@ -188,9 +201,10 @@ const rule = createRule<
       isFC: boolean,
       scope: TSESTree.Node,
       params: TSESTree.Parameter[],
+      forceCheckFunctionOption = false,
     ) {
       for (const param of params) {
-        if (param.type === 'ObjectPattern' && param.typeAnnotation) {
+        if (param.type === AST_NODE_TYPES.ObjectPattern && param.typeAnnotation) {
           const declaredProperties = new Map<string, TSESTree.Node>()
 
           extendDeclaredTypeParams(
@@ -199,6 +213,7 @@ const rule = createRule<
             declaredProperties,
             param.typeAnnotation.typeAnnotation,
             false,
+            forceCheckFunctionOption,
           )
 
           if (declaredProperties.size === 0) {
@@ -210,7 +225,7 @@ const rule = createRule<
           param.type === AST_NODE_TYPES.AssignmentPattern &&
           param.left.type === AST_NODE_TYPES.ObjectPattern
         ) {
-          checkParamsOfInferredDeclarations(isFC, scope, [param.left])
+          checkParamsOfInferredDeclarations(isFC, scope, [param.left], forceCheckFunctionOption)
         }
       }
     }
@@ -245,7 +260,7 @@ const rule = createRule<
         if (!destructuredProperties.includes(declaredProperty)) {
           propertiesToAddInFix.push(declaredProperty)
           reports.push({
-            node: node,
+            node,
             messageId: 'unusedObjectTypeProperty',
             data: {
               propertyName: declaredProperty,
@@ -267,11 +282,11 @@ const rule = createRule<
                   if (!lastProperty) {
                     return fixer.insertTextBeforeRange(
                       [param.range[0] + 1, param.range[1]],
-                      `${propertiesText}`,
+                      propertiesText,
                     )
                   }
 
-                  if (lastProperty?.type === AST_NODE_TYPES.RestElement) {
+                  if (lastProperty.type === AST_NODE_TYPES.RestElement) {
                     return null
                   }
 
@@ -289,7 +304,9 @@ const rule = createRule<
       VariableDeclaration(node) {
         const declaration = node.declarations[0]
 
-        if (!declaration) return
+        if (!declaration) {
+          return
+        }
 
         const declaredProperties = new Map<string, TSESTree.Node>()
 
@@ -360,11 +377,11 @@ const rule = createRule<
           }
         }
       },
-      FunctionDeclaration: function (node) {
-        checkParamsOfInferredDeclarations(false, node, node.params)
+      FunctionDeclaration(node) {
+        checkParamsOfInferredDeclarations(false, node, node.params, alwaysCheckFunctionOptionTypes)
       },
       ArrowFunctionExpression(node) {
-        checkParamsOfInferredDeclarations(false, node, node.params)
+        checkParamsOfInferredDeclarations(false, node, node.params, alwaysCheckFunctionOptionTypes)
       },
     }
   },

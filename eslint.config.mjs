@@ -10,4 +10,9 @@ export default lsStackEslintCfg({
     '@typescript-eslint/no-unsafe-assignment': OFF,
     '@typescript-eslint/no-unnecessary-condition': ERROR,
   },
+  extends: [
+    {
+      ignores: ['dist/**/*', '**/*.js', 'debug/**/*'],
+    },
+  ],
 })

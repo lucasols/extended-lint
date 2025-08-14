@@ -1,8 +1,6 @@
 import { Plugin } from 'vite'
 
 export function ViteGetCodeLinePlugin(): Plugin {
-  let isDev = false
-
   const virtualModuleId = 'virtual:get-code-line'
 
   const resolvedModuleId = `\0${virtualModuleId}`
@@ -10,9 +8,6 @@ export function ViteGetCodeLinePlugin(): Plugin {
   return {
     name: 'vite-plugin-get-code-line',
     enforce: 'pre',
-    configResolved(config) {
-      isDev = config.command === 'serve'
-    },
     resolveId(id) {
       return id === virtualModuleId ? resolvedModuleId : undefined
     },
@@ -23,7 +18,7 @@ export function ViteGetCodeLinePlugin(): Plugin {
 
       return undefined
     },
-    transform(code, id) {
+    transform(code) {
       if (code.includes(virtualModuleId) && code.includes(`getCodeLine()`)) {
         return replacegetCodeLineCalls(code)
       }
@@ -34,7 +29,7 @@ export function ViteGetCodeLinePlugin(): Plugin {
 }
 
 export function replacegetCodeLineCalls(code: string) {
-  let codeLinesMatched: number[] = []
+  const codeLinesMatched: number[] = []
 
   const codeLines = code.split('\n')
 
