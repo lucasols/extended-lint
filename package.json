@@ -3,11 +3,11 @@
   "version": "0.57.3",
   "license": "MIT",
   "scripts": {
-    "lint": "pnpm tsc",
+    "lint": "pnpm tsc && pnpm eslint",
     "tsc": "tsc -p tsconfig.prod.json",
     "test": "vitest run",
     "test:ui": "vitest --ui",
-    "eslint": "eslint .",
+    "eslint": "eslint . --max-warnings=0 --fix",
     "build": "pnpm test && pnpm lint && pnpm run build:no-test",
     "build:no-test": "tsup --minify --dts",
     "build:no-minify": "tsup --dts",
