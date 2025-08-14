@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist",
     "noEmit": false,
-    "declaration": false,
+    "declaration": false
   },
-  "include": ["src/extended-lint.ts"]
+  "include": ["src/extended-lint.ts", "src/**/*.ts"]
 }

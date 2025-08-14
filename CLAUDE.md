@@ -1,66 +1,89 @@
-# CLAUDE.md
+# Project Overview
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This is an **ESLint plugin** (`extended-lint`) that provides custom linting rules for TypeScript/JavaScript projects.
 
-## Development Commands
+**Key Requirements:**
 
-- **Test**: `pnpm test` (vitest)
-- **Lint**: `pnpm lint` (TypeScript compiler check)
-- **Type check**: `pnpm tsc`
+- Always run tests before and after changes: `pnpm test` and `pnpm lint`
+- Follow TypeScript strict typing: No `any`, no type assertions, no null assertions
+- Use test-driven development: Write tests first, then implement
+- Performance matters: These rules run on large codebases
 
-## Testing
+# Commands
 
-- Use Vitest for testing
-- Tests are located in `src/**/*.test.ts` and `tests/*.test.js`
-- Use the `createTester` utility from @tests/utils/createTester.ts for rule testing
-- Test setup is in `tests/fixture/setup.ts`
-- Single rule tests can be run with `pnpm test <rule-name>`
-- Use `__dev_simulateFileName` for simulating file names if needed
-- Use the same test structure of `src/rules/react-compiler-extra.test.ts`, using `tests.addValid`, `tests.addInvalid` and `tests.addInvalidWithOptions` if the rule has options
-- Prefer inline test configurations directly in the test calls instead of creating separate config objects. Prefer to abstract the config elements instead.
-- Do not wrap all tests in a `describe` block, only use describe to group similar tests in the same file
+- `pnpm test` - Run all tests (Vitest)
+- `pnpm test <rule-name>` - Run specific rule tests
+- `pnpm lint` - TypeScript compiler check (MUST pass)
+- `pnpm tsc` - Type check only
 
-## Architecture
+# Testing
 
-This is an ESLint plugin that provides extended linting rules for TypeScript/JavaScript projects.
+- Use Vitest framework
+- Tests: `src/rules/*.test.ts`
+- Always use `createTester` from `@tests/utils/createTester.ts`
+- Write tests BEFORE implementing rules
+- Use `_dev_simulateFileName` for file-path dependent rules
+- Methods: `tests.addValid()`, `tests.addInvalid()`, `tests.addInvalidWithOptions()`, `tests.run()`
+- No describe blocks for simple files
 
-### Core Structure
+# Architecture
 
-- **Entry point**: `src/extended-lint.ts` exports the plugin
-- **Rule creation**: Use `createExtendedLintRule` from @src/createRule.ts instead of direct ESLint rule creation
-- **Rules registry**: All rules are exported from `src/rules/rules.ts`
-- **Individual rules**: Each rule is in `src/rules/` with corresponding `.test.ts` file
+- **Entry point**: `src/extended-lint.ts`
+- **Rule creation**: Use `createExtendedLintRule` from `@src/createRule.ts`
+- **Rules registry**: `src/rules/rules.ts` - add all new rules here
+- **Rule files**: `src/rules/rule-name.ts` + `src/rules/rule-name.test.ts`
 
-### Rule Development Pattern
+# Rule Development Pattern
 
-1. Start by writing tests first using the `createTester` utility
-2. Follow the structure of existing rules like `react-compiler-extra.ts`
-3. Use `createExtendedLintRule` from `createRule.ts`
-4. Add the rule to the exports in `src/rules/rules.ts`
-5. Use `zod/v4` for options with `getJsonSchemaFromZod`
+**Workflow:**
 
-### Build System
+1. Create test file: `src/rules/rule-name.test.ts`
+2. Implement rule: `src/rules/rule-name.ts` using `createExtendedLintRule`
+3. Register in `src/rules/rules.ts`
+4. Test: `pnpm test rule-name`
 
-- Uses `tsup` for building with both ESM and CJS formats
-- Entry point: `src/extended-lint.ts`
-- Output: `dist/` directory
-- TypeScript configuration: `tsconfig.prod.json` for production builds
+## Rule Example
 
-### Code Style Guidelines
+```typescript
+// src/rules/rule-name.ts
+import { z } from 'zod/v4'
+import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
-- Never add comments to code (enforced by Cursor rules)
-- Use `type` instead of `interface` when possible
+const optionsSchema = z.object({
+  option: z.boolean().optional(),
+})
+
+type Options = z.infer<typeof optionsSchema>
+
+export const ruleName = createExtendedLintRule<[Options], 'errorId'>({
+  name: 'rule-name',
+  meta: {
+    type: 'problem',
+    docs: { description: 'Rule description' },
+    schema: getJsonSchemaFromZod(optionsSchema),
+    messages: { errorId: 'Error message' },
+  },
+  defaultOptions: [{ option: false }],
+  create(context, [options]) {
+    return {
+      // Rule implementation
+    }
+  },
+})
+```
+
+# Code Style
+
+- Never add code comments
+- Use `type` instead of `interface`
 - Use `for of` instead of `array.forEach`
 - Never use `array.reduce`
-- Never use `as` assertions except for `as const`
-- Write strongly typed TypeScript
+- Never use `as` assertions except `as const`
+- No `any`, no non-null assertions (`!`), no `@ts-ignore`
 
-## Typesafety
+# Performance
 
-- Do not use `any`
-- Do not use `as Type` casts, except for `as const`
-- Do not use non-null assertions (`!`)
-
-## Performance Considerations
-
-- Write rules with performance in mind, the rules should be fast and efficient as they will be used in large codebases
+- Use early returns when rule doesn't apply
+- Target specific AST node types only
+- Use Maps/Sets for lookups
+- Minimize expensive operations (regex, file system)

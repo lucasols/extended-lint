@@ -38,6 +38,12 @@
       "presentation": {
         "clear": true
       }
+    },
+    {
+      "label": "Run lint",
+      "type": "shell",
+      "command": "pnpm run lint",
+      "problemMatcher": []
     }
   ],
   "inputs": [
