@@ -304,10 +304,6 @@ const rule = createRule<
       VariableDeclaration(node) {
         const declaration = node.declarations[0]
 
-        if (!declaration) {
-          return
-        }
-
         const declaredProperties = new Map<string, TSESTree.Node>()
 
         const fcPropsParam =
