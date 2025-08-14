@@ -93,7 +93,7 @@ const rule = createRule<
         if (allowAny && !disallowTypes) return
 
         if (
-          node.typeArguments?.params?.some(
+          node.typeArguments?.params.some(
             (type) =>
               (!allowAny && type.type === AST_NODE_TYPES.TSAnyKeyword) ||
               (disallowTypes &&

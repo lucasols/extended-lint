@@ -110,9 +110,9 @@ const rule = createRule<
         return
       }
 
-      const type = resolved!.defs[0]!.node
+      const type = resolved.defs[0]!.node
 
-      const isExported = type?.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration
+      const isExported = type.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration
 
       if (
         ignoreExported &&
@@ -122,7 +122,7 @@ const rule = createRule<
         return
       }
 
-      if (type?.type === AST_NODE_TYPES.TSTypeAliasDeclaration) {
+      if (type.type === AST_NODE_TYPES.TSTypeAliasDeclaration) {
         extendDeclaredTypeParams(
           isFC,
           scope,
@@ -134,7 +134,7 @@ const rule = createRule<
         return
       }
 
-      if (type?.type === AST_NODE_TYPES.TSInterfaceDeclaration) {
+      if (type.type === AST_NODE_TYPES.TSInterfaceDeclaration) {
         extendDeclaredTypeParams(
           isFC,
           scope,
