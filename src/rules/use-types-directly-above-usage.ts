@@ -33,16 +33,14 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
     // Store all program-level statements for easy lookup
     const programStatements: TSESTree.Statement[] = []
 
-    function addTypeUsage(typeName: string, statement: TSESTree.Statement) {
+    function checkAndReportType(typeName: string, usageStatement: TSESTree.Statement) {
       if (!typeDefinitions.has(typeName)) {
         return
       }
 
       const typeDef = typeDefinitions.get(typeName)!
-      const typeDefIndex = programStatements.indexOf(
-        typeDef.node as TSESTree.Statement,
-      )
-      const usageIndex = programStatements.indexOf(statement)
+      const typeDefIndex = programStatements.findIndex(stmt => stmt === typeDef.node)
+      const usageIndex = programStatements.indexOf(usageStatement)
 
       if (typeDefIndex === -1 || usageIndex === -1) return
 
@@ -51,7 +49,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         context.report({
           node: typeDef.node,
           messageId: 'moveTypeAboveUsage',
-          fix: createFixer(typeDef.node, statement),
+          fix: createFixer(typeDef.node, usageStatement),
         })
       }
     }
@@ -86,16 +84,26 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           fullTypeDefText = `${commentsText}\n${typeDefText}`
         }
 
-        // Remove the type definition and any associated comments
-        yield fixer.remove(typeDefNode)
-        if (typeDefComments.length > 0) {
-          for (const comment of typeDefComments) {
-            yield fixer.remove(comment)
-          }
+        // Calculate removal range including comments and trailing newline
+        let rangeStart = typeDefNode.range[0]
+        let rangeEnd = typeDefNode.range[1]
+
+        // Include comments before the type definition
+        if (typeDefComments.length > 0 && typeDefComments[0]) {
+          rangeStart = typeDefComments[0].range[0]
         }
 
-        // Replace the usage statement with type definition + usage statement
-        const usageText = sourceCode.getText(usageStatement).trimEnd()
+        // Include trailing newline if present
+        const nextChar = sourceCode.text[rangeEnd]
+        if (nextChar === '\n') {
+          rangeEnd += 1
+        }
+
+        // Remove the type definition, comments, and trailing newline
+        yield fixer.removeRange([rangeStart, rangeEnd])
+
+        // Replace the usage statement with: typeDefinition + newlines + usageStatement
+        const usageText = sourceCode.getText(usageStatement)
         yield fixer.replaceText(
           usageStatement,
           `${fullTypeDefText}\n\n${usageText}`,
@@ -150,15 +158,31 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           }
         }
 
-        // Check each type that has usages
+        // Check each type that has usages - process in order of first appearance
+        const typesToProcess: Array<{
+          typeName: string
+          firstUsage: TSESTree.Statement
+        }> = []
+
         for (const [typeName, usageStatements] of typeUsagesMap) {
           if (usageStatements.length > 0) {
             // Find the first usage (earliest in the file)
             const firstUsage = usageStatements.reduce((earliest, current) =>
               current.range[0] < earliest.range[0] ? current : earliest,
             )
+            typesToProcess.push({ typeName, firstUsage })
+          }
+        }
 
-            addTypeUsage(typeName, firstUsage)
+        // Process types in order of their first usage position
+        // Only report one violation at a time to avoid fix conflicts
+        const sortedTypes = typesToProcess
+          .sort((a, b) => a.firstUsage.range[0] - b.firstUsage.range[0])
+        
+        if (sortedTypes.length > 0) {
+          const firstType = sortedTypes[0]
+          if (firstType) {
+            checkAndReportType(firstType.typeName, firstType.firstUsage)
           }
         }
       },

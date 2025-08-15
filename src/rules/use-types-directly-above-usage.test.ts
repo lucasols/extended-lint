@@ -355,7 +355,7 @@ tests.addInvalid(
     type TypeA = { valueA: string }
     type TypeB = { valueB: number }
   `,
-  [{ messageId: 'moveTypeAboveUsage' }, { messageId: 'moveTypeAboveUsage' }],
+  [{ messageId: 'moveTypeAboveUsage' }],
   {
     output: `
     type TypeA = { valueA: string }
@@ -364,11 +364,11 @@ tests.addInvalid(
       return data.valueA
     }
     
-    type TypeB = { valueB: number }
-    
     function processB(data: TypeB) {
       return data.valueB
     }
+    
+    type TypeB = { valueB: number }
   `,
   },
 )
@@ -395,11 +395,11 @@ tests.addInvalid(
       return input.value
     }
     
+
     function otherFunction() {
       return 'hello'
     }
   `,
-    appendToOutput: '\n\n',
   },
 )
 
@@ -593,7 +593,7 @@ tests.addInvalid(
       return input.value
     }
   `,
-    appendToOutput: '\n\n\n',
+    appendToOutput: '\n\n',
   },
 )
 
@@ -932,7 +932,7 @@ tests.addInvalid(
       return options.debug ? 'debug mode' : 'production mode'
     }
   `,
-    prependToOutput: `\n\n`,
+    prependToOutput: `\n`,
   },
 )
 
@@ -966,7 +966,7 @@ tests.addInvalid(
       return options.debug ? 'debug mode' : 'production mode'
     }
   `,
-    prependToOutput: `\n\n`,
+    prependToOutput: `\n`,
   },
 )
 

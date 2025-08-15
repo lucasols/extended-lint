@@ -13,6 +13,7 @@ import { noNonCamelCaseFunctions } from './no-non-camel-case-functions'
 import { noOptionalRootProps } from './no-optional-root-props'
 import { noReexport } from './no-reexport'
 import { noRelativeImports } from './no-relative-imports'
+import { noStaticStyleProp } from './no-static-style-prop'
 import { noTypeGuards } from './no-type-guards'
 import { noUnnecessaryAsyncOnJsxProps } from './no-unnecessary-async-on-jsx-props'
 import { noUnnecessaryCasting } from './no-unnecessary-casting'
@@ -50,6 +51,7 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [preferSingleLineIf.name]: preferSingleLineIf.rule,
   [noOptionalRootProps.name]: noOptionalRootProps.rule,
   [noLeakedTextInJSX.name]: noLeakedTextInJSX.rule,
+  [noStaticStyleProp.name]: noStaticStyleProp.rule,
   [collapseSimpleObjsInOneLine.name]: collapseSimpleObjsInOneLine.rule,
   [reactCompilerMigration.name]: reactCompilerMigration.rule,
   [reactCompilerExtra.name]: reactCompilerExtra.rule,
