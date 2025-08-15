@@ -56,7 +56,8 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
         // Only transform if there's exactly one statement
         if (node.consequent.body.length !== 1) return
 
-        const statement = node.consequent.body[0]!
+        const statement = node.consequent.body[0]
+        if (!statement) return
 
         if (statement.type === AST_NODE_TYPES.ReturnStatement) {
           const statementArgCanBeInlined = isValidReturnStatement(statement)

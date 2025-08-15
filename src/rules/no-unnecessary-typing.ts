@@ -90,7 +90,8 @@ export const noUnnecessaryTyping = createExtendedLintRule<
               node: param.typeAnnotation,
               messageId: 'unnecessaryTypeAnnotation',
               fix(fixer) {
-                return fixer.remove(param.typeAnnotation!)
+                if (!param.typeAnnotation) return null
+                return fixer.remove(param.typeAnnotation)
               },
             })
           }

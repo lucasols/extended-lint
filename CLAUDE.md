@@ -77,7 +77,7 @@ export const ruleName = createExtendedLintRule<[Options], 'errorId'>({
 - Never add code comments
 - Use `type` instead of `interface`
 - Use `for of` instead of `array.forEach`
-- Never use `array.reduce`
+- NEVER use `array.reduce`
 - Never use `as` assertions except `as const`
 - No `any`, no non-null assertions (`!`), no `@ts-ignore`
 

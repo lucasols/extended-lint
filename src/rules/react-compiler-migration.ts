@@ -208,9 +208,10 @@ const rule = createRule<
                             replacement: disallowedMethod.replacement,
                           },
                           fix: (fixer) => {
+                            if (!disallowedMethod.replacement) return null
                             return fixer.replaceText(
                               prop.key,
-                              disallowedMethod.replacement!,
+                              disallowedMethod.replacement,
                             )
                           },
                         },

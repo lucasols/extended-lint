@@ -62,7 +62,8 @@ const rule = createRule<[Options], 'singleLineProp'>({
         if (propsSize > maxPropertiesToUse) return false
 
         if (propsSize === 1) {
-          const property = node.properties[0]!
+          const property = node.properties[0]
+          if (!property) return false
 
           if (
             property.type === AST_NODE_TYPES.Property &&
@@ -128,7 +129,8 @@ const rule = createRule<[Options], 'singleLineProp'>({
         }
 
         if (propsSize === 1) {
-          const property = node.members[0]!
+          const property = node.members[0]
+          if (!property) return false
 
           if (
             property.type === AST_NODE_TYPES.TSPropertySignature &&
@@ -174,7 +176,8 @@ const rule = createRule<[Options], 'singleLineProp'>({
           ) {
             if (typeAnn.typeArguments.params.length > 1) return false
 
-            const typeArgument = typeAnn.typeArguments.params[0]!
+            const typeArgument = typeAnn.typeArguments.params[0]
+            if (!typeArgument) return false
 
             if (!isSimpleTypePropValue(typeArgument)) {
               return false

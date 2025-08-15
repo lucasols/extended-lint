@@ -5,7 +5,9 @@ export function dedent(strings: TemplateStringsArray, ...values: string[]) {
   // first, perform interpolation
   let result = ''
   for (let i = 0; i < raw.length; i++) {
-    result += raw[i]! // join lines when there is a suppressed newline
+    const rawValue = raw[i]
+    if (rawValue === undefined) continue
+    result += rawValue // join lines when there is a suppressed newline
       .replace(/\\\n[ \t]*/g, '')
       // handle escaped backticks
       .replace(/\\`/g, '`')
@@ -21,7 +23,9 @@ export function dedent(strings: TemplateStringsArray, ...values: string[]) {
   lines.forEach((l) => {
     const m = l.match(/^(\s+)\S+/)
     if (m) {
-      const indent = m[1]!.length
+      const indentMatch = m[1]
+      if (!indentMatch) return
+      const indent = indentMatch.length
       if (mindent === null) {
         // this is the first indented line
         mindent = indent

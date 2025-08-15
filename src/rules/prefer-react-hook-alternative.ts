@@ -327,7 +327,8 @@ export const preferReactHookAlternative = createExtendedLintRule<
                     hookAlternative: disallowedFn.hookAlternative,
                   },
                   fix: (fixer) => {
-                    const replacement = disallowedFn.hookAlternative!
+                    const replacement = disallowedFn.hookAlternative
+                    if (!replacement) return null
                     if (node.callee.type === AST_NODE_TYPES.Identifier) {
                       return fixer.replaceText(node.callee, replacement)
                     } else if (

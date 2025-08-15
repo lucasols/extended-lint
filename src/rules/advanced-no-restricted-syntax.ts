@@ -556,11 +556,13 @@ function getFileNameVarsRegex(
 
   for (let i = 0; i < groups.length; i++) {
     const name = `$${i + 1}`
-    const value = groups[i]!
-    vars.push({ name: `${name}_lowercase`, value: value.toLowerCase() })
-    vars.push({ name: `${name}_capitalize`, value: capitalize(value) })
-    vars.push({ name: `${name}_uncapitalize`, value: uncapitalize(value) })
-    vars.push({ name, value })
+    const value = groups[i]
+    if (value !== undefined) {
+      vars.push({ name: `${name}_lowercase`, value: value.toLowerCase() })
+      vars.push({ name: `${name}_capitalize`, value: capitalize(value) })
+      vars.push({ name: `${name}_uncapitalize`, value: uncapitalize(value) })
+      vars.push({ name, value })
+    }
   }
 
   return vars

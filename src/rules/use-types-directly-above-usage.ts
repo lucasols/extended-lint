@@ -42,7 +42,8 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         return
       }
 
-      const typeDef = typeDefinitions.get(typeName)!
+      const typeDef = typeDefinitions.get(typeName)
+      if (!typeDef) return
       const typeDefIndex = programStatements.indexOf(typeDef.statement)
       const usageIndex = programStatements.indexOf(usageStatement)
 
@@ -196,7 +197,8 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
                 typeUsagesMap.set(typeName, [])
               }
 
-              const usages = typeUsagesMap.get(typeName)!
+              const usages = typeUsagesMap.get(typeName)
+              if (!usages) return
               if (!usages.includes(statement)) {
                 usages.push(statement)
               }
@@ -212,10 +214,13 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
         for (const [typeName, usageStatements] of typeUsagesMap) {
           if (usageStatements.length > 0) {
-            // Find the first usage (earliest in the file)
-            const firstUsage = usageStatements.reduce((earliest, current) =>
-              current.range[0] < earliest.range[0] ? current : earliest,
-            )
+            let firstUsage = usageStatements[0]
+            if (!firstUsage) continue
+            for (const current of usageStatements) {
+              if (current.range[0] < firstUsage.range[0]) {
+                firstUsage = current
+              }
+            }
             typesToProcess.push({ typeName, firstUsage })
           }
         }
