@@ -399,6 +399,7 @@ tests.addInvalid(
       return 'hello'
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -489,6 +490,7 @@ tests.addInvalid(
       timeout: 5000
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -591,6 +593,7 @@ tests.addInvalid(
       return input.value
     }
   `,
+    appendToOutput: '\n\n\n',
   },
 )
 
@@ -621,6 +624,7 @@ tests.addInvalid(
       return input.value * 2
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -650,6 +654,7 @@ tests.addInvalid(
       return <a href="#">{label}</a>
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -679,6 +684,7 @@ tests.addInvalid(
       return <div>{text}</div>
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -708,6 +714,7 @@ tests.addInvalid(
       return { data: 'default' }
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -737,6 +744,7 @@ tests.addInvalid(
       retries: 3
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -762,6 +770,7 @@ tests.addInvalid(
     const userSettings: Settings = { theme: 'dark', fontSize: 14 }
     const defaultSettings: Settings = { theme: 'light', fontSize: 12 }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -799,6 +808,7 @@ tests.addInvalid(
       version: '1.0.0'
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -828,6 +838,7 @@ tests.addInvalid(
       return { ...state, ...newState }
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -845,6 +856,7 @@ tests.addInvalid(
     
     const options: Options = { debug: true }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
