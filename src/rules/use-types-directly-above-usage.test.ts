@@ -1495,56 +1495,16 @@ function capitalizeFirstChar(string: string): string {
 )
 
 tests.addValid(
-  'considers other usages as valid 2',
+  'checkOnly function-args ignores return types',
   `
+type Handler = () => void
 
-type SpringSolver = (t: number) => number;
-
-function createSpringSolver({
-  mass,
-  stiffness,
-  damping,
-  velocity,
-}: {
-  mass: number;
-  stiffness: number;
-  damping: number;
-  velocity: number;
-}): SpringSolver {
-  const w0 = Math.sqrt(stiffness / mass);
-  const zeta = damping / (2 * Math.sqrt(stiffness * mass));
-  const wd = zeta < 1 ? w0 * Math.sqrt(1 - zeta * zeta) : 0;
-  const b = zeta < 1 ? (zeta * w0 - velocity) / wd : -velocity + w0;
-
-  function solver(t: number) {
-    let displacement;
-
-    if (zeta < 1) {
-      displacement =
-        Math.exp(-t * zeta * w0) * (Math.cos(wd * t) + b * Math.sin(wd * t));
-    } else {
-      displacement = (1 + b * t) * Math.exp(-t * w0);
-    }
-
-    return 1 - displacement;
-  }
-
-  return solver;
+function createHandler(): Handler {
+  return () => console.log('hello')
 }
 
-function generateSpringValues(
-  springSolver: SpringSolver,
-  settlingDuration: number,
-) {
-  const samples = settlingDuration * 500;
-  let values: Point[] = [];
-
-  for (let i = 0; i <= settlingDuration; i += 1 / samples) {
-    values.push([i, springSolver(i)]);
-  }
-  values = simplifyDouglasPeucker(values, 0.001);
-
-  return values;
+function useHandler(h: Handler) {
+  h()
 }
   `,
   { checkOnly: ['function-args'] },
