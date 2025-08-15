@@ -4,7 +4,7 @@ import { z } from 'zod/v4'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const optionsSchema = z.object({
-  checkOnly: z.array(z.enum(['function', 'FC'])).optional(),
+  checkOnly: z.array(z.enum(['function-args', 'FC'])).optional(),
 })
 
 type Options = z.infer<typeof optionsSchema>
@@ -158,7 +158,8 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           if (
             parent.type === AST_NODE_TYPES.TSTypeReference &&
             parent.typeName.type === AST_NODE_TYPES.Identifier &&
-            (parent.typeName.name === 'FC' || parent.typeName.name === 'React.FC')
+            (parent.typeName.name === 'FC' ||
+              parent.typeName.name === 'React.FC')
           ) {
             return true
           }
@@ -182,7 +183,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       }
 
       for (const checkContext of options.checkOnly) {
-        if (checkContext === 'function' && isInFunctionArgument(node)) {
+        if (checkContext === 'function-args' && isInFunctionArgument(node)) {
           return true
         }
         if (checkContext === 'FC' && isInFCProps(node)) {
@@ -254,7 +255,10 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       },
 
       TSTypeReference(node) {
-        if (node.typeName.type === AST_NODE_TYPES.Identifier && shouldCheckTypeReference(node)) {
+        if (
+          node.typeName.type === AST_NODE_TYPES.Identifier &&
+          shouldCheckTypeReference(node)
+        ) {
           allTypeReferences.push({ typeName: node.typeName.name, node })
         }
       },

@@ -1115,7 +1115,7 @@ tests.addValid(
       return user.toUpperCase()
     }
   `,
-  { checkOnly: ['function'] },
+  { checkOnly: ['function-args'] },
 )
 
 tests.addValid(
@@ -1151,7 +1151,7 @@ tests.addInvalid(
     }
   `,
     appendToOutput: '\n\n',
-    options: { checkOnly: ['function'] },
+    options: { checkOnly: ['function-args'] },
   },
 )
 
@@ -1214,7 +1214,7 @@ tests.addValid(
     
     type ButtonProps = { label: string }
   `,
-  { checkOnly: ['function'] },
+  { checkOnly: ['function-args'] },
 )
 
 tests.addValid(
@@ -1257,7 +1257,7 @@ tests.addInvalid(
     }
     
     type ButtonProps = { label: string }`,
-    options: { checkOnly: ['function', 'FC'] },
+    options: { checkOnly: ['function-args', 'FC'] },
   },
 )
 
@@ -1272,7 +1272,7 @@ tests.addValid(
     
     const process = (data: UserData) => data.name
   `,
-  { checkOnly: ['function'] },
+  { checkOnly: ['function-args'] },
 )
 
 tests.addInvalid(
@@ -1290,7 +1290,7 @@ tests.addInvalid(
     const process = (data: UserData) => data.name
   `,
     appendToOutput: '\n\n',
-    options: { checkOnly: ['function'] },
+    options: { checkOnly: ['function-args'] },
   },
 )
 
@@ -1303,7 +1303,195 @@ tests.addValid(
     
     type UserData = { name: string }
   `,
-  { checkOnly: ['function'] },
+  { checkOnly: ['function-args'] },
+)
+
+tests.addValid(
+  'considers other usages as valid',
+  `
+import type {
+  DecorationWithType,
+  NodeViewProps,
+  NodeViewRenderer,
+  NodeViewRendererOptions,
+} from '@tiptap/core';
+import { NodeView } from '@tiptap/core';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import type { Decoration } from '@tiptap/pm/view';
+import type { FC } from 'react';
+import React, { useCallback, useMemo } from 'react';
+
+import type { Editor } from '@utils/tiptap-react-fork/Editor';
+import { ReactRenderer } from '@utils/tiptap-react-fork/ReactRenderer';
+
+import type { ReactNodeViewContextProps } from '@utils/tiptap-react-fork/useReactNodeView';
+import { ReactNodeViewContext } from '@utils/tiptap-react-fork/useReactNodeView';
+import type { __LEGIT_ANY__ } from '@utils/typings/typings';
+
+export interface ReactNodeViewRendererOptions extends NodeViewRendererOptions {
+  update:
+    | ((props: {
+        oldNode: ProseMirrorNode;
+        oldDecorations: Decoration[];
+        newNode: ProseMirrorNode;
+        newDecorations: Decoration[];
+        updateProps: () => void;
+      }) => boolean)
+    | null;
+  as?: string;
+  className?: string;
+  attrs?: Record<string, string>;
+}
+
+class ReactNodeView extends NodeView<
+  React.FunctionComponent,
+  Editor,
+  ReactNodeViewRendererOptions
+> {
+  renderer: ReactRenderer<__LEGIT_ANY__, __LEGIT_ANY__> | null = null;
+
+  contentDOMElement: HTMLElement | null | undefined;
+
+  mount() {
+    if (this.renderer) return;
+
+    const props: NodeViewProps = {
+      editor: this.editor,
+      node: this.node,
+      decorations: this.decorations,
+      selected: false,
+      extension: this.extension,
+      getPos: () => this.getPos(),
+      updateAttributes: (attributes = {}) => this.updateAttributes(attributes),
+      deleteNode: () => this.deleteNode(),
+    };
+
+    if (!(this.component as __LEGIT_ANY__).displayName) {
+      this.component.displayName = capitalizeFirstChar(this.extension.name);
+    }
+
+    const ReactNodeViewProvider: React.FunctionComponent = (componentProps) => {
+      const Component = this.component;
+      const onDragStart = this.onDragStart.bind(this);
+      const nodeViewContentRef: ReactNodeViewContextProps['nodeViewContentRef'] =
+        useCallback((element) => {
+          if (
+            element
+            && this.contentDOMElement
+            && element.firstChild !== this.contentDOMElement
+          ) {
+            element.appendChild(this.contentDOMElement);
+          }
+        }, []);
+
+      const ctx = useMemo(
+        () => ({ onDragStart, nodeViewContentRef }),
+        [onDragStart, nodeViewContentRef],
+      );
+
+      return (
+        <ReactNodeViewContext.Provider value={ctx}>
+          <Component {...componentProps} />
+        </ReactNodeViewContext.Provider>
+      );
+    };
+
+    ReactNodeViewProvider.displayName = 'ReactNodeView';
+
+    this.contentDOMElement =
+      this.node.isLeaf ?
+        null
+      : document.createElement(this.node.isInline ? 'span' : 'div');
+
+    if (this.contentDOMElement) {
+      // For some reason the whiteSpace prop is not inherited properly in Chrome and Safari
+      // With this workaround it seems to work fine
+      // See: https://github.com/ueberdosis/tiptap/issues/1197
+      this.contentDOMElement.style.whiteSpace = 'inherit';
+    }
+
+    let as = this.node.isInline ? 'span' : 'div';
+
+    if (this.options.as) {
+      as = this.options.as;
+    }
+
+    const { className = '' } = this.options;
+
+    this.renderer = new ReactRenderer(ReactNodeViewProvider, {
+      editor: this.editor,
+      props,
+      as,
+      className: "",
+      attrs: this.options.attrs,
+    });
+  }
+
+  get dom() {
+    if (!this.renderer) {
+      this.mount();
+    }
+
+    if (
+      !this.renderer
+      || (this.renderer.element.firstElementChild
+        && !this.renderer.element.firstElementChild.hasAttribute(
+          'data-node-view-wrapper',
+        ))
+    ) {
+      throw Error(
+        'Please use the NodeViewWrapper component for your node view.',
+      );
+    }
+
+    return this.renderer.element;
+  }
+
+  get contentDOM() {
+    if (this.node.isLeaf) return null;
+
+    return this.contentDOMElement ?? null;
+  }
+
+  update(node: ProseMirrorNode, decorations: DecorationWithType[]) {
+    
+  }
+
+  selectNode() {
+    this.renderer?.updateProps({ selected: true });
+  }
+
+  deselectNode() {
+    this.renderer?.updateProps({ selected: false });
+  }
+
+  destroy() {
+    this.renderer?.destroy();
+    this.contentDOMElement = null;
+  }
+}
+
+export function ReactNodeViewRenderer(
+  component: FC<__LEGIT_ANY__>,
+  options?: Partial<ReactNodeViewRendererOptions>,
+): NodeViewRenderer {
+  return (props) => {
+    // try to get the parent component
+    // this is important for vue devtools to show the component hierarchy correctly
+    if (!(props.editor as Editor).contentComponent) {
+      return {};
+    }
+
+    return new ReactNodeView(component, props, options);
+  };
+}
+
+function capitalizeFirstChar(string: string): string {
+  return string.charAt(0).toUpperCase() + string.substring(1);
+}
+
+  `,
+  { checkOnly: ['function-args'] },
 )
 
 tests.run()
