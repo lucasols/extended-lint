@@ -44,6 +44,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
       const typeDef = typeDefinitions.get(typeName)
       if (!typeDef) return
+      if (typeDef.statement === usageStatement) return
       const typeDefIndex = programStatements.indexOf(typeDef.statement)
       const usageIndex = programStatements.indexOf(usageStatement)
 
@@ -191,8 +192,9 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
           if (typeDefinitions.has(typeName)) {
             const statement = findStatementContaining(node)
+            const def = typeDefinitions.get(typeName)
 
-            if (statement) {
+            if (statement && def && statement !== def.statement) {
               if (!typeUsagesMap.has(typeName)) {
                 typeUsagesMap.set(typeName, [])
               }
