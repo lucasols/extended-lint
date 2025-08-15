@@ -1388,4 +1388,17 @@ function useHandler(h: Handler) {
   { checkOnly: ['function-args'] },
 )
 
+tests.addValid(
+  'valid case',
+  `
+type Arg2 = number
+type Arg1 = string
+
+function test(arg1: Arg1, arg2: Arg2) {
+  return arg1 + arg2
+}
+  `,
+  { checkOnly: ['FC', 'function-args'] },
+)
+
 tests.run()
