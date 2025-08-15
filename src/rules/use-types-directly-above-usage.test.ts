@@ -1,7 +1,7 @@
 import { createTester } from '../../tests/utils/createTester'
-import { useTypesAboveUsage } from './use-types-above-usage'
+import { useTypesDirectlyAboveUsage } from './use-types-directly-above-usage'
 
-const tests = createTester(useTypesAboveUsage, {
+const tests = createTester(useTypesDirectlyAboveUsage, {
   defaultErrorId: 'moveTypeAboveUsage',
 })
 
@@ -348,10 +348,7 @@ tests.addInvalid(
     type TypeA = { valueA: string }
     type TypeB = { valueB: number }
   `,
-  [
-    { messageId: 'moveTypeAboveUsage' },
-    { messageId: 'moveTypeAboveUsage' },
-  ],
+  [{ messageId: 'moveTypeAboveUsage' }, { messageId: 'moveTypeAboveUsage' }],
   {
     output: `
     type TypeA = { valueA: string }
@@ -456,9 +453,9 @@ tests.addValid(
   `,
 )
 
-// Variable declaration tests - checkVariables option
-tests.addValid(
-  'variable declaration with type - checkVariables disabled by default',
+// Variable declaration tests  
+tests.addInvalid(
+  'variable declaration with type below - options example',
   `
     const options: Options = {
       debug: true,
@@ -470,6 +467,20 @@ tests.addValid(
       timeout: number
     }
   `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type Options = {
+      debug: boolean
+      timeout: number
+    }
+    
+    const options: Options = {
+      debug: true,
+      timeout: 5000
+    }
+  `,
+  },
 )
 
 tests.addValid(
@@ -691,9 +702,8 @@ tests.addInvalid(
   },
 )
 
-// Tests with checkVariables option enabled
-tests.addInvalidWithOptions(
-  'variable declaration with type below - checkVariables enabled',
+tests.addInvalid(
+  'variable declaration with type below - config example',
   `
     const config: Config = {
       apiUrl: 'https://api.example.com',
@@ -705,7 +715,6 @@ tests.addInvalidWithOptions(
       retries: number
     }
   `,
-  { checkVariables: true } satisfies Record<string, unknown>,
   [{ messageId: 'moveTypeAboveUsage' }],
   {
     output: `
@@ -722,7 +731,7 @@ tests.addInvalidWithOptions(
   },
 )
 
-tests.addInvalidWithOptions(
+tests.addInvalid(
   'multiple variables with shared type - should move above first variable',
   `
     const userSettings: Settings = { theme: 'dark', fontSize: 14 }
@@ -733,7 +742,6 @@ tests.addInvalidWithOptions(
       fontSize: number
     }
   `,
-  { checkVariables: true } satisfies Record<string, unknown>,
   [{ messageId: 'moveTypeAboveUsage' }],
   {
     output: `
@@ -748,7 +756,7 @@ tests.addInvalidWithOptions(
   },
 )
 
-tests.addInvalidWithOptions(
+tests.addInvalid(
   'mixed function and variable usage - should move above first occurrence',
   `
     function processConfig(cfg: AppConfig) {
@@ -765,7 +773,6 @@ tests.addInvalidWithOptions(
       version: string
     }
   `,
-  { checkVariables: true } satisfies Record<string, unknown>,
   [{ messageId: 'moveTypeAboveUsage' }],
   {
     output: `
@@ -786,7 +793,7 @@ tests.addInvalidWithOptions(
   },
 )
 
-tests.addInvalidWithOptions(
+tests.addInvalid(
   'variable comes first - type should move above variable not function',
   `
     const state: State = { loading: false }
@@ -799,7 +806,6 @@ tests.addInvalidWithOptions(
       loading: boolean
     }
   `,
-  { checkVariables: true } satisfies Record<string, unknown>,
   [{ messageId: 'moveTypeAboveUsage' }],
   {
     output: `
@@ -816,13 +822,149 @@ tests.addInvalidWithOptions(
   },
 )
 
-// Verify checkVariables option is disabled by default
-tests.addValid(
-  'checkVariables disabled by default - no error for type below variable',
+tests.addInvalid(
+  'type below variable - now always checked',
   `
     const options: Options = { debug: true }
     
     type Options = { debug: boolean }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type Options = { debug: boolean }
+    
+    const options: Options = { debug: true }
+  `,
+  },
+)
+
+tests.addInvalid(
+  'type not directly above usage with code in between',
+  `
+    type Options = {
+      debug: boolean
+      timeout: number
+      retries: number
+    }
+    
+    const defaultTimeout = 5000
+    const maxRetries = 3
+    
+    function performNetworkCall(url: string) {
+      return fetch(url)
+    }
+    
+    function validateUrl(url: string): boolean {
+      return url.startsWith('https://')
+    }
+    
+    class NetworkService {
+      private baseUrl = 'https://api.example.com'
+      
+      async request(endpoint: string) {
+        const url = this.baseUrl + endpoint
+        if (!validateUrl(url)) {
+          throw new Error('Invalid URL')
+        }
+        return performNetworkCall(url)
+      }
+    }
+    
+    function test(options: Options) {
+      return options.debug ? 'debug mode' : 'production mode'
+    }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    const defaultTimeout = 5000
+    const maxRetries = 3
+    
+    function performNetworkCall(url: string) {
+      return fetch(url)
+    }
+    
+    function validateUrl(url: string): boolean {
+      return url.startsWith('https://')
+    }
+    
+    class NetworkService {
+      private baseUrl = 'https://api.example.com'
+      
+      async request(endpoint: string) {
+        const url = this.baseUrl + endpoint
+        if (!validateUrl(url)) {
+          throw new Error('Invalid URL')
+        }
+        return performNetworkCall(url)
+      }
+    }
+    
+    type Options = {
+      debug: boolean
+      timeout: number
+      retries: number
+    }
+    
+    function test(options: Options) {
+      return options.debug ? 'debug mode' : 'production mode'
+    }
+  `,
+  },
+)
+
+tests.addInvalid(
+  'type not directly above usage with code in between',
+  `
+    type Options = {
+      debug: boolean
+      timeout: number
+      retries: number
+    }
+    
+    const defaultTimeout = 5000
+    
+    function test(options: Options) {
+      return options.debug ? 'debug mode' : 'production mode'
+    }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    const defaultTimeout = 5000
+
+    type Options = {
+      debug: boolean
+      timeout: number
+      retries: number
+    }
+    
+    function test(options: Options) {
+      return options.debug ? 'debug mode' : 'production mode'
+    }
+  `,
+  },
+)
+
+tests.addValid(
+  'correctly checks types in nested functions',
+  `
+    export function exhaustiveMatchObjUnion<
+      T extends Record<string, unknown>,
+      D extends keyof T,
+      K extends T[D] & string,
+    >(obj: T, key: D) {
+      type Pattern<R> = {
+        [P in K]: ((props: Extract<T, Record<D, P>>) => R) | '_never';
+      };
+
+      function withLazy<R>(pattern: Pattern<R>): R {
+        // ...
+      }
+
+      return { with: withLazy };
+    }
   `,
 )
 

@@ -31,6 +31,7 @@ import { requireReadsToVarProp } from './require-reads-to-var-prop'
 import { rulesOfHooksESLintRule } from './rules-of-hooks'
 import { templateIndent } from './template-indent'
 import { useTopLevelRegex } from './use-top-level-regex'
+import { useTypesDirectlyAboveUsage } from './use-types-directly-above-usage'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -65,5 +66,6 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noWriteOnlyRef.name]: noWriteOnlyRef.rule,
   [requireReadsToVarProp.name]: requireReadsToVarProp.rule,
   [templateIndent.name]: templateIndent.rule,
+  [useTypesDirectlyAboveUsage.name]: useTypesDirectlyAboveUsage.rule,
   [noReexport.name]: noReexport.rule,
 }
