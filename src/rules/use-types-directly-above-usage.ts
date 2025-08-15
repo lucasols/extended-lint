@@ -177,26 +177,12 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       return false
     }
 
-    function shouldCheckTypeReference(node: TSESTree.TSTypeReference): boolean {
-      if (!options.checkOnly || options.checkOnly.length === 0) {
-        return true
-      }
-
-      for (const checkContext of options.checkOnly) {
-        if (checkContext === 'function-args' && isInFunctionArgument(node)) {
-          return true
-        }
-        if (checkContext === 'FC' && isInFCProps(node)) {
-          return true
-        }
-      }
-
-      return false
-    }
 
     const allTypeReferences: Array<{
       typeName: string
       node: TSESTree.TSTypeReference
+      inFunctionArgs: boolean
+      inFCProps: boolean
     }> = []
 
     return {
@@ -255,19 +241,51 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       },
 
       TSTypeReference(node) {
-        if (
-          node.typeName.type === AST_NODE_TYPES.Identifier &&
-          shouldCheckTypeReference(node)
-        ) {
-          allTypeReferences.push({ typeName: node.typeName.name, node })
+        if (node.typeName.type === AST_NODE_TYPES.Identifier) {
+          allTypeReferences.push({
+            typeName: node.typeName.name,
+            node,
+            inFunctionArgs: isInFunctionArgument(node),
+            inFCProps: isInFCProps(node),
+          })
         }
       },
 
       'Program:exit'() {
         const typeUsagesMap = new Map<string, TSESTree.Statement[]>()
 
-        // Process all type references after type definitions are collected
-        for (const typeRef of allTypeReferences) {
+        // Filter type references based on checkOnly option
+        const filteredReferences = allTypeReferences.filter((typeRef) => {
+          const { typeName } = typeRef
+          
+          // If no checkOnly option, include all references
+          if (!options.checkOnly || options.checkOnly.length === 0) {
+            return true
+          }
+
+          // Count total references for this type
+          const allRefsForType = allTypeReferences.filter(ref => ref.typeName === typeName)
+          
+          // If type is used multiple times, ignore when checkOnly is set
+          if (allRefsForType.length > 1) {
+            return false
+          }
+
+          // Check if this single reference is in the specified contexts
+          for (const checkContext of options.checkOnly) {
+            if (checkContext === 'function-args' && typeRef.inFunctionArgs) {
+              return true
+            }
+            if (checkContext === 'FC' && typeRef.inFCProps) {
+              return true
+            }
+          }
+
+          return false
+        })
+
+        // Process filtered type references
+        for (const typeRef of filteredReferences) {
           const { typeName, node } = typeRef
 
           if (typeDefinitions.has(typeName)) {
