@@ -1,5 +1,6 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
-import * as t from 'tschema'
+import { z } from 'zod/v4'
+import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -7,27 +8,27 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'react-compiler-migration'
 
-const optionsSchema = t.object({
-  disallowHooks: t.optional(
-    t.array(
-      t.object({
-        name: t.string(),
-        replacement: t.string(),
+const optionsSchema = z.object({
+  disallowHooks: z
+    .array(
+      z.object({
+        name: z.string(),
+        replacement: z.string(),
       }),
-    ),
-  ),
-  disallowMethods: t.optional(
-    t.array(
-      t.object({
-        name: t.string(),
-        replacement: t.optional(t.string()),
-        requireTrueProp: t.optional(t.string()),
+    )
+    .optional(),
+  disallowMethods: z
+    .array(
+      z.object({
+        name: z.string(),
+        replacement: z.string().optional(),
+        requireTrueProp: z.string().optional(),
       }),
-    ),
-  ),
+    )
+    .optional(),
 })
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
@@ -71,9 +72,9 @@ const rule = createRule<
         '{{method}} is should have a prop named {{requireTrueProp}} set to true when used in react compiler.',
     },
     hasSuggestions: true,
-    schema: [optionsSchema as any],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
   },
-  defaultOptions: [{}],
+  defaultOptions: [{ disallowHooks: [], disallowMethods: [] }],
   create(context, [options]) {
     let isEnabled = false
 

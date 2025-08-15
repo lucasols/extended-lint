@@ -5,7 +5,8 @@ import {
   TSESLint,
   TSESTree,
 } from '@typescript-eslint/utils'
-import * as t from 'tschema'
+import z from 'zod/v4'
+import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -13,12 +14,12 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'prefer-single-line-if'
 
-const optionsSchema = t.object({
-  maxLineLength: t.optional(t.number()),
-  maxNonSimpleConditionLength: t.optional(t.number()),
+const optionsSchema = z.object({
+  maxLineLength: z.number().optional(),
+  maxNonSimpleConditionLength: z.number().optional(),
 })
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 const rule = createRule<[Options], 'noSingleLineCurly'>({
   name,
@@ -32,7 +33,7 @@ const rule = createRule<[Options], 'noSingleLineCurly'>({
       noSingleLineCurly:
         'If return statement with single statement body should be written in a single line',
     },
-    schema: [optionsSchema as any],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
   },
   defaultOptions: [{}],
   create(context, [options]) {

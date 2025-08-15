@@ -19,11 +19,12 @@ export function createExtendedLintRule<
 
   return {
     name: rule.name,
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     rule: eslintRule as unknown as TSESLint.RuleModule<string, O>,
   }
 }
 
 export function getJsonSchemaFromZod(zodSchema: z.ZodTypeAny): JSONSchema4 {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/consistent-type-assertions
   return z.toJSONSchema(zodSchema) as any
 }

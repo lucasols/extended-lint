@@ -4,7 +4,8 @@ import {
   TSESLint,
   TSESTree,
 } from '@typescript-eslint/utils'
-import * as t from 'tschema'
+import { z } from 'zod/v4'
+import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -35,12 +36,12 @@ function extendMap<K, V>(map: Map<K, V>, ...entries: [K, V][]): Map<K, V> {
   return map
 }
 
-const optionsSchema = t.object({
-  forceCheckOnFCPropTypesWithName: t.optional(t.array(t.string())),
-  alwaysCheckFunctionOptionTypes: t.optional(t.boolean()),
+const optionsSchema = z.object({
+  forceCheckOnFCPropTypesWithName: z.array(z.string()).optional(),
+  alwaysCheckFunctionOptionTypes: z.boolean().optional(),
 })
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 const name = 'no-unused-type-props-in-args'
 
@@ -61,12 +62,15 @@ const rule = createRule<
       missingComponentParam:
         'Component has declared props but no props are used',
     },
-    schema: [optionsSchema as any],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
     fixable: 'code',
   },
   defaultOptions: [{ alwaysCheckFunctionOptionTypes: true }],
   create(context, [options]) {
-    const { forceCheckOnFCPropTypesWithName, alwaysCheckFunctionOptionTypes = true } = options
+    const {
+      forceCheckOnFCPropTypesWithName,
+      alwaysCheckFunctionOptionTypes = true,
+    } = options
 
     if (
       forceCheckOnFCPropTypesWithName &&
@@ -88,9 +92,7 @@ const rule = createRule<
 
       const resolved = context.sourceCode
         .getScope(scope)
-        .references.find(
-          (ref) => ref.identifier.name === typeName,
-        )?.resolved
+        .references.find((ref) => ref.identifier.name === typeName)?.resolved
 
       const forceCheck =
         isFC &&
@@ -104,21 +106,17 @@ const rule = createRule<
       if (
         !resolved ||
         (!forceCheck &&
-          resolved.references.filter((ref) => ref.isTypeReference)
-            .length > 1)
+          resolved.references.filter((ref) => ref.isTypeReference).length > 1)
       ) {
         return
       }
 
       const type = resolved.defs[0]!.node
 
-      const isExported = type.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration
+      const isExported =
+        type.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration
 
-      if (
-        ignoreExported &&
-        isExported &&
-        !shouldForceCheckFunctionOption
-      ) {
+      if (ignoreExported && isExported && !shouldForceCheckFunctionOption) {
         return
       }
 
@@ -175,7 +173,14 @@ const rule = createRule<
 
       if (typeNode.type === AST_NODE_TYPES.TSIntersectionType) {
         for (const type of typeNode.types) {
-          extendDeclaredTypeParams(isFC, scope, declaredProperties, type, true, forceCheckFunctionOption)
+          extendDeclaredTypeParams(
+            isFC,
+            scope,
+            declaredProperties,
+            type,
+            true,
+            forceCheckFunctionOption,
+          )
         }
         return
       }
@@ -204,7 +209,10 @@ const rule = createRule<
       forceCheckFunctionOption = false,
     ) {
       for (const param of params) {
-        if (param.type === AST_NODE_TYPES.ObjectPattern && param.typeAnnotation) {
+        if (
+          param.type === AST_NODE_TYPES.ObjectPattern &&
+          param.typeAnnotation
+        ) {
           const declaredProperties = new Map<string, TSESTree.Node>()
 
           extendDeclaredTypeParams(
@@ -225,7 +233,12 @@ const rule = createRule<
           param.type === AST_NODE_TYPES.AssignmentPattern &&
           param.left.type === AST_NODE_TYPES.ObjectPattern
         ) {
-          checkParamsOfInferredDeclarations(isFC, scope, [param.left], forceCheckFunctionOption)
+          checkParamsOfInferredDeclarations(
+            isFC,
+            scope,
+            [param.left],
+            forceCheckFunctionOption,
+          )
         }
       }
     }
@@ -374,10 +387,20 @@ const rule = createRule<
         }
       },
       FunctionDeclaration(node) {
-        checkParamsOfInferredDeclarations(false, node, node.params, alwaysCheckFunctionOptionTypes)
+        checkParamsOfInferredDeclarations(
+          false,
+          node,
+          node.params,
+          alwaysCheckFunctionOptionTypes,
+        )
       },
       ArrowFunctionExpression(node) {
-        checkParamsOfInferredDeclarations(false, node, node.params, alwaysCheckFunctionOptionTypes)
+        checkParamsOfInferredDeclarations(
+          false,
+          node,
+          node.params,
+          alwaysCheckFunctionOptionTypes,
+        )
       },
     }
   },

@@ -1,20 +1,20 @@
 import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
-import * as t from 'tschema'
-import { createExtendedLintRule } from '../createRule'
+import { z } from 'zod/v4'
+import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
-const optionsSchema = t.object({
-  disallowedFunctions: t.array(
-    t.object({
-      name: t.string(),
-      allowUsingWithArgs: t.optional(t.boolean()),
-      hookAlternative: t.optional(t.string()),
-      message: t.optional(t.string()),
-      allowUseInside: t.optional(t.array(t.string())),
+const optionsSchema = z.object({
+  disallowedFunctions: z.array(
+    z.object({
+      name: z.string(),
+      allowUsingWithArgs: z.boolean().optional(),
+      hookAlternative: z.string().optional(),
+      message: z.string().optional(),
+      allowUseInside: z.array(z.string()).optional(),
     }),
   ),
 })
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 function isHookName(name: string): boolean {
   return /^use[A-Z]/.test(name)
@@ -277,7 +277,7 @@ export const preferReactHookAlternative = createExtendedLintRule<
       preferHookAlternative:
         'This function should not be used in react{{message}}.',
     },
-    schema: [optionsSchema as any],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
     hasSuggestions: true,
   },
   defaultOptions: [{ disallowedFunctions: [] }],

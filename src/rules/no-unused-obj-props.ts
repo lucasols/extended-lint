@@ -82,6 +82,7 @@ export const noUnusedObjProps = createExtendedLintRule<
             return
           }
 
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           const memberExpr = ref.identifier.parent as TSESTree.MemberExpression
 
           // Skip if this is not the object of the member expression

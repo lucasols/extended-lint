@@ -4,8 +4,9 @@ import {
   TSESLint,
   TSESTree,
 } from '@typescript-eslint/utils'
-import * as t from 'tschema'
 import * as ts from 'typescript'
+import z from 'zod/v4'
+import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -14,18 +15,18 @@ const createRule = ESLintUtils.RuleCreator(
 const name = 'no-unnecessary-casting'
 
 // Define options schema
-const optionsSchema = t.object({
-  additionalCastFunctions: t.optional(
-    t.array(
-      t.object({
-        name: t.string(),
-        expectedType: t.enum(['string', 'number']),
+const optionsSchema = z.object({
+  additionalCastFunctions: z
+    .array(
+      z.object({
+        name: z.string(),
+        expectedType: z.enum(['string', 'number']),
       }),
-    ),
-  ),
+    )
+    .optional(),
 })
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 type CastFunction = {
   name: string
@@ -54,7 +55,7 @@ export const noUnnecessaryCasting = {
         unnecessaryCustomCasting:
           'Unnecessary {{name}}() casting on a value already of {{type}} type',
       },
-      schema: [optionsSchema as any],
+      schema: [getJsonSchemaFromZod(optionsSchema)],
       fixable: 'code',
     },
     defaultOptions: [{}],

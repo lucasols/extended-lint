@@ -1,6 +1,7 @@
 import { ESLintUtils } from '@typescript-eslint/utils'
 import path from 'node:path'
-import * as t from 'tschema'
+import { z } from 'zod/v4'
+import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -8,19 +9,19 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'no-relative-imports'
 
-const aliasPatternSchema = t.object({
-  find: t.string(),
-  replacement: t.string(),
+const aliasPatternSchema = z.object({
+  find: z.string(),
+  replacement: z.string(),
 })
 
-const optionsSchema = t.object({
-  aliases: t.array(aliasPatternSchema),
-  rootDir: t.optional(t.string()),
-  allowNotFoundAliases: t.optional(t.boolean()),
-  _dev_simulateFileName: t.optional(t.string()),
+const optionsSchema = z.object({
+  aliases: z.array(aliasPatternSchema),
+  rootDir: z.string().optional(),
+  allowNotFoundAliases: z.boolean().optional(),
+  _dev_simulateFileName: z.string().optional(),
 })
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 const rule = createRule<
   [Options],
@@ -40,7 +41,7 @@ const rule = createRule<
       noRelativeImportsWithAlias:
         'Relative imports are not allowed. Use the "{{ alias }}" alias instead.',
     },
-    schema: [optionsSchema as any],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
   },
   defaultOptions: [{ aliases: [], rootDir: undefined }],
   create(context, [options]) {

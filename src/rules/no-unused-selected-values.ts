@@ -5,20 +5,21 @@ import {
   TSESLint,
   TSESTree,
 } from '@typescript-eslint/utils'
-import * as t from 'tschema'
+import { z } from 'zod/v4'
+import { getJsonSchemaFromZod } from '../createRule'
 
-const optionsSchema = t.object({
-  selectors: t.array(
-    t.object({
-      name: t.string(),
-      selectorProp: t.optional(t.string()),
-      selectorArgPos: t.optional(t.number()),
-      returnProp: t.optional(t.string()),
+const optionsSchema = z.object({
+  selectors: z.array(
+    z.object({
+      name: z.string(),
+      selectorProp: z.string().optional(),
+      selectorArgPos: z.number().optional(),
+      returnProp: z.string().optional(),
     }),
   ),
 })
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -38,7 +39,7 @@ export const noUnusedSelectedValues = {
       messages: {
         unusedSelectedValue: 'The selected value "{{name}}" is not being used',
       },
-      schema: [optionsSchema as any],
+      schema: [getJsonSchemaFromZod(optionsSchema)],
     },
     defaultOptions: [{ selectors: [] }],
     create(context, [options]) {

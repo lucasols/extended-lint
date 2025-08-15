@@ -3,6 +3,7 @@ import { useTypesDirectlyAboveUsage } from './use-types-directly-above-usage'
 
 const tests = createTester(useTypesDirectlyAboveUsage, {
   defaultErrorId: 'moveTypeAboveUsage',
+  disableDedent: true,
 })
 
 // Valid cases - no errors expected
@@ -166,21 +167,21 @@ tests.addValid(
 tests.addInvalid(
   'type alias below function that uses it',
   `
-    function processUser(data: UserData) {
-      return data.name
-    }
-    
-    type UserData = { name: string }
-  `,
+function processUser(data: UserData) {
+  return data.name
+}
+
+type UserData = { name: string }`,
   [{ messageId: 'moveTypeAboveUsage' }],
   {
     output: `
-    type UserData = { name: string }
-    
-    function processUser(data: UserData) {
-      return data.name
-    }
-  `,
+type UserData = { name: string }
+
+function processUser(data: UserData) {
+  return data.name
+}
+
+`,
   },
 )
 
@@ -453,7 +454,7 @@ tests.addValid(
   `,
 )
 
-// Variable declaration tests  
+// Variable declaration tests
 tests.addInvalid(
   'variable declaration with type below - options example',
   `

@@ -5,7 +5,8 @@ import {
   TSESLint,
   TSESTree,
 } from '@typescript-eslint/utils'
-import * as t from 'tschema'
+import { z } from 'zod/v4'
+import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -13,15 +14,15 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'collapse-simple-objs-in-one-line'
 
-const optionsSchema = t.object({
-  maxLineLength: t.optional(t.number()),
-  maxProperties: t.optional(t.number()),
-  nestedObjMaxLineLength: t.optional(t.number()),
-  nestedObjMaxProperties: t.optional(t.number()),
-  ignoreTypesWithSuffix: t.optional(t.array(t.string())),
+const optionsSchema = z.object({
+  maxLineLength: z.number().optional(),
+  maxProperties: z.number().optional(),
+  nestedObjMaxLineLength: z.number().optional(),
+  nestedObjMaxProperties: z.number().optional(),
+  ignoreTypesWithSuffix: z.array(z.string()).optional(),
 })
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 const rule = createRule<[Options], 'singleLineProp'>({
   name,
@@ -34,7 +35,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
     messages: {
       singleLineProp: 'Object/type should be written in a single line',
     },
-    schema: [optionsSchema as any],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
   },
   defaultOptions: [{}],
   create(context, [options]) {

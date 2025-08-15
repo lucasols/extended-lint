@@ -1,5 +1,6 @@
 import { AST_NODE_TYPES, ESLintUtils } from '@typescript-eslint/utils'
-import * as t from 'tschema'
+import { z } from 'zod/v4'
+import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -7,11 +8,11 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'no-call-with-explicit-generics'
 
-const optionsSchema = t.object({
-  functions: t.array(t.string()),
+const optionsSchema = z.object({
+  functions: z.array(z.string()),
 })
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 const rule = createRule<[Options], 'noExplicitGenerics'>({
   name,
@@ -24,7 +25,7 @@ const rule = createRule<[Options], 'noExplicitGenerics'>({
     messages: {
       noExplicitGenerics: `Function '{{ functionName }}' should be called with inferred generics (remove the explicit type parameters)`,
     },
-    schema: [optionsSchema as any],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
   },
   defaultOptions: [{ functions: [] }],
   create(context, [options]) {

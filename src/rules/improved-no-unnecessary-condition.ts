@@ -4,8 +4,9 @@ import {
   TSESLint,
   TSESTree,
 } from '@typescript-eslint/utils'
-import * as t from 'tschema'
 import ts from 'typescript'
+import { z } from 'zod/v4'
+import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -13,9 +14,9 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'improved-no-unnecessary-condition'
 
-const optionsSchema = t.object({})
+const optionsSchema = z.object({})
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 const typeofValues = [
   'string',
@@ -51,7 +52,7 @@ export const improvedNoUnnecessaryCondition = {
         alwaysFalseTypeofCondition:
           'This condition will always be false. The type of "{{name}}" is "{{actualType}}" so the condition has no overlap with "{{conditionType}}".',
       },
-      schema: [optionsSchema as any],
+      schema: [getJsonSchemaFromZod(optionsSchema)],
     },
     defaultOptions: [{}],
     create(context) {
@@ -159,6 +160,7 @@ export const improvedNoUnnecessaryCondition = {
       ): TypeofValue[] | null {
         if (!checker) return null
 
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         const tsNode = parserServices.esTreeNodeToTSNodeMap.get(
           node,
         ) as ts.TypeOfExpression
@@ -347,5 +349,6 @@ function narrowStringToUnion<T extends string>(
   value: string,
   validValues: Set<T>,
 ): value is T {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
   return validValues.has(value as T)
 }

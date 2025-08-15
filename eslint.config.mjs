@@ -9,6 +9,12 @@ export default lsStackEslintCfg({
     '@typescript-eslint/no-explicit-any': OFF,
     '@typescript-eslint/no-unsafe-assignment': OFF,
     '@typescript-eslint/no-unnecessary-condition': ERROR,
+    '@typescript-eslint/consistent-type-assertions': [
+      ERROR,
+      {
+        assertionStyle: 'never',
+      },
+    ],
   },
   extends: [
     {

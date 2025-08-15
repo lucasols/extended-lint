@@ -1,6 +1,6 @@
 import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
 import * as z from 'zod/v4'
-import { createExtendedLintRule } from '../createRule'
+import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const optionsSchema = z.object({
   methods: z.union([z.array(z.string()), z.literal('array')]),
@@ -24,7 +24,7 @@ export const noUnnecessaryTyping = createExtendedLintRule<
         'Unnecessary type annotation. TypeScript can infer this type from context.',
     },
     fixable: 'code',
-    schema: [z.toJSONSchema(optionsSchema) as any],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
   },
   defaultOptions: [{ methods: 'array' }],
   create(context, [options]) {

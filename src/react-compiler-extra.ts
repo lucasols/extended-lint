@@ -1,5 +1,6 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
-import * as t from 'tschema'
+import { z } from 'zod/v4'
+import { getJsonSchemaFromZod } from './createRule'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -7,11 +8,11 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'react-compiler-extra'
 
-const optionsSchema = t.object({
-  runOnlyWithEnableCompilerDirective: t.optional(t.boolean()),
+const optionsSchema = z.object({
+  runOnlyWithEnableCompilerDirective: z.boolean().optional(),
 })
 
-type Options = t.Infer<typeof optionsSchema>
+type Options = z.infer<typeof optionsSchema>
 
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
@@ -66,7 +67,7 @@ const rule = createRule<
         'Object method uses `this` keyword which would have different behavior if converted to an arrow function. Fix this manually.',
     },
     hasSuggestions: true,
-    schema: [optionsSchema as any],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
   },
   defaultOptions: [{}],
   create(context, [options]) {

@@ -15,6 +15,7 @@ export function findParentNode<T extends TSESTree.AST_NODE_TYPES>(
   }
 
   if (node.type === type) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     return node as TSESTree.Node & { type: T }
   }
 
