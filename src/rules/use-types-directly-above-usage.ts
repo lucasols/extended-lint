@@ -34,7 +34,10 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
     // Store all program-level statements for easy lookup
     const programStatements: TSESTree.Statement[] = []
 
-    function checkAndReportType(typeName: string, usageStatement: TSESTree.Statement) {
+    function checkAndReportType(
+      typeName: string,
+      usageStatement: TSESTree.Statement,
+    ) {
       if (!typeDefinitions.has(typeName)) {
         return
       }
@@ -125,17 +128,24 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       TSTypeAliasDeclaration(node) {
         // Only process top-level type declarations (not nested inside functions)
         // Check if this type is a direct child of a program statement
-        const isTopLevel = programStatements.some(stmt => {
-          if (stmt.type === AST_NODE_TYPES.ExportNamedDeclaration && stmt.declaration === node) {
+        const isTopLevel = programStatements.some((stmt) => {
+          if (
+            stmt.type === AST_NODE_TYPES.ExportNamedDeclaration &&
+            stmt.declaration === node
+          ) {
             return true
           }
           return stmt === node
         })
-        
+
         if (isTopLevel) {
           const statement = findStatementContaining(node)
           if (statement) {
-            typeDefinitions.set(node.id.name, { node, name: node.id.name, statement })
+            typeDefinitions.set(node.id.name, {
+              node,
+              name: node.id.name,
+              statement,
+            })
           }
         }
       },
@@ -143,17 +153,24 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       TSInterfaceDeclaration(node) {
         // Only process top-level type declarations (not nested inside functions)
         // Check if this type is a direct child of a program statement
-        const isTopLevel = programStatements.some(stmt => {
-          if (stmt.type === AST_NODE_TYPES.ExportNamedDeclaration && stmt.declaration === node) {
+        const isTopLevel = programStatements.some((stmt) => {
+          if (
+            stmt.type === AST_NODE_TYPES.ExportNamedDeclaration &&
+            stmt.declaration === node
+          ) {
             return true
           }
           return stmt === node
         })
-        
+
         if (isTopLevel) {
           const statement = findStatementContaining(node)
           if (statement) {
-            typeDefinitions.set(node.id.name, { node, name: node.id.name, statement })
+            typeDefinitions.set(node.id.name, {
+              node,
+              name: node.id.name,
+              statement,
+            })
           }
         }
       },
@@ -205,9 +222,10 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
         // Process types in order of their first usage position
         // Only report one violation at a time to avoid fix conflicts
-        const sortedTypes = typesToProcess
-          .sort((a, b) => a.firstUsage.range[0] - b.firstUsage.range[0])
-        
+        const sortedTypes = typesToProcess.sort(
+          (a, b) => a.firstUsage.range[0] - b.firstUsage.range[0],
+        )
+
         if (sortedTypes.length > 0) {
           const firstType = sortedTypes[0]
           if (firstType) {

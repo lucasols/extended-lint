@@ -111,7 +111,11 @@ const rule = createRule<
         return
       }
 
-      const type = resolved.defs[0]!.node
+      if (!resolved.defs[0]) {
+        return
+      }
+
+      const type = resolved.defs[0].node
 
       const isExported =
         type.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration

@@ -1013,4 +1013,94 @@ tests.addInvalid(
   },
 )
 
+tests.addInvalid(
+  'test case 2',
+  `
+    /** Creates a reducer using immer produce function. For more details visit
+     * {@link https://immerjs.github.io/immer/docs/introduction} */
+    export function produceReducer<T, P>(
+      reducer: (state: T, payload: P) => void | undefined | T,
+    ) {
+      return produce(reducer) as (state: T, payload: P) => T;
+    }
+
+    export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
+      return produce(initial, recipe);
+    }
+
+    export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
+
+    export function replaceDraftArrayItem<T>(
+      draftArray: T[] | null | undefined,
+      getItemToReplace: (item: T) => boolean,
+      replacement: T,
+    ) {
+      if (!draftArray) return;
+
+      const itemIndex = draftArray.findIndex(getItemToReplace);
+
+      if (itemIndex !== -1) draftArray[itemIndex] = replacement;
+    }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    /** Creates a reducer using immer produce function. For more details visit
+     * {@link https://immerjs.github.io/immer/docs/introduction} */
+    export function produceReducer<T, P>(
+      reducer: (state: T, payload: P) => void | undefined | T,
+    ) {
+      return produce(reducer) as (state: T, payload: P) => T;
+    }
+
+    export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
+
+    export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
+      return produce(initial, recipe);
+    }
+
+
+    export function replaceDraftArrayItem<T>(
+      draftArray: T[] | null | undefined,
+      getItemToReplace: (item: T) => boolean,
+      replacement: T,
+    ) {
+      if (!draftArray) return;
+
+      const itemIndex = draftArray.findIndex(getItemToReplace);
+
+      if (itemIndex !== -1) draftArray[itemIndex] = replacement;
+    }
+  `,
+  },
+)
+
+tests.addInvalid(
+  'real file with imports',
+  `
+    import { isFunction } from '@utils/assertions';
+    import { produce } from 'immer';
+
+    export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
+      return produce(initial, recipe);
+    }
+
+    export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    import { isFunction } from '@utils/assertions';
+    import { produce } from 'immer';
+
+    export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
+
+    export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
+      return produce(initial, recipe);
+    }
+  `,
+    appendToOutput: '\n\n',
+  },
+)
+
 tests.run()
