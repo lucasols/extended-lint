@@ -1,6 +1,13 @@
 import type { TSESLint } from '@typescript-eslint/utils'
 import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
-import { createExtendedLintRule } from '../createRule'
+import { z } from 'zod/v4'
+import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
+
+const optionsSchema = z.object({
+  checkOnly: z.array(z.enum(['function', 'FC'])).optional(),
+})
+
+type Options = z.infer<typeof optionsSchema>
 
 type TypeDefinition = {
   node: TSESTree.TSTypeAliasDeclaration | TSESTree.TSInterfaceDeclaration
@@ -9,7 +16,7 @@ type TypeDefinition = {
 }
 
 export const useTypesDirectlyAboveUsage = createExtendedLintRule<
-  [],
+  [Options],
   'moveTypeAboveUsage'
 >({
   name: 'use-types-directly-above-usage',
@@ -20,14 +27,14 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         'Require type definitions to be placed directly above their first usage for better readability',
     },
     fixable: 'code',
-    schema: [],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
     messages: {
       moveTypeAboveUsage:
         'Type definition should be placed directly above its first usage.',
     },
   },
-  defaultOptions: [],
-  create(context) {
+  defaultOptions: [{}],
+  create(context, [options]) {
     const sourceCode = context.sourceCode
     const typeDefinitions = new Map<string, TypeDefinition>()
 
@@ -117,6 +124,75 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       }
     }
 
+    function isInFunctionArgument(node: TSESTree.Node): boolean {
+      let current = node.parent
+      while (current) {
+        if (
+          current.type === AST_NODE_TYPES.FunctionDeclaration ||
+          current.type === AST_NODE_TYPES.FunctionExpression ||
+          current.type === AST_NODE_TYPES.ArrowFunctionExpression
+        ) {
+          // Check if the node is within the params array
+          const params = current.params
+          for (const param of params) {
+            if (
+              node.range[0] >= param.range[0] &&
+              node.range[1] <= param.range[1]
+            ) {
+              return true
+            }
+          }
+          break
+        }
+        current = current.parent
+      }
+      return false
+    }
+
+    function isInFCProps(node: TSESTree.Node): boolean {
+      let current = node.parent
+      while (current) {
+        // Check if we're inside a TSTypeParameterInstantiation that belongs to FC<Props>
+        if (current.type === AST_NODE_TYPES.TSTypeParameterInstantiation) {
+          const parent = current.parent
+          if (
+            parent.type === AST_NODE_TYPES.TSTypeReference &&
+            parent.typeName.type === AST_NODE_TYPES.Identifier &&
+            (parent.typeName.name === 'FC' || parent.typeName.name === 'React.FC')
+          ) {
+            return true
+          }
+          // Check for qualified name like React.FC
+          if (
+            parent.type === AST_NODE_TYPES.TSTypeReference &&
+            parent.typeName.type === AST_NODE_TYPES.TSQualifiedName &&
+            parent.typeName.right.name === 'FC'
+          ) {
+            return true
+          }
+        }
+        current = current.parent
+      }
+      return false
+    }
+
+    function shouldCheckTypeReference(node: TSESTree.TSTypeReference): boolean {
+      if (!options.checkOnly || options.checkOnly.length === 0) {
+        return true
+      }
+
+      for (const checkContext of options.checkOnly) {
+        if (checkContext === 'function' && isInFunctionArgument(node)) {
+          return true
+        }
+        if (checkContext === 'FC' && isInFCProps(node)) {
+          return true
+        }
+      }
+
+      return false
+    }
+
     const allTypeReferences: Array<{
       typeName: string
       node: TSESTree.TSTypeReference
@@ -178,7 +254,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       },
 
       TSTypeReference(node) {
-        if (node.typeName.type === AST_NODE_TYPES.Identifier) {
+        if (node.typeName.type === AST_NODE_TYPES.Identifier && shouldCheckTypeReference(node)) {
           allTypeReferences.push({ typeName: node.typeName.name, node })
         }
       },

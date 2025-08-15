@@ -1103,4 +1103,207 @@ tests.addInvalid(
   },
 )
 
+// Tests for checkOnly option
+tests.addValid(
+  'checkOnly function - ignores types used outside function arguments',
+  `
+    const data: UserData = { name: 'John' }
+    
+    type UserData = { name: string }
+    
+    function processUser(user: string) {
+      return user.toUpperCase()
+    }
+  `,
+  { checkOnly: ['function'] },
+)
+
+tests.addValid(
+  'checkOnly FC - ignores types used outside FC props',
+  `
+    const config: Config = { debug: true }
+    
+    type Config = { debug: boolean }
+    
+    const Button: React.FC<{ label: string }> = ({ label }) => {
+      return <button>{label}</button>
+    }
+  `,
+  { checkOnly: ['FC'] },
+)
+
+tests.addInvalid(
+  'checkOnly function - catches type used in function argument',
+  `
+    function processUser(data: UserData) {
+      return data.name
+    }
+    
+    type UserData = { name: string }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type UserData = { name: string }
+    
+    function processUser(data: UserData) {
+      return data.name
+    }
+  `,
+    appendToOutput: '\n\n',
+    options: { checkOnly: ['function'] },
+  },
+)
+
+tests.addInvalid(
+  'checkOnly FC - catches type used in FC props',
+  `
+    const Button: React.FC<ButtonProps> = ({ label }) => {
+      return <button>{label}</button>
+    }
+    
+    type ButtonProps = { label: string }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type ButtonProps = { label: string }
+    
+    const Button: React.FC<ButtonProps> = ({ label }) => {
+      return <button>{label}</button>
+    }
+  `,
+    appendToOutput: '\n\n',
+    options: { checkOnly: ['FC'] },
+  },
+)
+
+tests.addInvalid(
+  'checkOnly FC - catches type used in FC with import alias',
+  `
+    import { FC } from 'react'
+    
+    const Header: FC<HeaderProps> = ({ text }) => {
+      return <h1>{text}</h1>
+    }
+    
+    type HeaderProps = { text: string }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    import { FC } from 'react'
+    
+    type HeaderProps = { text: string }
+    
+    const Header: FC<HeaderProps> = ({ text }) => {
+      return <h1>{text}</h1>
+    }
+  `,
+    appendToOutput: '\n\n',
+    options: { checkOnly: ['FC'] },
+  },
+)
+
+tests.addValid(
+  'checkOnly function - ignores FC props',
+  `
+    const Button: React.FC<ButtonProps> = ({ label }) => {
+      return <button>{label}</button>
+    }
+    
+    type ButtonProps = { label: string }
+  `,
+  { checkOnly: ['function'] },
+)
+
+tests.addValid(
+  'checkOnly FC - ignores function arguments',
+  `
+    function processUser(data: UserData) {
+      return data.name
+    }
+    
+    type UserData = { name: string }
+  `,
+  { checkOnly: ['FC'] },
+)
+
+tests.addInvalid(
+  'checkOnly both function and FC - catches both contexts',
+  `
+    function processUser(data: UserData) {
+      return data.name
+    }
+    
+    const Button: React.FC<ButtonProps> = ({ label }) => {
+      return <button>{label}</button>
+    }
+    
+    type UserData = { name: string }
+    type ButtonProps = { label: string }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type UserData = { name: string }
+    
+    function processUser(data: UserData) {
+      return data.name
+    }
+    
+    const Button: React.FC<ButtonProps> = ({ label }) => {
+      return <button>{label}</button>
+    }
+    
+    type ButtonProps = { label: string }`,
+    options: { checkOnly: ['function', 'FC'] },
+  },
+)
+
+tests.addValid(
+  'checkOnly function - allows arrow functions',
+  `
+    const handler: Handler = (id) => {
+      console.log(id)
+    }
+    
+    type Handler = (id: string) => void
+    
+    const process = (data: UserData) => data.name
+  `,
+  { checkOnly: ['function'] },
+)
+
+tests.addInvalid(
+  'checkOnly function - catches arrow function arguments',
+  `
+    const process = (data: UserData) => data.name
+    
+    type UserData = { name: string }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type UserData = { name: string }
+    
+    const process = (data: UserData) => data.name
+  `,
+    appendToOutput: '\n\n',
+    options: { checkOnly: ['function'] },
+  },
+)
+
+tests.addValid(
+  'checkOnly function - ignores return types when not in arguments',
+  `
+    function createUser(): UserData {
+      return { name: 'John' }
+    }
+    
+    type UserData = { name: string }
+  `,
+  { checkOnly: ['function'] },
+)
+
 tests.run()
