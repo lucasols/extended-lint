@@ -114,6 +114,22 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       throw new Error('Only tests are not allowed in production')
     }
 
+    if (
+      prependToOutput &&
+      prependToOutput !== '\n' &&
+      !prependToOutput.match(/^\n+$/)
+    ) {
+      throw new Error('prependToOutput must only contain line breaks')
+    }
+
+    if (
+      appendToOutput &&
+      appendToOutput !== '\n' &&
+      !appendToOutput.match(/^\n+$/)
+    ) {
+      throw new Error('appendToOutput must only contain line breaks')
+    }
+
     let o = output ? (disableDedent ? output : dedent(output)) : undefined
 
     if (prependToOutput) {
