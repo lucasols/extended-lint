@@ -106,21 +106,42 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           rangeStart = typeDefComments[0].range[0]
         }
 
-        // Include trailing newline if present to avoid extra blank lines
-        const nextChar = sourceCode.text[rangeEnd]
-        if (nextChar === '\n') {
-          rangeEnd += 1
+        // Include trailing whitespace and newlines to avoid leaving blank lines
+        let searchEnd = rangeEnd
+        while (searchEnd < sourceCode.text.length) {
+          const char = sourceCode.text[searchEnd]
+          if (char === '\n') {
+            searchEnd++
+            // If we find a newline, check if the next line is blank
+            let nextLineStart = searchEnd
+            while (nextLineStart < sourceCode.text.length && 
+                   (sourceCode.text[nextLineStart] === ' ' || sourceCode.text[nextLineStart] === '\t')) {
+              nextLineStart++
+            }
+            // If next line is blank (only whitespace followed by newline), include it
+            if (nextLineStart < sourceCode.text.length && sourceCode.text[nextLineStart] === '\n') {
+              searchEnd = nextLineStart + 1
+            }
+            break
+          } else if (char === ' ' || char === '\t') {
+            searchEnd++
+          } else {
+            break
+          }
         }
+        
+        rangeEnd = searchEnd
 
         // Remove the type definition, comments, and trailing newline
         yield fixer.removeRange([rangeStart, rangeEnd])
 
-        // Replace the usage statement with: typeDefinition + newlines + usageStatement
-        const usageText = sourceCode.getText(usageStatement)
-        yield fixer.replaceText(
-          usageStatement,
-          `${fullTypeDefText}\n\n${usageText}`,
-        )
+        // Insert the type definition before the usage statement (including before any comments)
+        const usageComments = sourceCode.getCommentsBefore(usageStatement)
+        const insertPosition = usageComments.length > 0 && usageComments[0] 
+          ? usageComments[0].range[0] 
+          : usageStatement.range[0]
+        
+        yield fixer.insertTextBeforeRange([insertPosition, insertPosition], `${fullTypeDefText}\n\n`)
       }
     }
 

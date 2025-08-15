@@ -395,7 +395,6 @@ tests.addInvalid(
       return input.value
     }
     
-
     function otherFunction() {
       return 'hello'
     }
@@ -932,7 +931,6 @@ tests.addInvalid(
       return options.debug ? 'debug mode' : 'production mode'
     }
   `,
-    prependToOutput: `\n`,
   },
 )
 
@@ -966,7 +964,6 @@ tests.addInvalid(
       return options.debug ? 'debug mode' : 'production mode'
     }
   `,
-    prependToOutput: `\n`,
   },
 )
 
@@ -1058,7 +1055,6 @@ tests.addInvalid(
     export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
       return produce(initial, recipe);
     }
-
 
     export function replaceDraftArrayItem<T>(
       draftArray: T[] | null | undefined,
@@ -1399,6 +1395,33 @@ function test(arg1: Arg1, arg2: Arg2) {
 }
   `,
   { checkOnly: ['FC', 'function-args'] },
+)
+
+tests.addInvalid(
+  'keep comments on functions',
+  `
+    type Arg1 = number
+
+    const test = 'ok'
+
+    /** @type {Arg1} */
+    function test(arg1: Arg1) {
+      return arg1
+    }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    const test = 'ok'
+
+    type Arg1 = number
+
+    /** @type {Arg1} */
+    function test(arg1: Arg1) {
+      return arg1
+    }
+    `,
+  },
 )
 
 tests.run()
