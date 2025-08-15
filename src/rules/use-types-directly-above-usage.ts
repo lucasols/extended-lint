@@ -5,6 +5,7 @@ import { createExtendedLintRule } from '../createRule'
 type TypeDefinition = {
   node: TSESTree.TSTypeAliasDeclaration | TSESTree.TSInterfaceDeclaration
   name: string
+  statement: TSESTree.Statement
 }
 
 export const useTypesDirectlyAboveUsage = createExtendedLintRule<
@@ -39,7 +40,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       }
 
       const typeDef = typeDefinitions.get(typeName)!
-      const typeDefIndex = programStatements.findIndex(stmt => stmt === typeDef.node)
+      const typeDefIndex = programStatements.indexOf(typeDef.statement)
       const usageIndex = programStatements.indexOf(usageStatement)
 
       if (typeDefIndex === -1 || usageIndex === -1) return
@@ -49,7 +50,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         context.report({
           node: typeDef.node,
           messageId: 'moveTypeAboveUsage',
-          fix: createFixer(typeDef.node, usageStatement),
+          fix: createFixer(typeDef.statement, usageStatement),
         })
       }
     }
@@ -69,12 +70,12 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
     }
 
     function createFixer(
-      typeDefNode: TSESTree.Node,
+      typeDefStatement: TSESTree.Statement,
       usageStatement: TSESTree.Statement,
     ) {
       return function* (fixer: TSESLint.RuleFixer) {
-        const typeDefText = sourceCode.getText(typeDefNode)
-        const typeDefComments = sourceCode.getCommentsBefore(typeDefNode)
+        const typeDefText = sourceCode.getText(typeDefStatement)
+        const typeDefComments = sourceCode.getCommentsBefore(typeDefStatement)
 
         let fullTypeDefText = typeDefText
         if (typeDefComments.length > 0) {
@@ -85,8 +86,8 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         }
 
         // Calculate removal range including comments and trailing newline
-        let rangeStart = typeDefNode.range[0]
-        let rangeEnd = typeDefNode.range[1]
+        let rangeStart = typeDefStatement.range[0]
+        let rangeEnd = typeDefStatement.range[1]
 
         // Include comments before the type definition
         if (typeDefComments.length > 0 && typeDefComments[0]) {
@@ -122,11 +123,15 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       },
 
       TSTypeAliasDeclaration(node) {
-        typeDefinitions.set(node.id.name, { node, name: node.id.name })
+        // Find the top-level statement that contains this type declaration
+        const statement = findStatementContaining(node) || node as TSESTree.Statement
+        typeDefinitions.set(node.id.name, { node, name: node.id.name, statement })
       },
 
       TSInterfaceDeclaration(node) {
-        typeDefinitions.set(node.id.name, { node, name: node.id.name })
+        // Find the top-level statement that contains this type declaration
+        const statement = findStatementContaining(node) || node as TSESTree.Statement
+        typeDefinitions.set(node.id.name, { node, name: node.id.name, statement })
       },
 
       TSTypeReference(node) {

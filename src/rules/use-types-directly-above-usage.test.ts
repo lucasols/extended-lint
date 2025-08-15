@@ -991,4 +991,25 @@ tests.addValid(
   `,
 )
 
+tests.addInvalid(
+  'test case',
+  `
+    export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
+      return produce(initial, recipe);
+    }
+
+    export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
+
+    export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
+      return produce(initial, recipe);
+    }
+  `,
+  },
+)
+
 tests.run()
