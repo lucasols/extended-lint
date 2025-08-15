@@ -915,7 +915,7 @@ tests.addInvalid(
 )
 
 tests.addInvalid(
-  'type not directly above usage with code in between',
+  'type not directly above usage with single variable in between',
   `
     type Options = {
       debug: boolean
