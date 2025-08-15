@@ -3,7 +3,6 @@ import { useTypesDirectlyAboveUsage } from './use-types-directly-above-usage'
 
 const tests = createTester(useTypesDirectlyAboveUsage, {
   defaultErrorId: 'moveTypeAboveUsage',
-  disableDedent: true,
 })
 
 // Valid cases - no errors expected
@@ -167,21 +166,22 @@ tests.addValid(
 tests.addInvalid(
   'type alias below function that uses it',
   `
-function processUser(data: UserData) {
-  return data.name
-}
+    function processUser(data: UserData) {
+      return data.name
+    }
 
-type UserData = { name: string }`,
+    type UserData = { name: string }
+  `,
   [{ messageId: 'moveTypeAboveUsage' }],
   {
     output: `
-type UserData = { name: string }
+      type UserData = { name: string }
 
-function processUser(data: UserData) {
-  return data.name
-}
-
-`,
+      function processUser(data: UserData) {
+        return data.name
+      }
+    `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -207,6 +207,7 @@ tests.addInvalid(
       console.log(config.debug)
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -234,6 +235,7 @@ tests.addInvalid(
       return <button onClick={props.onClick}>{props.children}</button>
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -261,6 +263,7 @@ tests.addInvalid(
       return <div><h2>{title}</h2><p>{content}</p></div>
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -290,6 +293,7 @@ tests.addInvalid(
       return <h1>{text}</h1>
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -311,6 +315,7 @@ tests.addInvalid(
       console.log(id)
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -332,6 +337,7 @@ tests.addInvalid(
       return { name: 'John' }
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -418,6 +424,7 @@ tests.addInvalid(
       return { ...input, processed: true }
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -439,6 +446,7 @@ tests.addInvalid(
       return items.filter(item => item.isActive)
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 
@@ -912,6 +920,7 @@ tests.addInvalid(
       return options.debug ? 'debug mode' : 'production mode'
     }
   `,
+    prependToOutput: `\n\n`,
   },
 )
 
@@ -945,6 +954,7 @@ tests.addInvalid(
       return options.debug ? 'debug mode' : 'production mode'
     }
   `,
+    prependToOutput: `\n\n`,
   },
 )
 

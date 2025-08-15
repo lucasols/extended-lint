@@ -96,6 +96,8 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       | 'default-error' = 'default-error',
     {
       output,
+      prependToOutput,
+      appendToOutput,
       options,
       skip = false,
       only = false,
@@ -103,6 +105,8 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       skip?: boolean
       only?: boolean
       output?: string
+      appendToOutput?: string
+      prependToOutput?: string
       options?: Options extends [infer O] ? O | Options : Options
     } = {},
   ) {
@@ -110,12 +114,22 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       throw new Error('Only tests are not allowed in production')
     }
 
+    let o = output ? (disableDedent ? output : dedent(output)) : undefined
+
+    if (prependToOutput) {
+      o = prependToOutput + o
+    }
+
+    if (appendToOutput) {
+      o = o + appendToOutput
+    }
+
     invalid.push({
       name: testName,
       only,
       skip,
       code: disableDedent ? code : dedent(code),
-      output: output ? (disableDedent ? output : dedent(output)) : undefined,
+      output: o,
       options: options
         ? Array.isArray(options)
           ? options
