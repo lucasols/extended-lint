@@ -1009,6 +1009,7 @@ tests.addInvalid(
       return produce(initial, recipe);
     }
   `,
+    appendToOutput: '\n\n',
   },
 )
 

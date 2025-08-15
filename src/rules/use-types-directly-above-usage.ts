@@ -94,7 +94,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           rangeStart = typeDefComments[0].range[0]
         }
 
-        // Include trailing newline if present
+        // Include trailing newline if present to avoid extra blank lines
         const nextChar = sourceCode.text[rangeEnd]
         if (nextChar === '\n') {
           rangeEnd += 1
@@ -123,15 +123,39 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       },
 
       TSTypeAliasDeclaration(node) {
-        // Find the top-level statement that contains this type declaration
-        const statement = findStatementContaining(node) || node as TSESTree.Statement
-        typeDefinitions.set(node.id.name, { node, name: node.id.name, statement })
+        // Only process top-level type declarations (not nested inside functions)
+        // Check if this type is a direct child of a program statement
+        const isTopLevel = programStatements.some(stmt => {
+          if (stmt.type === AST_NODE_TYPES.ExportNamedDeclaration && stmt.declaration === node) {
+            return true
+          }
+          return stmt === node
+        })
+        
+        if (isTopLevel) {
+          const statement = findStatementContaining(node)
+          if (statement) {
+            typeDefinitions.set(node.id.name, { node, name: node.id.name, statement })
+          }
+        }
       },
 
       TSInterfaceDeclaration(node) {
-        // Find the top-level statement that contains this type declaration
-        const statement = findStatementContaining(node) || node as TSESTree.Statement
-        typeDefinitions.set(node.id.name, { node, name: node.id.name, statement })
+        // Only process top-level type declarations (not nested inside functions)
+        // Check if this type is a direct child of a program statement
+        const isTopLevel = programStatements.some(stmt => {
+          if (stmt.type === AST_NODE_TYPES.ExportNamedDeclaration && stmt.declaration === node) {
+            return true
+          }
+          return stmt === node
+        })
+        
+        if (isTopLevel) {
+          const statement = findStatementContaining(node)
+          if (statement) {
+            typeDefinitions.set(node.id.name, { node, name: node.id.name, statement })
+          }
+        }
       },
 
       TSTypeReference(node) {
