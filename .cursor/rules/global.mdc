@@ -1,8 +1,9 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: true
 ---
+
 - Do not run eslint or typescript via terminal
 - Do not add comments to simple code
 - Always write strongly typed typescript
@@ -10,3 +11,7 @@ alwaysApply: true
 - Use `for of` instead of `array.forEach`
 - NEVER use `array.reduce`
 - NEVER use `as` assertions, except for `as const`
+
+# Rules
+
+use @CLAUDE.md for rules
