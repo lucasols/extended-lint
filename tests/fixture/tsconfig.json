@@ -2,5 +2,5 @@
   "compilerOptions": {
     "strict": true
   },
-  "include": ["file.ts", "react.tsx", "test.ts"]
+  "include": ["file.ts", "react.tsx", "test.ts", "file.tsx"]
 }

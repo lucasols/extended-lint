@@ -254,7 +254,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           const typeDefComments = sourceCode.getCommentsBefore(typeDefStatement)
 
           let rangeStart = typeDefStatement.range[0]
-          let rangeEnd = typeDefStatement.range[1]
+          const rangeEnd = typeDefStatement.range[1]
 
           if (typeDefComments.length > 0 && typeDefComments[0]) {
             rangeStart = typeDefComments[0].range[0]

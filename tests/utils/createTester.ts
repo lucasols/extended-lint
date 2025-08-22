@@ -1,4 +1,6 @@
 import { dedent } from '@ls-stack/utils/dedent'
+import { compactSnapshot } from '@ls-stack/utils/testUtils'
+import typescriptParser from '@typescript-eslint/parser'
 import {
   InvalidTestCase,
   RuleTester,
@@ -7,6 +9,10 @@ import {
   ValidTestCase,
 } from '@typescript-eslint/rule-tester'
 import { TSESLint } from '@typescript-eslint/utils'
+import {
+  createRuleTester,
+  type TestExecutionResult,
+} from 'eslint-vitest-rule-tester'
 import { fileURLToPath } from 'node:url'
 
 const ruleTester = new RuleTester({
@@ -14,6 +20,7 @@ const ruleTester = new RuleTester({
     reportUnusedDisableDirectives: 'off',
   },
   languageOptions: {
+    parser: typescriptParser,
     parserOptions: {
       tsconfigRootDir: fileURLToPath(new URL('../fixture', import.meta.url)),
       project: './tsconfig.json',
@@ -26,6 +33,34 @@ const ruleTester = new RuleTester({
   },
 })
 
+export function getErrorsFromResult(result: TestExecutionResult) {
+  return compactSnapshot(
+    result.messages.map((m) => ({
+      messageId: m.messageId,
+      data: m.message,
+      line: m.line,
+    })),
+  )
+}
+
+export function createNewTester<
+  T extends TSESLint.RuleModule<string, any[]>,
+>(rule: { name: string; rule: T }) {
+  return createRuleTester({
+    name: rule.name,
+    rule: rule.rule,
+    configs: {
+      linterOptions: {
+        reportUnusedDisableDirectives: 'off',
+      },
+      languageOptions: {
+        parser: typescriptParser,
+      },
+    },
+  })
+}
+
+/** @deprecated Use `createNewTester` instead */
 export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
   rule: {
     name: string

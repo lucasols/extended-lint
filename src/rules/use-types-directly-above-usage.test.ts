@@ -1,21 +1,29 @@
-import { createTester } from '../../tests/utils/createTester'
+import { dedent } from '@ls-stack/utils/dedent'
+import { expect, test } from 'vitest'
+import {
+  createNewTester,
+  createTester,
+  getErrorsFromResult,
+} from '../../tests/utils/createTester'
 import { useTypesDirectlyAboveUsage } from './use-types-directly-above-usage'
 
+const { valid, invalid } = createNewTester(useTypesDirectlyAboveUsage)
 const tests = createTester(useTypesDirectlyAboveUsage, {
   defaultErrorId: 'moveTypeAboveUsage',
 })
 
-// Valid cases - no errors expected
-tests.addValid(
-  'type alias directly above function',
-  `
-    type UserData = { name: string }
-    
-    function processUser(data: UserData) {
-      return data.name
-    }
-  `,
-)
+test('type alias directly above function', async () => {
+  // Valid cases - no errors expected
+  await valid(
+    dedent`
+      type UserData = { name: string }
+      
+      function processUser(data: UserData) {
+        return data.name
+      }
+    `,
+  )
+})
 
 tests.addValid(
   'interface directly above function',
@@ -370,6 +378,7 @@ tests.addInvalid(
       return data.valueB
     }
   `,
+    appendToOutput: '\n\n\n',
   },
 )
 
@@ -394,6 +403,8 @@ tests.addInvalid(
     function processData(input: DataType) {
       return input.value
     }
+
+
     
     function otherFunction() {
       return 'hello'
@@ -965,7 +976,7 @@ tests.addInvalid(
       return options.debug ? 'debug mode' : 'production mode'
     }
   `,
-    prependToOutput: '\n',
+    prependToOutput: '\n\n',
   },
 )
 
@@ -990,27 +1001,31 @@ tests.addValid(
   `,
 )
 
-tests.addInvalid(
-  'test case',
-  `
+test.only('test case', async () => {
+  const { result } = await invalid(dedent`
     export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
       return produce(initial, recipe);
     }
 
     export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
-  `,
-  [{ messageId: 'moveTypeAboveUsage' }],
-  {
-    output: `
-    export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
+  `)
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - messageId: 'moveTypeAboveUsage'
+      data: 'Type definition should be placed directly above its first usage.'
+      line: 5
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
 
     export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
       return produce(initial, recipe);
     }
-  `,
-    appendToOutput: '\n\n',
-  },
-)
+
+    "
+  `)
+})
 
 tests.addInvalid(
   'test case 2',
@@ -1057,6 +1072,8 @@ tests.addInvalid(
     export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
       return produce(initial, recipe);
     }
+
+
 
     export function replaceDraftArrayItem<T>(
       draftArray: T[] | null | undefined,
@@ -1258,7 +1275,7 @@ tests.addInvalid(
 
 `,
     options: { checkOnly: ['function-args', 'FC'] },
-    appendToOutput: '\n',
+    appendToOutput: '\n\n\n',
   },
 )
 
