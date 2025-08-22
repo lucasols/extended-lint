@@ -3,7 +3,6 @@ description:
 globs:
 alwaysApply: true
 ---
-
 # Project Overview
 
 This is an **ESLint plugin** (`extended-lint`) that provides custom linting rules for TypeScript/JavaScript projects.
@@ -26,13 +25,57 @@ This is an **ESLint plugin** (`extended-lint`) that provides custom linting rule
 
 - Use Vitest framework
 - Tests: `src/rules/*.test.ts`
-- Always use `createTester` from `@tests/utils/createTester.ts`
+- Always use `createNewTester` from `@tests/utils/createTester.ts`
 - Write tests BEFORE implementing rules
 - Use `_dev_simulateFileName` for file-path dependent rules
-- Methods: `tests.addValid()`, `tests.addInvalid()`, `tests.addInvalidWithOptions()`, `tests.run()`
-- No describe blocks for simple files
-- Tests will have the code lines in which the test is located in the test result, e.g. `1: Test name`
-- Trailing or leading empty lines in output are not a issue as the code will be formatted by the user, so don't worry about it. Juste use `appendToOutput` or `prependToOutput` to add newlines to the output if needed. DON'T change the rule code to handle this.
+- Use describe only for grouping tests
+- Trailing or leading empty lines in output are not a issue as the code will be formatted by the user, so don't worry about it. Handling it in the rule will make the rule code more complex, so don't do it.
+
+## Test Pattern
+
+```typescript
+const { valid, invalid } = createNewTester(ruleFunction)
+
+// Valid tests - no errors expected
+test('valid case description', async () => {
+  await valid(
+    dedent`
+      type UserData = { name: string }
+      
+      function processUser(data: UserData) {
+        return data.name
+      }
+    `,
+  )
+})
+
+// Invalid tests - expect errors and check output
+test('invalid case description', async () => {
+  const { result } = await invalid(dedent`
+    export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
+      return produce(initial, recipe);
+    }
+
+    export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
+  `)
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - messageId: 'moveTypeAboveUsage'
+      data: 'Type definition should be placed directly above its first usage.'
+      line: 5
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
+
+    export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
+      return produce(initial, recipe);
+    }
+
+    "
+  `)
+})
+```
 
 # Architecture
 
