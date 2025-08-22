@@ -5,7 +5,7 @@ import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const optionsSchema = z.object({
   checkOnly: z.array(z.enum(['function-args', 'FC'])).optional(),
-  checkSelectedTypes: z.array(z.string()).optional(),
+  checkTypesFromSelectors: z.array(z.string()).optional(),
 })
 
 type Options = z.infer<typeof optionsSchema>
