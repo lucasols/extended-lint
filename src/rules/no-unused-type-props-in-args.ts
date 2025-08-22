@@ -41,11 +41,11 @@ const optionsSchema = z.object({
   alwaysCheckFunctionOptionTypes: z.boolean().optional(),
 })
 
-type Options = z.infer<typeof optionsSchema>
-
 const name = 'no-unused-type-props-in-args'
 
 let forceCheckOnFCPropTypesWithNameRegexps: RegExp[] | null = null
+
+type Options = z.infer<typeof optionsSchema>
 
 const rule = createRule<
   [Options],
@@ -111,9 +111,7 @@ const rule = createRule<
         return
       }
 
-      if (!resolved.defs[0]) {
-        return
-      }
+      if (!resolved.defs[0]) return
 
       const type = resolved.defs[0].node
 
@@ -228,9 +226,7 @@ const rule = createRule<
             forceCheckFunctionOption,
           )
 
-          if (declaredProperties.size === 0) {
-            continue
-          }
+          if (declaredProperties.size === 0) continue
 
           checkProperties(param, declaredProperties)
         } else if (
@@ -256,9 +252,7 @@ const rule = createRule<
       const lastIsRest =
         param.properties.at(-1)?.type === AST_NODE_TYPES.RestElement
 
-      if (lastIsRest) {
-        return
-      }
+      if (lastIsRest) return
 
       for (const property of param.properties) {
         if (

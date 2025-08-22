@@ -19,13 +19,13 @@ const optionsSchema = z.object({
   ),
 })
 
-type Options = z.infer<typeof optionsSchema>
-
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
 )
 
 const name = 'no-unused-selected-values'
+
+type Options = z.infer<typeof optionsSchema>
 
 export const noUnusedSelectedValues = {
   name,

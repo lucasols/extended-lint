@@ -154,9 +154,9 @@ tests.addInvalid(
         {
           messageId: 'suggestion',
           output: dedent`
-          export function test(a: number, b: string) {
-          }
-        `,
+            export function test(a: number, b: string) {
+            }
+          `,
         },
       ],
     },

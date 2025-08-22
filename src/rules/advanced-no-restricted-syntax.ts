@@ -363,9 +363,7 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
               return
             }
 
-            if (calledArg.value !== arg.value) {
-              return
-            }
+            if (calledArg.value !== arg.value) return
           }
         }
 

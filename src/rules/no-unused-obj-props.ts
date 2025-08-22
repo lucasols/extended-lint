@@ -86,9 +86,7 @@ export const noUnusedObjProps = createExtendedLintRule<
           const memberExpr = ref.identifier.parent as TSESTree.MemberExpression
 
           // Skip if this is not the object of the member expression
-          if (memberExpr.object !== ref.identifier) {
-            return
-          }
+          if (memberExpr.object !== ref.identifier) return
 
           // Handle computed property access (obj[prop])
           if (memberExpr.computed) {

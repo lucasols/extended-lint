@@ -20,11 +20,11 @@ export function dedent(strings: TemplateStringsArray, ...values: string[]) {
   // now strip indentation
   const lines = result.split('\n')
   let mindent: number | null = null
-  lines.forEach((l) => {
+  for (const l of lines) {
     const m = l.match(/^(\s+)\S+/)
     if (m) {
       const indentMatch = m[1]
-      if (!indentMatch) return
+      if (!indentMatch) continue
       const indent = indentMatch.length
       if (mindent === null) {
         // this is the first indented line
@@ -33,9 +33,9 @@ export function dedent(strings: TemplateStringsArray, ...values: string[]) {
         mindent = Math.min(mindent, indent)
       }
     }
-  })
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+   
   if (mindent) {
     const m = mindent // appease Flow
     result = lines.map((l) => (l.startsWith(' ') ? l.slice(m) : l)).join('\n')

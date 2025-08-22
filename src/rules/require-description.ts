@@ -64,12 +64,8 @@ const rule = createRule<Options, 'missingDescription'>({
       Program() {
         for (const comment of sourceCode.getAllComments()) {
           const directiveComment = parseDirectiveComment(comment)
-          if (directiveComment == null) {
-            continue
-          }
-          if (ignores.has(directiveComment.kind)) {
-            continue
-          }
+          if (directiveComment == null) continue
+          if (ignores.has(directiveComment.kind)) continue
           if (!directiveComment.description) {
             context.report({
               loc: toForceLocation(comment.loc),
@@ -90,21 +86,15 @@ export const requireDescription = {
 function parseDirectiveComment(comment: TSESTree.Comment) {
   const { text, description } = divideDirectiveComment(comment.value)
 
-  if (!text) {
-    return null
-  }
+  if (!text) return null
 
   const match = DIRECTIVE_PATTERN.exec(text)
 
-  if (!match) {
-    return null
-  }
+  if (!match) return null
 
   const directiveText = match[1]
 
-  if (!directiveText) {
-    return null
-  }
+  if (!directiveText) return null
 
   const lineCommentSupported = LINE_COMMENT_PATTERN.test(directiveText)
 

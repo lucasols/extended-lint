@@ -6,14 +6,14 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'prefer-named-functions'
 
+const regexpsCache = new Map<string, RegExp>()
+
 type Options = [
   {
     ignoreRegex?: string
     disallowArrowFnWithImplicitReturns?: boolean
   },
 ]
-
-const regexpsCache = new Map<string, RegExp>()
 
 const rule = createRule<Options, 'default' | 'withIgnoreRegex' | 'suggestion'>({
   name,
@@ -69,9 +69,7 @@ const rule = createRule<Options, 'default' | 'withIgnoreRegex' | 'suggestion'>({
           const functionName = node.id.name
 
           // Skip if the variable has a type annotation
-          if (node.id.typeAnnotation) {
-            return
-          }
+          if (node.id.typeAnnotation) return
 
           // Check if the function name matches the ignore regex
           if (ignoreRegex && ignoreRegex.test(functionName)) {

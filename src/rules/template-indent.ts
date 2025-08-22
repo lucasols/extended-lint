@@ -257,9 +257,7 @@ export const templateIndent = createExtendedLintRule<
         }
       }
 
-      if (isJestInlineSnapshot(node)) {
-        return true
-      }
+      if (isJestInlineSnapshot(node)) return true
 
       if (tags.length > 0 && isTaggedTemplateLiteral(node, tags)) {
         return true
@@ -287,9 +285,7 @@ export const templateIndent = createExtendedLintRule<
         .join(delimiter)
 
       const eolMatch = joined.match(/\r?\n/)
-      if (!eolMatch) {
-        return
-      }
+      if (!eolMatch) return
 
       const eol = eolMatch[0]
       const startLine =
@@ -333,9 +329,7 @@ export const templateIndent = createExtendedLintRule<
         )
         .join(joiner)
 
-      if (fixed === normalizedJoined) {
-        return
-      }
+      if (fixed === normalizedJoined) return
 
       return {
         node,
@@ -357,9 +351,7 @@ export const templateIndent = createExtendedLintRule<
 
     return {
       TemplateLiteral(node) {
-        if (!shouldIndent(node)) {
-          return
-        }
+        if (!shouldIndent(node)) return
 
         const problem = getProblem(node)
         if (problem) {

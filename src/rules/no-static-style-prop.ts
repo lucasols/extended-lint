@@ -34,9 +34,7 @@ export const noStaticStyleProp = createExtendedLintRule<
         case AST_NODE_TYPES.ObjectExpression:
           return node.properties.every((prop) => {
             if (prop.type === AST_NODE_TYPES.Property) {
-              if (prop.computed) {
-                return false
-              }
+              if (prop.computed) return false
               if (
                 prop.value.type === AST_NODE_TYPES.Identifier &&
                 prop.key.type === AST_NODE_TYPES.Identifier &&

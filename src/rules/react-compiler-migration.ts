@@ -28,8 +28,6 @@ const optionsSchema = z.object({
     .optional(),
 })
 
-type Options = z.infer<typeof optionsSchema>
-
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
 
@@ -50,6 +48,8 @@ function isHook(callee: TSESTree.CallExpression['callee']): boolean {
 
   return false
 }
+
+type Options = z.infer<typeof optionsSchema>
 
 const rule = createRule<
   [Options],
@@ -85,9 +85,7 @@ const rule = createRule<
       }
     }
 
-    if (!isEnabled) {
-      return {}
-    }
+    if (!isEnabled) return {}
 
     return {
       CallExpression(node) {

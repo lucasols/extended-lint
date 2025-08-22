@@ -80,9 +80,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
               (element) => element && isSimpleObjectPropValue(element),
             )
 
-            if (!hasSimpleValues) {
-              return false
-            }
+            if (!hasSimpleValues) return false
           }
 
           return { text: sourceCode.getText(property), isNested, propsSize }
@@ -94,9 +92,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
           if (property.type === AST_NODE_TYPES.Property) {
             const isSimpleValue = isSimpleObjectPropValue(property.value)
 
-            if (!isSimpleValue) {
-              return false
-            }
+            if (!isSimpleValue) return false
           }
 
           propertyTexts.push(sourceCode.getText(property))
@@ -166,9 +162,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
 
           if (typeAnn.type === AST_NODE_TYPES.TSTypeLiteral) return false
 
-          if (!isSimpleTypePropValue(typeAnn)) {
-            return false
-          }
+          if (!isSimpleTypePropValue(typeAnn)) return false
 
           if (
             typeAnn.type === AST_NODE_TYPES.TSTypeReference &&
@@ -179,9 +173,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
             const typeArgument = typeAnn.typeArguments.params[0]
             if (!typeArgument) return false
 
-            if (!isSimpleTypePropValue(typeArgument)) {
-              return false
-            }
+            if (!isSimpleTypePropValue(typeArgument)) return false
           }
 
           let text = sourceCode.getText(property).trim()
@@ -237,9 +229,7 @@ const rule = createRule<[Options], 'singleLineProp'>({
           },
         })
 
-        if (skippedTokens > 4) {
-          return
-        }
+        if (skippedTokens > 4) return
 
         const nextTokenIsTemplate =
           tokenAfterNode?.type === AST_TOKEN_TYPES.Template &&

@@ -18,9 +18,7 @@ export const noReexport = createExtendedLintRule<[], 'noReexport'>({
     const importedIdentifiers = new Set<string>()
 
     function containsImportedIdentifier(node: TSESTree.Node | null | undefined): boolean {
-      if (!node) {
-        return false
-      }
+      if (!node) return false
       
       if (node.type === AST_NODE_TYPES.Identifier) {
         return importedIdentifiers.has(node.name)

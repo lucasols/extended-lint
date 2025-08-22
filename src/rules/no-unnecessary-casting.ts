@@ -26,12 +26,12 @@ const optionsSchema = z.object({
     .optional(),
 })
 
-type Options = z.infer<typeof optionsSchema>
-
 type CastFunction = {
   name: string
   expectedType: 'string' | 'number'
 }
+
+type Options = z.infer<typeof optionsSchema>
 
 export const noUnnecessaryCasting = {
   name,

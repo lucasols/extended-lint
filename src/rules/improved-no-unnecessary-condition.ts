@@ -16,8 +16,6 @@ const name = 'improved-no-unnecessary-condition'
 
 const optionsSchema = z.object({})
 
-type Options = z.infer<typeof optionsSchema>
-
 const typeofValues = [
   'string',
   'number',
@@ -33,6 +31,8 @@ const typeofValues = [
 type TypeofValue = (typeof typeofValues)[number]
 
 const validTypeofValues = new Set(typeofValues)
+
+type Options = z.infer<typeof optionsSchema>
 
 export const improvedNoUnnecessaryCondition = {
   name,
@@ -208,9 +208,7 @@ export const improvedNoUnnecessaryCondition = {
         const isValidOperator =
           node.operator === '===' || node.operator === '!=='
 
-        if (!isValidOperator) {
-          return
-        }
+        if (!isValidOperator) return
 
         let typeOfNode: TSESTree.UnaryExpression | null = null
         let conditionType: string | null = null

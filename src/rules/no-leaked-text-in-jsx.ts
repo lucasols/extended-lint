@@ -6,9 +6,9 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'no-leaked-text-in-jsx'
 
-type Options = []
-
 const disallowedTexts = [',', ';', '[', ']', '(', ')']
+
+type Options = []
 
 const rule = createRule<Options, 'leakedTextInJSX'>({
   name,

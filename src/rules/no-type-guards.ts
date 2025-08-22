@@ -12,8 +12,6 @@ const optionsSchema = z.object({
   __dev_simulateFileName: z.string().optional(),
 })
 
-type Options = z.infer<typeof optionsSchema>
-
 function isTypeGuard(node: TSESTree.TSTypeAnnotation): boolean {
   if (node.typeAnnotation.type !== AST_NODE_TYPES.TSTypePredicate) {
     return false
@@ -48,6 +46,8 @@ function isInFilterOrFind(
   return null
 }
 
+type Options = z.infer<typeof optionsSchema>
+
 export const noTypeGuards = createExtendedLintRule<
   [Options],
   'typeGuardNotAllowed' | 'useFilterWithTypeCheck' | 'useFindWithTypeCheck'
@@ -72,14 +72,10 @@ export const noTypeGuards = createExtendedLintRule<
   create(context, [options]) {
     const filename = options.__dev_simulateFileName ?? context.filename
 
-    if (isInTypeGuardsFile(filename)) {
-      return {}
-    }
+    if (isInTypeGuardsFile(filename)) return {}
 
     function handleTypeGuard(node: TSESTree.TSTypeAnnotation) {
-      if (!isTypeGuard(node)) {
-        return
-      }
+      if (!isTypeGuard(node)) return
 
       const filterOrFind = isInFilterOrFind(node)
 

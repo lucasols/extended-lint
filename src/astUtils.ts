@@ -6,13 +6,9 @@ export function findParentNode<T extends TSESTree.AST_NODE_TYPES>(
   type: T,
   maxDepth = Infinity,
 ): (TSESTree.Node & { type: T }) | undefined {
-  if (maxDepth === 0) {
-    return undefined
-  }
+  if (maxDepth === 0) return undefined
 
-  if (!node.parent) {
-    return undefined
-  }
+  if (!node.parent) return undefined
 
   if (node.type === type) {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions

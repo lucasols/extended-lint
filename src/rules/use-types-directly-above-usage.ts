@@ -10,13 +10,13 @@ const optionsSchema = z.object({
   checkTypesFromSelectors: z.array(z.string()).optional(),
 })
 
-type Options = z.infer<typeof optionsSchema>
-
 type TypeDefinition = {
   node: TSESTree.TSTypeAliasDeclaration | TSESTree.TSInterfaceDeclaration
   name: string
   statement: TSESTree.Statement
 }
+
+type Options = z.infer<typeof optionsSchema>
 
 export const useTypesDirectlyAboveUsage = createExtendedLintRule<
   [Options],
@@ -207,9 +207,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       typesToMove.sort((a, b) => {
         // Primary sort: by first usage position
         const positionDiff = a.firstUsagePosition - b.firstUsagePosition
-        if (positionDiff !== 0) {
-          return positionDiff
-        }
+        if (positionDiff !== 0) return positionDiff
         // Secondary sort: by original definition position for stability
         const aIndex = programStatements.indexOf(a.typeDef.statement)
         const bIndex = programStatements.indexOf(b.typeDef.statement)
@@ -252,9 +250,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           groupedTypes.sort((a, b) => {
             // Primary sort: by first usage position
             const positionDiff = a.firstUsagePosition - b.firstUsagePosition
-            if (positionDiff !== 0) {
-              return positionDiff
-            }
+            if (positionDiff !== 0) return positionDiff
             // Secondary sort: by original definition position for absolute stability
             const aIndex = programStatements.indexOf(a.typeDef.statement)
             const bIndex = programStatements.indexOf(b.typeDef.statement)

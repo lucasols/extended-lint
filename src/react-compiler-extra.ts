@@ -12,8 +12,6 @@ const optionsSchema = z.object({
   runOnlyWithEnableCompilerDirective: z.boolean().optional(),
 })
 
-type Options = z.infer<typeof optionsSchema>
-
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
 
@@ -44,6 +42,8 @@ function containsThisKeyword(sourceCode: string): boolean {
   // Simple regex to match 'this' keyword
   return hasThisRegex.test(sourceCode)
 }
+
+type Options = z.infer<typeof optionsSchema>
 
 const rule = createRule<
   [Options],
@@ -81,9 +81,7 @@ const rule = createRule<
         }
       }
 
-      if (!isEnabled) {
-        return {}
-      }
+      if (!isEnabled) return {}
     }
 
     /**
@@ -177,9 +175,7 @@ const rule = createRule<
 
     return {
       CallExpression(node) {
-        if (!isHook(node.callee)) {
-          return
-        }
+        if (!isHook(node.callee)) return
 
         // Check direct arguments that are object expressions
         for (const arg of node.arguments) {

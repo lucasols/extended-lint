@@ -66,9 +66,7 @@ const rule = createRule<
 
       let pathRelativeToRoot = path.relative(rootDir, absolutePath)
 
-      if (pathRelativeToRoot.startsWith('.')) {
-        return null
-      }
+      if (pathRelativeToRoot.startsWith('.')) return null
 
       if (!pathRelativeToRoot.startsWith('/')) {
         pathRelativeToRoot = `/${pathRelativeToRoot}`
@@ -87,9 +85,7 @@ const rule = createRule<
       ImportDeclaration(node) {
         const importPath = node.source.value
 
-        if (!isRelativePath(importPath)) {
-          return
-        }
+        if (!isRelativePath(importPath)) return
 
         const absolutePath = resolveRelativeToAbsolute(
           importPath,

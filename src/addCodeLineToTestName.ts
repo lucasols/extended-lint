@@ -5,9 +5,7 @@ export function ViteAddCodeLineToTestNamePlugin(): Plugin {
     name: 'vite-plugin-add-code-line-to-test-name',
     enforce: 'pre',
     transform(code) {
-      if (!code.includes('createTester(')) {
-        return undefined
-      }
+      if (!code.includes('createTester(')) return undefined
 
       let finalCode = code
 

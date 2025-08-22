@@ -170,9 +170,7 @@ const rule = createRule({
       comment: string,
       commentType: 'Block' | 'Line',
     ): false | { wrongPattern: string } {
-      if (comment.startsWith('/')) {
-        return false
-      }
+      if (comment.startsWith('/')) return false
 
       const commentWithTrimmedStart = comment.trimStart()
 
@@ -199,9 +197,7 @@ const rule = createRule({
       }
 
       // Check if comment contains URLs - treat as descriptive text
-      if (comment.includes('https://')) {
-        return false
-      }
+      if (comment.includes('https://')) return false
 
       if (isDescriptiveCommentText(commentWithTrimmedStart)) {
         return false

@@ -28,9 +28,7 @@ export const noUnusedTStateField = createExtendedLintRule<[], 'unusedField'>({
         node.source.value === 't-state-form',
     )
 
-    if (!hasTStateFormImport) {
-      return {}
-    }
+    if (!hasTStateFormImport) return {}
 
     let declaredFields: Map<string, TSESTree.Property> | null = null
     let ruleExecuted = false

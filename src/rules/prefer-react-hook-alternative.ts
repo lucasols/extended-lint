@@ -14,8 +14,6 @@ const optionsSchema = z.object({
   ),
 })
 
-type Options = z.infer<typeof optionsSchema>
-
 function isHookName(name: string): boolean {
   return /^use[A-Z]/.test(name)
 }
@@ -174,9 +172,7 @@ function isInsideAllowedFunction(
   node: TSESTree.Node,
   allowUseInside: string[],
 ): boolean {
-  if (!allowUseInside.length) {
-    return false
-  }
+  if (!allowUseInside.length) return false
 
   let current = node.parent
   while (current) {
@@ -243,9 +239,7 @@ function shouldReportDisallowedFunction(
     current = current.parent
   }
 
-  if (!insideComponentOrHook) {
-    return false
-  }
+  if (!insideComponentOrHook) return false
 
   // If no allowed functions specified, use the original behavior
   if (allowUseInside.length === 0) {
@@ -261,6 +255,8 @@ function shouldReportDisallowedFunction(
   // When allowUseInside is specified, we want to be stricter about nested functions
   return true
 }
+
+type Options = z.infer<typeof optionsSchema>
 
 export const preferReactHookAlternative = createExtendedLintRule<
   [Options],
@@ -291,14 +287,10 @@ export const preferReactHookAlternative = createExtendedLintRule<
     return {
       CallExpression(node) {
         const functionName = getFunctionCallName(node)
-        if (!functionName) {
-          return
-        }
+        if (!functionName) return
 
         const disallowedFn = disallowedMap.get(functionName)
-        if (!disallowedFn) {
-          return
-        }
+        if (!disallowedFn) return
 
         if (disallowedFn.allowUsingWithArgs && hasMeaningfulArguments(node)) {
           return

@@ -12,9 +12,7 @@ function isUnnecessaryAsyncPattern(
 
   const statements = node.body.body
 
-  if (statements.length !== 1) {
-    return false
-  }
+  if (statements.length !== 1) return false
 
   const statement = statements[0]
 

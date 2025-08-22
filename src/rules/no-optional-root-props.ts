@@ -7,11 +7,11 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'no-optional-root-props'
 
-type Options = []
-
 type Declaration =
   | TSESTree.TSTypeAliasDeclaration
   | TSESTree.TSInterfaceDeclaration
+
+type Options = []
 
 const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
   name,
@@ -45,9 +45,7 @@ const rule = createRule<Options, 'optionalNotAllowed' | 'suggestion'>({
 
       // checks if the reference is a function argument
       for (const node of walkUp(reference.identifier)) {
-        if ('returnType' in node) {
-          return false
-        }
+        if ('returnType' in node) return false
 
         if (node.type === TSESTree.AST_NODE_TYPES.ExportNamedDeclaration) {
           return false
