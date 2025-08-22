@@ -144,6 +144,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         typeName: string
         firstUsage: TSESTree.Statement
         firstUsagePosition: number
+        firstUsageInFunctionArgs: boolean
       }>,
     ) {
       // Collect all types that actually need to be moved
@@ -166,6 +167,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         typeName,
         firstUsage,
         firstUsagePosition,
+        firstUsageInFunctionArgs,
       } of typesToProcess) {
         const typeDef = typeDefinitions.get(typeName)
         if (!typeDef) continue
@@ -176,20 +178,21 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
         if (typeDefIndex === -1 || usageIndex === -1) continue
 
-        // Check if type definition comes after usage or not directly before
-        // Be more lenient only for specific checkOnly contexts that need it
-        const needsLenientPositioning =
+        const needsLenientPositioning = Boolean(
           options.checkOnly &&
-          options.checkOnly.length > 0 &&
-          options.checkOnly.includes('function-args')
+            options.checkOnly.includes('function-args') &&
+            firstUsageInFunctionArgs,
+        )
 
         // If multiple types are targeting the same statement, use lenient positioning
         const typesTargetingSameStatement = typesByTarget.get(firstUsage) || []
-        const hasMultipleTypesForSameTarget = typesTargetingSameStatement.length > 1
+        const hasMultipleTypesForSameTarget =
+          typesTargetingSameStatement.length > 1
 
-        const shouldMove = needsLenientPositioning || hasMultipleTypesForSameTarget
-          ? typeDefIndex > usageIndex // Just needs to be above
-          : typeDefIndex > usageIndex || typeDefIndex !== usageIndex - 1 // Directly above otherwise
+        const shouldMove =
+          needsLenientPositioning || hasMultipleTypesForSameTarget
+            ? typeDefIndex > usageIndex // Just needs to be above
+            : typeDefIndex > usageIndex || typeDefIndex !== usageIndex - 1 // Directly above otherwise
 
         if (shouldMove) {
           typesToMove.push({
@@ -435,6 +438,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           typeName: string
           firstUsage: TSESTree.Statement
           firstUsagePosition: number
+          firstUsageInFunctionArgs: boolean
         }> = []
 
         for (const [typeName, usageStatements] of typeUsagesMap) {
@@ -442,6 +446,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             let firstUsage = usageStatements[0]
             if (!firstUsage) continue
             let firstUsagePosition = Number.MAX_SAFE_INTEGER
+            let firstUsageInFunctionArgs = false
 
             // Find the first usage statement and the earliest position within it
             for (const current of usageStatements) {
@@ -450,7 +455,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
               }
             }
 
-            // Find the earliest usage position for this type within the first usage statement
             for (const typeRef of filteredReferences) {
               if (typeRef.typeName === typeName) {
                 const statement = findStatementContaining(typeRef.node)
@@ -459,11 +463,17 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
                   typeRef.usagePosition < firstUsagePosition
                 ) {
                   firstUsagePosition = typeRef.usagePosition
+                  firstUsageInFunctionArgs = typeRef.inFunctionArgs
                 }
               }
             }
 
-            typesToProcess.push({ typeName, firstUsage, firstUsagePosition })
+            typesToProcess.push({
+              typeName,
+              firstUsage,
+              firstUsagePosition,
+              firstUsageInFunctionArgs,
+            })
           }
         }
 
