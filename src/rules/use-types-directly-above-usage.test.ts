@@ -370,7 +370,6 @@ tests.addInvalid(
       return data.valueB
     }
   `,
-    appendToOutput: '\n\n',
   },
 )
 
@@ -932,6 +931,7 @@ tests.addInvalid(
       return options.debug ? 'debug mode' : 'production mode'
     }
   `,
+    prependToOutput: '\n\n',
   },
 )
 
@@ -965,6 +965,7 @@ tests.addInvalid(
       return options.debug ? 'debug mode' : 'production mode'
     }
   `,
+    prependToOutput: '\n',
   },
 )
 
@@ -1257,7 +1258,7 @@ tests.addInvalid(
 
 `,
     options: { checkOnly: ['function-args', 'FC'] },
-    appendToOutput: '\n\n',
+    appendToOutput: '\n',
   },
 )
 
@@ -1561,7 +1562,7 @@ tests.addInvalid(
     const result = transform<InputType, OutputType>(data, processor)
   `,
     options: { checkOnly: ['generic-args-at-fn-calls'] },
-    appendToOutput: '\n\n',
+    appendToOutput: '\n',
   },
 )
 
@@ -1782,6 +1783,7 @@ export const apiConfigSchema = rc_obj_builder<ApiConfig>()({
 });
 
   `,
+    prependToOutput: '\n\n\n\n\n\n\n\n\n\n',
   },
 )
 
