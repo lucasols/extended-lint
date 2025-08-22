@@ -1815,12 +1815,13 @@ test('checkOnly generic-args-at-fn-calls - multiple generic args', async () => {
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
-    "
-    type InputType = { raw: string }
-    
+    "type InputType = { raw: string }
+
     type OutputType = { processed: string }
-    
+
     const result = transform<InputType, OutputType>(data, processor)
+
+
     "
   `)
 })

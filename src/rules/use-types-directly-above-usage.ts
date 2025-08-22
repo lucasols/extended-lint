@@ -154,6 +154,14 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         firstUsagePosition: number
       }> = []
 
+      // Group types by target statement to handle multiple types going to the same location
+      const typesByTarget = new Map<TSESTree.Statement, string[]>()
+      for (const { typeName, firstUsage } of typesToProcess) {
+        const existing = typesByTarget.get(firstUsage) || []
+        existing.push(typeName)
+        typesByTarget.set(firstUsage, existing)
+      }
+
       for (const {
         typeName,
         firstUsage,
@@ -175,8 +183,12 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           options.checkOnly.length > 0 &&
           options.checkOnly.includes('function-args')
 
-        const shouldMove = needsLenientPositioning
-          ? typeDefIndex > usageIndex // Just needs to be above for function-args
+        // If multiple types are targeting the same statement, use lenient positioning
+        const typesTargetingSameStatement = typesByTarget.get(firstUsage) || []
+        const hasMultipleTypesForSameTarget = typesTargetingSameStatement.length > 1
+
+        const shouldMove = needsLenientPositioning || hasMultipleTypesForSameTarget
+          ? typeDefIndex > usageIndex // Just needs to be above
           : typeDefIndex > usageIndex || typeDefIndex !== usageIndex - 1 // Directly above otherwise
 
         if (shouldMove) {
@@ -243,8 +255,10 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             if (positionDiff !== 0) {
               return positionDiff
             }
-            // Secondary sort: by type name for absolute stability
-            return a.typeName.localeCompare(b.typeName)
+            // Secondary sort: by original definition position for absolute stability
+            const aIndex = programStatements.indexOf(a.typeDef.statement)
+            const bIndex = programStatements.indexOf(b.typeDef.statement)
+            return aIndex - bIndex
           })
         }
 
