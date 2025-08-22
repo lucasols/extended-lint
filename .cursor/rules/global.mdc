@@ -75,6 +75,27 @@ test('invalid case description', async () => {
     "
   `)
 })
+
+test('valid example with options', async () => {
+  await valid({
+    code: dedent`
+      const config: Config = { debug: true }
+    `,
+    options: [{ checkOnly: ['FC'] }],
+  })
+})
+
+test('invalid example with options', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      const config: Config = { debug: true }
+    `,
+    options: [{ checkOnly: ['FC'] }],
+  })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(/* ... */)
+  expect(result.output).toMatchInlineSnapshot(/* ... */)
+})
 ```
 
 # Architecture

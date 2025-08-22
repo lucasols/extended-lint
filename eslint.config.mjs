@@ -16,6 +16,8 @@ export default lsStackEslintCfg({
         assertionStyle: 'never',
       },
     ],
+
+    'vitest/expect-expect': OFF,
   },
   extends: [
     {
