@@ -44,9 +44,10 @@ export function getErrorsFromResult(result: TestExecutionResult) {
 }
 
 export function createNewTester<
-  T extends TSESLint.RuleModule<string, any[]>,
->(rule: { name: string; rule: T }) {
-  return createRuleTester({
+  M extends string,
+  O extends readonly unknown[],
+>(rule: { name: string; rule: TSESLint.RuleModule<M, O> }) {
+  return createRuleTester<O, M>({
     name: rule.name,
     rule: rule.rule,
     configs: {
