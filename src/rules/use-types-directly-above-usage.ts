@@ -5,6 +5,7 @@ import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const optionsSchema = z.object({
   checkOnly: z.array(z.enum(['function-args', 'FC'])).optional(),
+  checkSelectedTypes: z.array(z.string()).optional(),
 })
 
 type Options = z.infer<typeof optionsSchema>
@@ -114,12 +115,18 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             searchEnd++
             // If we find a newline, check if the next line is blank
             let nextLineStart = searchEnd
-            while (nextLineStart < sourceCode.text.length && 
-                   (sourceCode.text[nextLineStart] === ' ' || sourceCode.text[nextLineStart] === '\t')) {
+            while (
+              nextLineStart < sourceCode.text.length &&
+              (sourceCode.text[nextLineStart] === ' ' ||
+                sourceCode.text[nextLineStart] === '\t')
+            ) {
               nextLineStart++
             }
             // If next line is blank (only whitespace followed by newline), include it
-            if (nextLineStart < sourceCode.text.length && sourceCode.text[nextLineStart] === '\n') {
+            if (
+              nextLineStart < sourceCode.text.length &&
+              sourceCode.text[nextLineStart] === '\n'
+            ) {
               searchEnd = nextLineStart + 1
             }
             break
@@ -129,7 +136,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             break
           }
         }
-        
+
         rangeEnd = searchEnd
 
         // Remove the type definition, comments, and trailing newline
@@ -137,11 +144,15 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
         // Insert the type definition before the usage statement (including before any comments)
         const usageComments = sourceCode.getCommentsBefore(usageStatement)
-        const insertPosition = usageComments.length > 0 && usageComments[0] 
-          ? usageComments[0].range[0] 
-          : usageStatement.range[0]
-        
-        yield fixer.insertTextBeforeRange([insertPosition, insertPosition], `${fullTypeDefText}\n\n`)
+        const insertPosition =
+          usageComments.length > 0 && usageComments[0]
+            ? usageComments[0].range[0]
+            : usageStatement.range[0]
+
+        yield fixer.insertTextBeforeRange(
+          [insertPosition, insertPosition],
+          `${fullTypeDefText}\n\n`,
+        )
       }
     }
 
@@ -197,7 +208,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       }
       return false
     }
-
 
     const allTypeReferences: Array<{
       typeName: string
@@ -278,15 +288,17 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         // Filter type references based on checkOnly option
         const filteredReferences = allTypeReferences.filter((typeRef) => {
           const { typeName } = typeRef
-          
+
           // If no checkOnly option, include all references
           if (!options.checkOnly || options.checkOnly.length === 0) {
             return true
           }
 
           // Count total references for this type
-          const allRefsForType = allTypeReferences.filter(ref => ref.typeName === typeName)
-          
+          const allRefsForType = allTypeReferences.filter(
+            (ref) => ref.typeName === typeName,
+          )
+
           // If type is used multiple times, ignore when checkOnly is set
           if (allRefsForType.length > 1) {
             return false
