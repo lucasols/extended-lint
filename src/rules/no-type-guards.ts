@@ -20,8 +20,10 @@ function isTypeGuard(node: TSESTree.TSTypeAnnotation): boolean {
   return node.typeAnnotation.asserts === false
 }
 
+const typeGuardsFileRegex = /\.(typeGuards|type-guards)\.(ts|tsx)$/
+
 function isInTypeGuardsFile(filename: string): boolean {
-  return /\.(typeGuards|type-guards)\.(ts|tsx)$/.test(filename)
+  return typeGuardsFileRegex.test(filename)
 }
 
 function isInFilterOrFind(

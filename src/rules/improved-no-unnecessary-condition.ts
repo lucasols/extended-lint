@@ -66,7 +66,7 @@ export const improvedNoUnnecessaryCondition = {
 
       function isTypeofExpression(
         node: TSESTree.Node,
-      ): node is TSESTree.UnaryExpression {
+      ): node is TSESTree.UnaryExpression { // eslint-disable-line @ls-stack/no-type-guards -- necessary type guard for AST node type checking
         return (
           node.type === AST_NODE_TYPES.UnaryExpression &&
           node.operator === 'typeof'
@@ -160,7 +160,7 @@ export const improvedNoUnnecessaryCondition = {
       ): TypeofValue[] | null {
         if (!checker) return null
 
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe conversion from ESTree to TS node
         const tsNode = parserServices.esTreeNodeToTSNodeMap.get(
           node,
         ) as ts.TypeOfExpression
@@ -346,7 +346,7 @@ function getNodeText(
 function narrowStringToUnion<T extends string>(
   value: string,
   validValues: Set<T>,
-): value is T {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+): value is T { // eslint-disable-line @ls-stack/no-type-guards -- necessary type guard for string union narrowing
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe cast for type narrowing check
   return validValues.has(value as T)
 }

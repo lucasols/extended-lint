@@ -214,7 +214,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         return aIndex - bIndex
       })
 
-      // Report with combined fix for all types
+      // Report with combined solution for all types
       const firstType = typesToMove[0]
       if (!firstType) return
 
@@ -467,7 +467,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           }
         }
 
-        // Process all types that need to be moved in a single fix
+        // Process all types that need to be moved in a single operation
         if (typesToProcess.length > 0) {
           checkAndReportAllTypes(typesToProcess)
         }

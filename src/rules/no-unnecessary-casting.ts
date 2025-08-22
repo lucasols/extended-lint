@@ -119,7 +119,7 @@ export const noUnnecessaryCasting = {
         }
       }
 
-      // Create a fix that replaces the function call with its argument
+      // Helper function to create a replacement for the function call with its argument
       function createFix(
         node: TSESTree.CallExpression,
         arg: TSESTree.Expression,

@@ -47,12 +47,12 @@ export const requireReadsToVarProp = createExtendedLintRule<
     >()
 
     // Helper function to check destructuring patterns
-    const checkDestructuringPattern = (
+    function checkDestructuringPattern(
       destructuringNode: TSESTree.ObjectPattern,
       requiredProps: string[],
       errorMsg: string | undefined,
       fnName: string,
-    ) => {
+    ) {
       const destructuredProps = new Set<string>()
 
       for (const property of destructuringNode.properties) {
@@ -96,7 +96,7 @@ export const requireReadsToVarProp = createExtendedLintRule<
     }
 
     // Helper function to extract function name from call expression
-    const getFunctionName = (node: TSESTree.VariableDeclarator): string => {
+    function getFunctionName(node: TSESTree.VariableDeclarator): string {
       if (node.init?.type === AST_NODE_TYPES.CallExpression) {
         if (node.init.callee.type === AST_NODE_TYPES.Identifier) {
           return node.init.callee.name

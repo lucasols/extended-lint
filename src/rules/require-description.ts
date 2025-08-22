@@ -116,8 +116,10 @@ function parseDirectiveComment(comment: TSESTree.Comment) {
   }
 }
 
+const dashSeparatorRegex = /\s-{2,}\s/u
+
 function divideDirectiveComment(value: string) {
-  const divided = value.split(/\s-{2,}\s/u)
+  const divided = value.split(dashSeparatorRegex)
   const text = divided[0]?.trim()
   return {
     text,

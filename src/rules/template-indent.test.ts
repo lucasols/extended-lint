@@ -1,14 +1,17 @@
 import { createTester } from '../../tests/utils/createTester'
 import { templateIndent } from './template-indent'
 
+const leadingWhitespaceRegex = /^[\s\n]+/
+const trailingWhitespaceRegex = /[\s\n]+$/
+
 const tests = createTester(templateIndent, {
   defaultErrorId: 'improperlyIndented',
 })
 
-const fixInput = (text: string): string => {
+function fixInput(text: string): string {
   return text
-    .replace(/^[\s\n]+/, '')
-    .replace(/[\s\n]+$/, '')
+    .replace(leadingWhitespaceRegex, '')
+    .replace(trailingWhitespaceRegex, '')
     .replaceAll('•', ' ')
     .replaceAll('→→', '\t')
 }

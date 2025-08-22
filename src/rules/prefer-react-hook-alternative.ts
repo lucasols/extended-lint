@@ -14,12 +14,15 @@ const optionsSchema = z.object({
   ),
 })
 
+const hookNameRegex = /^use[A-Z]/
+const componentNameRegex = /^[A-Z]/
+
 function isHookName(name: string): boolean {
-  return /^use[A-Z]/.test(name)
+  return hookNameRegex.test(name)
 }
 
 function isComponentName(name: string): boolean {
-  return /^[A-Z]/.test(name)
+  return componentNameRegex.test(name)
 }
 
 function isHook(node: TSESTree.CallExpression['callee']): boolean {

@@ -1,6 +1,8 @@
+const indentRegex = /^(\s+)\S+/
+
 export function dedent(strings: TemplateStringsArray, ...values: string[]) {
   // $FlowFixMe: Flow doesn't undestand .raw
-  const raw = typeof strings === 'string' ? [strings] : strings.raw
+  const raw = strings.raw
 
   // first, perform interpolation
   let result = ''
@@ -21,7 +23,7 @@ export function dedent(strings: TemplateStringsArray, ...values: string[]) {
   const lines = result.split('\n')
   let mindent: number | null = null
   for (const l of lines) {
-    const m = l.match(/^(\s+)\S+/)
+    const m = l.match(indentRegex)
     if (m) {
       const indentMatch = m[1]
       if (!indentMatch) continue

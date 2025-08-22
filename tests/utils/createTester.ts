@@ -15,6 +15,8 @@ import {
 } from 'eslint-vitest-rule-tester'
 import { fileURLToPath } from 'node:url'
 
+const newlineOnlyRegex = /^\n+$/
+
 const ruleTester = new RuleTester({
   linterOptions: {
     reportUnusedDisableDirectives: 'off',
@@ -158,7 +160,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
     if (
       prependToOutput &&
       prependToOutput !== '\n' &&
-      !prependToOutput.match(/^\n+$/)
+      !prependToOutput.match(newlineOnlyRegex)
     ) {
       throw new Error('prependToOutput must only contain line breaks')
     }
@@ -166,7 +168,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
     if (
       appendToOutput &&
       appendToOutput !== '\n' &&
-      !appendToOutput.match(/^\n+$/)
+      !appendToOutput.match(newlineOnlyRegex)
     ) {
       throw new Error('appendToOutput must only contain line breaks')
     }
@@ -247,7 +249,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
     if (
       appendToOutput &&
       appendToOutput !== '\n' &&
-      !appendToOutput.match(/^\n+$/)
+      !appendToOutput.match(newlineOnlyRegex)
     ) {
       throw new Error('appendToOutput must only contain line breaks')
     }

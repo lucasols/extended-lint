@@ -223,9 +223,9 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
 
       if (!fileNameVars) continue
 
-      const replaceStringWithVars = (str: string) => {
+      function replaceStringWithVars(str: string) {
         let newStr = str
-        for (const { name, value } of fileNameVars) {
+        for (const { name, value } of fileNameVars ?? []) {
           newStr = newStr.replaceAll(name, value)
         }
         return newStr

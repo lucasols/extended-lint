@@ -7,9 +7,15 @@ import {
 import * as z from 'zod/v4'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
+const whiteSpaceRegex = /^\s+$/
+const newlineRegex = /\r?\n/
+const leadingWhiteSpaceRegex = /^(\s*)/
+const marginRegex = /^(\s*)\S/
+const newlineEndRegex = /\r?\n/
+
 const optionsSchema = z.object({
   indent: z
-    .union([z.string().regex(/^\s+$/), z.number().int().min(1)])
+    .union([z.string().regex(whiteSpaceRegex), z.number().int().min(1)])
     .optional(),
   tags: z.array(z.string()).optional(),
   functions: z.array(z.string()).optional(),
@@ -47,14 +53,14 @@ export const templateIndent = createExtendedLintRule<
     const normalizedComments = comments.map((comment) => comment.toLowerCase())
 
     function stripIndent(str: string): string {
-      const lines = str.split(/\r?\n/)
+      const lines = str.split(newlineRegex)
 
       const nonEmptyLines = lines.filter((line) => line.trim() !== '')
       if (nonEmptyLines.length === 0) return str
 
       let minIndent = Number.POSITIVE_INFINITY
       for (const line of nonEmptyLines) {
-        const match = line.match(/^(\s*)/)
+        const match = line.match(leadingWhiteSpaceRegex)
         if (match) {
           minIndent = Math.min(minIndent, match[1]?.length ?? 0)
         }
@@ -72,7 +78,7 @@ export const templateIndent = createExtendedLintRule<
       count: number,
       indentStr: string,
     ): string {
-      const lines = str.split(/\r?\n/)
+      const lines = str.split(newlineRegex)
       return lines
         .map((line) => {
           if (line.trim() === '') return line
@@ -284,7 +290,7 @@ export const templateIndent = createExtendedLintRule<
         })
         .join(delimiter)
 
-      const eolMatch = joined.match(/\r?\n/)
+      const eolMatch = joined.match(newlineEndRegex)
       if (!eolMatch) return
 
       const eol = eolMatch[0]
@@ -292,7 +298,7 @@ export const templateIndent = createExtendedLintRule<
         sourceCode.lines[sourceCode.getLocFromIndex(node.range[0]).line - 1]
       if (!startLine) return
 
-      const marginMatch = startLine.match(/^(\s*)\S/)
+      const marginMatch = startLine.match(marginRegex)
       const parentMargin = marginMatch?.[1] ?? ''
 
       let indentStr: string
@@ -319,7 +325,7 @@ export const templateIndent = createExtendedLintRule<
 
       const joiner = joined.includes('\r\n') ? '\r\n' : '\n'
 
-      const joinedLines = joined.split(/\r?\n/)
+      const joinedLines = joined.split(newlineRegex)
 
       const normalizedJoined = joinedLines
         .map((line, i) =>

@@ -34,29 +34,61 @@ const startsWithPatterns = [
   'default:',
 ]
 
+const returnStatementRegex = /^\s*return\s+/
+const stringAssignmentRegex = /\w=("|'|`)/
+const objectPropertyWithQuotesRegex = /\w+:\s*('|"|`)/
+const computedPropertyAssignmentRegex = /\[['"][^'"]*['"]\]:\s*('|"|`|[^'"`\s])/
+const kebabCasePropertyRegex = /\w+-\w+:/
+const snakeCasePropertyRegex = /\w+_\w+:/
+const ternaryOperatorRegex = /\?\s+\w/
+const colonWithWordRegex = /:\s+\w/
+const quotedStringRegex = /^\s*('|"|`)[^'"]*('|"|`),?\s*$/
+const numberWithCommaRegex = /^\s*\d+[,}]/
+const arrayWithCommaRegex = /^\s*\[[^\]]*\][,}]/
+const objectWithCommaRegex = /^\s*\{[^}]*\}[,}]/
+const methodCallRegex = /\.\w+\(/
+const arrayAccessRegex = /\[\w+\]/
+const quotedPropertyKeyRegex = /^\s*(['"`]).+?\1\s*:/
+const jsxSelfClosingRegex = /^<[A-Z]\w*(\s|>|\/)/
+const jsxElementRegex = /^<[a-z]+(\s|>|\/)/
+const jsxOpeningTagRegex = /<[A-Z]\w*(\s.*)?>/
+const jsxClosingTagRegex = /<\/[A-Z]\w*>/
+const htmlOpeningTagRegex = /<[a-z]+(\s.*)?>/
+const htmlClosingTagRegex = /<\/[a-z]+>/
+const jsdocCommentRegex = /^\s*[*\s]*$/
+const headerPatternRegex = /^[a-zA-Z]/
+const headerThenTextRegex = /^[A-Z][A-Za-z]*(?:\s+\d+)?(?:\s+[a-z]+)*:\s+[A-Za-z]/
+const fencedBlockRegex = /```[\s\S]*?```/g
+const backtickCodeRegex = /`[^`]*`/g
+const alphanumericRegex = /[a-zA-Z0-9]/
+const methodCallPatternRegex = /\.[A-Za-z_][A-Za-z0-9_]*\(/
+const specialCharsRegex = /[{}[\]()`=<>]/
+const colonPatternRegex = /:\s*(['"`[{(]|\w+\s*=>)/
+const controlFlowRegex = /\bif\s*\(|\belse\b|=>/
+
 const regexPatterns = {
-  returnStatement: /^\s*return\s+/,
-  stringAssignment: /\w=("|'|`)/,
-  objectPropertyWithQuotes: /\w+:\s*('|"|`)/,
-  computedPropertyAssignment: /\[['"][^'"]*['"]\]:\s*('|"|`|[^'"`\s])/,
-  kebabCaseProperty: /\w+-\w+:/,
-  snakeCaseProperty: /\w+_\w+:/,
-  ternaryOperator: /\?\s+\w/,
-  colonWithWord: /:\s+\w/,
-  quotedString: /^\s*('|"|`)[^'"]*('|"|`),?\s*$/,
-  numberWithComma: /^\s*\d+[,}]/,
-  arrayWithComma: /^\s*\[[^\]]*\][,}]/,
-  objectWithComma: /^\s*\{[^}]*\}[,}]/,
-  methodCall: /\.\w+\(/,
-  arrayAccess: /\[\w+\]/,
-  quotedPropertyKey: /^\s*(['"`]).+?\1\s*:/,
-  jsxSelfClosing: /^<[A-Z]\w*(\s|>|\/)/,
-  jsxElement: /^<[a-z]+(\s|>|\/)/,
-  jsxOpeningTag: /<[A-Z]\w*(\s.*)?>/,
-  jsxClosingTag: /<\/[A-Z]\w*>/,
-  htmlOpeningTag: /<[a-z]+(\s.*)?>/,
-  htmlClosingTag: /<\/[a-z]+>/,
-  jsdocComment: /^\s*[*\s]*$/,
+  returnStatement: returnStatementRegex,
+  stringAssignment: stringAssignmentRegex,
+  objectPropertyWithQuotes: objectPropertyWithQuotesRegex,
+  computedPropertyAssignment: computedPropertyAssignmentRegex,
+  kebabCaseProperty: kebabCasePropertyRegex,
+  snakeCaseProperty: snakeCasePropertyRegex,
+  ternaryOperator: ternaryOperatorRegex,
+  colonWithWord: colonWithWordRegex,
+  quotedString: quotedStringRegex,
+  numberWithComma: numberWithCommaRegex,
+  arrayWithComma: arrayWithCommaRegex,
+  objectWithComma: objectWithCommaRegex,
+  methodCall: methodCallRegex,
+  arrayAccess: arrayAccessRegex,
+  quotedPropertyKey: quotedPropertyKeyRegex,
+  jsxSelfClosing: jsxSelfClosingRegex,
+  jsxElement: jsxElementRegex,
+  jsxOpeningTag: jsxOpeningTagRegex,
+  jsxClosingTag: jsxClosingTagRegex,
+  htmlOpeningTag: htmlOpeningTagRegex,
+  htmlClosingTag: htmlClosingTagRegex,
+  jsdocComment: jsdocCommentRegex,
 }
 
 function isDescriptiveCommentText(text: string): boolean {
@@ -64,7 +96,7 @@ function isDescriptiveCommentText(text: string): boolean {
     const headerThenText = text.split(':')[0]?.trim()
 
     if (headerThenText) {
-      if (/^[a-zA-Z]/.test(headerThenText) && headerThenText.includes(' ')) {
+      if (headerPatternRegex.test(headerThenText) && headerThenText.includes(' ')) {
         return true
       }
     }
@@ -72,14 +104,12 @@ function isDescriptiveCommentText(text: string): boolean {
 
   const trimmed = text.trim()
   if (trimmed.length === 0) return false
-  if (/\.[A-Za-z_][A-Za-z0-9_]*\(/.test(trimmed)) return false
-  if (/[{}[\]()`=<>]/.test(trimmed)) return false
-  if (/:\s*(['"`[{(]|\w+\s*=>)/.test(trimmed)) return false
-  if (/\bif\s*\(|\belse\b|=>/.test(trimmed)) return false
+  if (methodCallPatternRegex.test(trimmed)) return false
+  if (specialCharsRegex.test(trimmed)) return false
+  if (colonPatternRegex.test(trimmed)) return false
+  if (controlFlowRegex.test(trimmed)) return false
   if (trimmed.includes(':')) {
-    const headerThenText =
-      /^[A-Z][A-Za-z]*(?:\s+\d+)?(?:\s+[a-z]+)*:\s+[A-Za-z]/
-    if (headerThenText.test(trimmed)) return true
+    if (headerThenTextRegex.test(trimmed)) return true
   }
   return false
 }
@@ -260,16 +290,16 @@ const rule = createRule({
 
       // 1. Handle fenced blocks ``` ... ``` only for block comments.
       if (commentType === 'Block' && cleaned.includes('```')) {
-        const parts = cleaned.split(/```[\s\S]*?```/g)
-        const hasText = parts.some((p) => /[a-zA-Z0-9]/.test(p))
+        const parts = cleaned.split(fencedBlockRegex)
+        const hasText = parts.some((p) => alphanumericRegex.test(p))
         if (hasText) cleaned = parts.join('')
       }
 
       // 2. Handle single-backtick inline code
       if (!cleaned.includes('`')) return cleaned
 
-      const segments = cleaned.split(/`[^`]*`/g)
-      const hasOuterText = segments.some((seg) => /[a-zA-Z0-9]/.test(seg))
+      const segments = cleaned.split(backtickCodeRegex)
+      const hasOuterText = segments.some((seg) => alphanumericRegex.test(seg))
 
       return hasOuterText ? segments.join('') : cleaned
     }
