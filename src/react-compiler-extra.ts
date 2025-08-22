@@ -142,7 +142,7 @@ const rule = createRule<
 
     /**
      * Checks for 'this' usage in nested object methods,
-     * but doesn't report or fix regular nested methods
+     * but doesn't report or adjust regular nested methods
      */
     function checkNestedThisUsage(node: TSESTree.ObjectExpression) {
       for (const property of node.properties) {

@@ -11,7 +11,7 @@ export function findParentNode<T extends TSESTree.AST_NODE_TYPES>(
   if (!node.parent) return undefined
 
   if (node.type === type) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- it is fine to use type assertions here
     return node as TSESTree.Node & { type: T }
   }
 
@@ -56,8 +56,8 @@ export function getVarReferences(
     (v) =>
       v.name === varName ||
       (v.identifiers[0]?.parent.type === AST_NODE_TYPES.Property &&
-        v.identifiers[0]?.parent.key.type === AST_NODE_TYPES.Identifier &&
-        v.identifiers[0]?.parent.key.name === varName),
+        v.identifiers[0].parent.key.type === AST_NODE_TYPES.Identifier &&
+        v.identifiers[0].parent.key.name === varName),
   )
 
   if (!variable) return []

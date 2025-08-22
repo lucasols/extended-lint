@@ -19,9 +19,5 @@ export default lsStackEslintCfg({
 
     'vitest/expect-expect': OFF,
   },
-  extends: [
-    {
-      ignores: ['dist/**/*', '**/*.js', 'debug/**/*'],
-    },
-  ],
+  ignore: ['dist/**/*', '**/*.js', 'debug/**/*', 'tests/fixture/**/*'],
 })
