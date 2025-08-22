@@ -2055,3 +2055,224 @@ test('reproduce bug', async () => {
     });"
   `)
 })
+
+test('reproduce bug with all options', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      export type ConfigA = {
+        id: string;
+        label: string | null;
+        enabled: boolean;
+        value: unknown;
+      };
+      
+      export type ConfigB = {
+        title: string;
+        description: string | null;
+      };
+      
+      export type ConfigC = {
+        name: string | null;
+        reference_id: string;
+        items: string[];
+      };
+      
+      export type ConfigD = {
+        title: string;
+        visible: boolean;
+        content: string;
+      };
+      
+      export type ConfigE = {
+        name: string;
+        description: string | null;
+        active: boolean;
+      };
+      
+      const configASchema = rc_obj_builder<ConfigA>()({
+        id: rc_string,
+        label: rc_string.orNull(),
+        enabled: rc_boolean,
+        value: rc_unknown,
+      });
+      
+      const configBSchema = rc_obj_builder<ConfigB>()({
+        title: rc_string,
+        description: rc_string.orNull(),
+      });
+      
+      const configCSchema = rc_obj_builder<ConfigC>()({
+        name: rc_string.orNull(),
+        reference_id: rc_string,
+        items: rc_array(rc_string),
+      });
+      
+      const configDSchema = rc_obj_builder<ConfigD>()({
+        title: rc_string,
+        visible: rc_boolean,
+        content: rc_string,
+      });
+      
+      const configESchema = rc_obj_builder<ConfigE>()({
+        name: rc_string,
+        description: rc_string.orNull(),
+        active: rc_boolean,
+      });
+      
+      export type BlockType =
+        | { id: string; type: 'typeA'; config: ConfigA }
+        | { id: string; type: 'typeB'; config: ConfigB }
+        | { id: string; type: 'typeC'; config: ConfigC }
+        | { id: string; type: 'typeD'; config: ConfigD }
+        | { id: string; type: 'typeE'; config: ConfigE };
+      
+      const blockTypeSchema = rc_discriminated_union_builder<BlockType, 'type'>('type')({
+        typeA: { id: rc_string, config: configASchema },
+        typeB: { id: rc_string, config: configBSchema },
+        typeC: { id: rc_string, config: configCSchema },
+        typeD: { id: rc_string, config: configDSchema },
+        typeE: { id: rc_string, config: configESchema },
+      });
+      
+      export type ApiConfig = {
+        type: 'mainType';
+        description: string | null;
+        title: string | null;
+        blocks: BlockType[];
+        settings: {
+          enabled: boolean;
+          value: string | null;
+        };
+      };
+      
+      export const apiConfigSchema = rc_obj_builder<ApiConfig>()({
+        type: rc_literals('mainType'),
+        title: rc_string.orNull(),
+        description: rc_string.orNull(),
+        blocks: rc_array(blockTypeSchema),
+        settings: {
+          enabled: rc_boolean,
+          value: rc_string.orNull(),
+        },
+      });
+    `,
+    options: [
+      { checkOnly: ['function-args', 'FC', 'generic-args-at-fn-calls'] },
+    ],
+  })
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - messageId: 'moveTypeAboveUsage'
+      data: 'Type definition should be placed directly above its first usage.'
+      line: ??? adjust this to the correct line
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "
+
+
+
+
+
+
+
+
+
+    export type ConfigA = {
+      id: string;
+      label: string | null;
+      enabled: boolean;
+      value: unknown;
+    };
+
+    const configASchema = rc_obj_builder<ConfigA>()({
+      id: rc_string,
+      label: rc_string.orNull(),
+      enabled: rc_boolean,
+      value: rc_unknown,
+    });
+
+    export type ConfigB = {
+      title: string;
+      description: string | null;
+    };
+
+    const configBSchema = rc_obj_builder<ConfigB>()({
+      title: rc_string,
+      description: rc_string.orNull(),
+    });
+
+    export type ConfigC = {
+      name: string | null;
+      reference_id: string;
+      items: string[];
+    };
+
+    const configCSchema = rc_obj_builder<ConfigC>()({
+      name: rc_string.orNull(),
+      reference_id: rc_string,
+      items: rc_array(rc_string),
+    });
+
+    export type ConfigD = {
+      title: string;
+      visible: boolean;
+      content: string;
+    };
+
+    const configDSchema = rc_obj_builder<ConfigD>()({
+      title: rc_string,
+      visible: rc_boolean,
+      content: rc_string,
+    });
+
+    export type ConfigE = {
+      name: string;
+      description: string | null;
+      active: boolean;
+    };
+
+    const configESchema = rc_obj_builder<ConfigE>()({
+      name: rc_string,
+      description: rc_string.orNull(),
+      active: rc_boolean,
+    });
+
+    export type BlockType =
+      | { id: string; type: 'typeA'; config: ConfigA }
+      | { id: string; type: 'typeB'; config: ConfigB }
+      | { id: string; type: 'typeC'; config: ConfigC }
+      | { id: string; type: 'typeD'; config: ConfigD }
+      | { id: string; type: 'typeE'; config: ConfigE };
+
+    const blockTypeSchema = rc_discriminated_union_builder<BlockType, 'type'>('type')({
+      typeA: { id: rc_string, config: configASchema },
+      typeB: { id: rc_string, config: configBSchema },
+      typeC: { id: rc_string, config: configCSchema },
+      typeD: { id: rc_string, config: configDSchema },
+      typeE: { id: rc_string, config: configESchema },
+    });
+
+    export type ApiConfig = {
+      type: 'mainType';
+      description: string | null;
+      title: string | null;
+      blocks: BlockType[];
+      settings: {
+        enabled: boolean;
+        value: string | null;
+      };
+    };
+
+    export const apiConfigSchema = rc_obj_builder<ApiConfig>()({
+      type: rc_literals('mainType'),
+      title: rc_string.orNull(),
+      description: rc_string.orNull(),
+      blocks: rc_array(blockTypeSchema),
+      settings: {
+        enabled: rc_boolean,
+        value: rc_string.orNull(),
+      },
+    });"
+  `)
+})
