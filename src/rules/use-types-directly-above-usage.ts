@@ -291,7 +291,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
           yield fixer.insertTextBeforeRange(
             [insertPosition, insertPosition],
-            `${textsToInsert.join('\n\n')}\n`,
+            `${textsToInsert.join('\n\n')}\n\n`,
           )
         }
       }
