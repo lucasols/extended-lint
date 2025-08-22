@@ -187,16 +187,38 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       | 'default-error' = 'default-error',
     {
       output,
+      prependToOutput,
+      appendToOutput,
       skip = false,
       only = false,
     }: {
       output?: string
       skip?: boolean
       only?: boolean
+      prependToOutput?: string
+      appendToOutput?: string
     } = {},
   ) {
     if ((only || skip) && process.env.VITEST_MODE !== 'WATCH') {
       throw new Error('Only tests are not allowed in production')
+    }
+
+    if (
+      appendToOutput &&
+      appendToOutput !== '\n' &&
+      !appendToOutput.match(/^\n+$/)
+    ) {
+      throw new Error('appendToOutput must only contain line breaks')
+    }
+
+    let o = output ? (disableDedent ? output : dedent(output)) : undefined
+
+    if (prependToOutput) {
+      o = prependToOutput + o
+    }
+
+    if (appendToOutput) {
+      o = o + appendToOutput
     }
 
     invalid.push({
@@ -204,7 +226,7 @@ export function createTester<T extends TSESLint.RuleModule<string, any[]>>(
       only,
       skip,
       code: disableDedent ? code : dedent(code),
-      output: output ? (disableDedent ? output : dedent(output)) : undefined,
+      output: o,
       options: options
         ? Array.isArray(options)
           ? options

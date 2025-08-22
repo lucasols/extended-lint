@@ -44,31 +44,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
     // Store all program-level statements for easy lookup
     const programStatements: TSESTree.Statement[] = []
 
-    function checkAndReportType(
-      typeName: string,
-      usageStatement: TSESTree.Statement,
-    ) {
-      if (!typeDefinitions.has(typeName)) {
-        return
-      }
-
-      const typeDef = typeDefinitions.get(typeName)
-      if (!typeDef) return
-      if (typeDef.statement === usageStatement) return
-      const typeDefIndex = programStatements.indexOf(typeDef.statement)
-      const usageIndex = programStatements.indexOf(usageStatement)
-
-      if (typeDefIndex === -1 || usageIndex === -1) return
-
-      // Check if type definition comes after usage or not directly before
-      if (typeDefIndex > usageIndex || typeDefIndex !== usageIndex - 1) {
-        context.report({
-          node: typeDef.node,
-          messageId: 'moveTypeAboveUsage',
-          fix: createFixer(typeDef.statement, usageStatement),
-        })
-      }
-    }
 
     function findStatementContaining(
       node: TSESTree.Node,
@@ -84,79 +59,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       return null
     }
 
-    function createFixer(
-      typeDefStatement: TSESTree.Statement,
-      usageStatement: TSESTree.Statement,
-    ) {
-      return function* (fixer: TSESLint.RuleFixer) {
-        const typeDefText = sourceCode.getText(typeDefStatement)
-        const typeDefComments = sourceCode.getCommentsBefore(typeDefStatement)
-
-        let fullTypeDefText = typeDefText
-        if (typeDefComments.length > 0) {
-          const commentsText = typeDefComments
-            .map((comment) => sourceCode.getText(comment))
-            .join('\n')
-          fullTypeDefText = `${commentsText}\n${typeDefText}`
-        }
-
-        // Calculate removal range including comments and trailing newline
-        let rangeStart = typeDefStatement.range[0]
-        let rangeEnd = typeDefStatement.range[1]
-
-        // Include comments before the type definition
-        if (typeDefComments.length > 0 && typeDefComments[0]) {
-          rangeStart = typeDefComments[0].range[0]
-        }
-
-        // Include trailing whitespace and newlines to avoid leaving blank lines
-        let searchEnd = rangeEnd
-        while (searchEnd < sourceCode.text.length) {
-          const char = sourceCode.text[searchEnd]
-          if (char === '\n') {
-            searchEnd++
-            // If we find a newline, check if the next line is blank
-            let nextLineStart = searchEnd
-            while (
-              nextLineStart < sourceCode.text.length &&
-              (sourceCode.text[nextLineStart] === ' ' ||
-                sourceCode.text[nextLineStart] === '\t')
-            ) {
-              nextLineStart++
-            }
-            // If next line is blank (only whitespace followed by newline), include it
-            if (
-              nextLineStart < sourceCode.text.length &&
-              sourceCode.text[nextLineStart] === '\n'
-            ) {
-              searchEnd = nextLineStart + 1
-            }
-            break
-          } else if (char === ' ' || char === '\t') {
-            searchEnd++
-          } else {
-            break
-          }
-        }
-
-        rangeEnd = searchEnd
-
-        // Remove the type definition, comments, and trailing newline
-        yield fixer.removeRange([rangeStart, rangeEnd])
-
-        // Insert the type definition before the usage statement (including before any comments)
-        const usageComments = sourceCode.getCommentsBefore(usageStatement)
-        const insertPosition =
-          usageComments.length > 0 && usageComments[0]
-            ? usageComments[0].range[0]
-            : usageStatement.range[0]
-
-        yield fixer.insertTextBeforeRange(
-          [insertPosition, insertPosition],
-          `${fullTypeDefText}\n\n`,
-        )
-      }
-    }
 
     function isInFunctionArgument(node: TSESTree.Node): boolean {
       let current = node.parent
@@ -262,7 +164,16 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         if (typeDefIndex === -1 || usageIndex === -1) continue
 
         // Check if type definition comes after usage or not directly before
-        if (typeDefIndex > usageIndex || typeDefIndex !== usageIndex - 1) {
+        // Be more lenient only for specific checkOnly contexts that need it
+        const needsLenientPositioning = options.checkOnly && 
+          options.checkOnly.length > 0 && 
+          options.checkOnly.includes('function-args')
+          
+        const shouldMove = needsLenientPositioning
+          ? typeDefIndex > usageIndex  // Just needs to be above for function-args
+          : (typeDefIndex > usageIndex || typeDefIndex !== usageIndex - 1)  // Directly above otherwise
+          
+        if (shouldMove) {
           typesToMove.push({
             typeName,
             typeDef,
@@ -317,53 +228,111 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           typesByTarget.set(typeToMove.targetStatement, existing)
         }
 
-        // Process removals (from bottom to top to preserve ranges)
-        for (const typeToMove of [...typesToMove].reverse()) {
+        // Sort each group by original position to ensure deterministic ordering
+        for (const [, groupedTypes] of typesByTarget) {
+          groupedTypes.sort((a, b) => {
+            const aIndex = programStatements.indexOf(a.typeDef.statement)
+            const bIndex = programStatements.indexOf(b.typeDef.statement)
+            return aIndex - bIndex
+          })
+        }
+
+        // Calculate removal ranges for all types
+        const removalRanges: Array<[number, number]> = []
+        
+        // Sort by original position to calculate ranges correctly
+        const sortedTypesToMove = [...typesToMove].sort((a, b) => {
+          const aIndex = programStatements.indexOf(a.typeDef.statement)
+          const bIndex = programStatements.indexOf(b.typeDef.statement)
+          return aIndex - bIndex
+        })
+        
+        for (let i = 0; i < sortedTypesToMove.length; i++) {
+          const typeToMove = sortedTypesToMove[i]
           const { typeDef } = typeToMove
           const typeDefStatement = typeDef.statement
           const typeDefComments = sourceCode.getCommentsBefore(typeDefStatement)
 
           let rangeStart = typeDefStatement.range[0]
-          const rangeEnd = typeDefStatement.range[1]
+          let rangeEnd = typeDefStatement.range[1]
 
           // Include comments before the type definition
           if (typeDefComments.length > 0 && typeDefComments[0]) {
             rangeStart = typeDefComments[0].range[0]
           }
 
-          // Include trailing whitespace and newlines to avoid leaving blank lines
-          let searchEnd = rangeEnd
-          while (searchEnd < sourceCode.text.length) {
-            const char = sourceCode.text[searchEnd]
-            if (char === '\n') {
-              searchEnd++
-              // If we find a newline, check if the next line is blank
-              let nextLineStart = searchEnd
-              while (
-                nextLineStart < sourceCode.text.length &&
-                (sourceCode.text[nextLineStart] === ' ' ||
-                  sourceCode.text[nextLineStart] === '\t')
-              ) {
-                nextLineStart++
+          // For adjacent types being moved, only include trailing whitespace for the last one
+          const nextType = sortedTypesToMove[i + 1]
+          const isLastType = !nextType
+          const nextTypeStatement = nextType?.typeDef.statement
+          
+          // Check if this and next type are adjacent in the source
+          const isAdjacentToNext = nextTypeStatement && 
+            programStatements.indexOf(nextTypeStatement) === programStatements.indexOf(typeDefStatement) + 1
+          
+          // Include trailing whitespace and newlines, but be careful with adjacent types
+          if (isLastType || !isAdjacentToNext) {
+            // Include trailing whitespace and newlines to avoid leaving blank lines
+            let searchEnd = rangeEnd
+            while (searchEnd < sourceCode.text.length) {
+              const char = sourceCode.text[searchEnd]
+              if (char === '\n') {
+                searchEnd++
+                // If we find a newline, check if the next line is blank
+                let nextLineStart = searchEnd
+                while (
+                  nextLineStart < sourceCode.text.length &&
+                  (sourceCode.text[nextLineStart] === ' ' ||
+                    sourceCode.text[nextLineStart] === '\t')
+                ) {
+                  nextLineStart++
+                }
+                // If next line is blank (only whitespace followed by newline), include it
+                if (
+                  nextLineStart < sourceCode.text.length &&
+                  sourceCode.text[nextLineStart] === '\n'
+                ) {
+                  searchEnd = nextLineStart + 1
+                }
+                break
+              } else if (char === ' ' || char === '\t') {
+                searchEnd++
+              } else {
+                break
               }
-              // If next line is blank (only whitespace followed by newline), include it
-              if (
-                nextLineStart < sourceCode.text.length &&
-                sourceCode.text[nextLineStart] === '\n'
-              ) {
-                searchEnd = nextLineStart + 1
-              }
-              break
-            } else if (char === ' ' || char === '\t') {
-              searchEnd++
-            } else {
-              break
             }
+            rangeEnd = searchEnd
           }
 
+          removalRanges.push([rangeStart, rangeEnd])
+        }
+
+        // Sort ranges by start position
+        removalRanges.sort((a, b) => a[0] - b[0])
+        
+        // Merge overlapping ranges
+        const mergedRanges: Array<[number, number]> = []
+        for (const range of removalRanges) {
+          if (mergedRanges.length === 0) {
+            mergedRanges.push(range)
+          } else {
+            const lastRange = mergedRanges[mergedRanges.length - 1]
+            if (!lastRange) continue
+            
+            // If ranges overlap or are adjacent, merge them
+            if (range[0] <= lastRange[1]) {
+              lastRange[1] = Math.max(lastRange[1], range[1])
+            } else {
+              mergedRanges.push(range)
+            }
+          }
+        }
+
+        // Apply merged removals (from bottom to top to preserve ranges)
+        for (const range of [...mergedRanges].reverse()) {
           operations.push({
             type: 'remove',
-            range: [rangeStart, searchEnd],
+            range,
           })
         }
 
@@ -470,12 +439,16 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
       TSTypeReference(node) {
         if (node.typeName.type === AST_NODE_TYPES.Identifier) {
+          const inFunctionArgs = isInFunctionArgument(node)
+          const inFCProps = isInFCProps(node)
+          const inGenericArgAtFunctionCall = isInGenericArgAtFunctionCall(node)
+          
           allTypeReferences.push({
             typeName: node.typeName.name,
             node,
-            inFunctionArgs: isInFunctionArgument(node),
-            inFCProps: isInFCProps(node),
-            inGenericArgAtFunctionCall: isInGenericArgAtFunctionCall(node),
+            inFunctionArgs,
+            inFCProps,
+            inGenericArgAtFunctionCall,
           })
         }
       },
@@ -489,6 +462,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           if (!options.checkOnly || options.checkOnly.length === 0) {
             return true
           }
+
 
           // Check if this reference is in the specified contexts
           for (const checkContext of options.checkOnly) {
@@ -513,6 +487,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           if (typeDefinitions.has(typeName)) {
             const statement = findStatementContaining(node)
             const def = typeDefinitions.get(typeName)
+
 
             if (statement && def && statement !== def.statement) {
               if (!typeUsagesMap.has(typeName)) {
@@ -543,6 +518,8 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
                 firstUsage = current
               }
             }
+            
+            
             typesToProcess.push({ typeName, firstUsage })
           }
         }
