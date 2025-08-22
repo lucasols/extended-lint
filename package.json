@@ -13,7 +13,8 @@
     "build:no-minify": "tsup --dts",
     "run-in-test-project": "pnpm build:no-minify && node --experimental-strip-types ./debug/runInTestProject.ts",
     "pre-publish": "./scripts/check-if-is-sync.sh && pnpm build",
-    "npm-publish": "pnpm publish --access=public"
+    "npm-publish": "pnpm publish --access=public",
+    "sync-ai": "node scripts/syncAI.ts"
   },
   "files": [
     "dist"

@@ -1,8 +1,3 @@
----
-description:
-globs:
-alwaysApply: true
----
 # Project Overview
 
 This is an **ESLint plugin** (`extended-lint`) that provides custom linting rules for TypeScript/JavaScript projects.
