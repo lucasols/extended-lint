@@ -44,6 +44,12 @@
       "type": "shell",
       "command": "pnpm run lint",
       "problemMatcher": []
+    },
+    {
+      "label": "Sync AI",
+      "type": "shell",
+      "command": "pnpm run sync-ai",
+      "problemMatcher": []
     }
   ],
   "inputs": [
