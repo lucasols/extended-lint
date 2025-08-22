@@ -154,7 +154,11 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         firstUsagePosition: number
       }> = []
 
-      for (const { typeName, firstUsage, firstUsagePosition } of typesToProcess) {
+      for (const {
+        typeName,
+        firstUsage,
+        firstUsagePosition,
+      } of typesToProcess) {
         const typeDef = typeDefinitions.get(typeName)
         if (!typeDef) continue
         if (typeDef.statement === firstUsage) continue
@@ -244,7 +248,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           })
         }
 
-        // Calculate and apply removals for all types (no merging to avoid overlaps)
         for (const typeToMove of typesToMove) {
           const { typeDef } = typeToMove
           const typeDefStatement = typeDef.statement
@@ -253,26 +256,9 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           let rangeStart = typeDefStatement.range[0]
           let rangeEnd = typeDefStatement.range[1]
 
-          // Include comments before the type definition
           if (typeDefComments.length > 0 && typeDefComments[0]) {
             rangeStart = typeDefComments[0].range[0]
           }
-
-          // Include trailing whitespace but preserve overall file structure
-          let searchEnd = rangeEnd
-          let newlinesFound = 0
-          while (searchEnd < sourceCode.text.length && newlinesFound < 2) {
-            const char = sourceCode.text[searchEnd]
-            if (char === '\n') {
-              newlinesFound++
-              searchEnd++
-            } else if (char === ' ' || char === '\t') {
-              searchEnd++
-            } else {
-              break
-            }
-          }
-          rangeEnd = searchEnd
 
           yield fixer.removeRange([rangeStart, rangeEnd])
         }
@@ -305,7 +291,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
           yield fixer.insertTextBeforeRange(
             [insertPosition, insertPosition],
-            `${textsToInsert.join('\n\n')}\n\n`,
+            `${textsToInsert.join('\n\n')}\n`,
           )
         }
       }
@@ -446,19 +432,22 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             let firstUsage = usageStatements[0]
             if (!firstUsage) continue
             let firstUsagePosition = Number.MAX_SAFE_INTEGER
-            
+
             // Find the first usage statement and the earliest position within it
             for (const current of usageStatements) {
               if (current.range[0] < firstUsage.range[0]) {
                 firstUsage = current
               }
             }
-            
+
             // Find the earliest usage position for this type within the first usage statement
             for (const typeRef of filteredReferences) {
               if (typeRef.typeName === typeName) {
                 const statement = findStatementContaining(typeRef.node)
-                if (statement === firstUsage && typeRef.usagePosition < firstUsagePosition) {
+                if (
+                  statement === firstUsage &&
+                  typeRef.usagePosition < firstUsagePosition
+                ) {
                   firstUsagePosition = typeRef.usagePosition
                 }
               }
