@@ -4,9 +4,7 @@ import { z } from 'zod/v4'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const optionsSchema = z.object({
-  checkOnly: z
-    .array(z.enum(['function-args', 'FC', 'generic-args']))
-    .optional(),
+  checkOnly: z.array(z.enum(['function-args', 'FC'])).optional(),
 })
 
 type Options = z.infer<typeof optionsSchema>
@@ -116,18 +114,12 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             searchEnd++
             // If we find a newline, check if the next line is blank
             let nextLineStart = searchEnd
-            while (
-              nextLineStart < sourceCode.text.length &&
-              (sourceCode.text[nextLineStart] === ' ' ||
-                sourceCode.text[nextLineStart] === '\t')
-            ) {
+            while (nextLineStart < sourceCode.text.length && 
+                   (sourceCode.text[nextLineStart] === ' ' || sourceCode.text[nextLineStart] === '\t')) {
               nextLineStart++
             }
             // If next line is blank (only whitespace followed by newline), include it
-            if (
-              nextLineStart < sourceCode.text.length &&
-              sourceCode.text[nextLineStart] === '\n'
-            ) {
+            if (nextLineStart < sourceCode.text.length && sourceCode.text[nextLineStart] === '\n') {
               searchEnd = nextLineStart + 1
             }
             break
@@ -137,7 +129,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             break
           }
         }
-
+        
         rangeEnd = searchEnd
 
         // Remove the type definition, comments, and trailing newline
@@ -145,15 +137,11 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
         // Insert the type definition before the usage statement (including before any comments)
         const usageComments = sourceCode.getCommentsBefore(usageStatement)
-        const insertPosition =
-          usageComments.length > 0 && usageComments[0]
-            ? usageComments[0].range[0]
-            : usageStatement.range[0]
-
-        yield fixer.insertTextBeforeRange(
-          [insertPosition, insertPosition],
-          `${fullTypeDefText}\n\n`,
-        )
+        const insertPosition = usageComments.length > 0 && usageComments[0] 
+          ? usageComments[0].range[0] 
+          : usageStatement.range[0]
+        
+        yield fixer.insertTextBeforeRange([insertPosition, insertPosition], `${fullTypeDefText}\n\n`)
       }
     }
 
@@ -210,42 +198,12 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       return false
     }
 
-    function isInGenericArgs(node: TSESTree.Node): boolean {
-      let current = node.parent
-      while (current) {
-        // Check if we're inside a TSTypeParameterInstantiation
-        if (current.type === AST_NODE_TYPES.TSTypeParameterInstantiation) {
-          const parent = current.parent
-          // Exclude FC components as they're handled separately
-          if (
-            parent.type === AST_NODE_TYPES.TSTypeReference &&
-            parent.typeName.type === AST_NODE_TYPES.Identifier &&
-            (parent.typeName.name === 'FC' ||
-              parent.typeName.name === 'React.FC')
-          ) {
-            return false
-          }
-          if (
-            parent.type === AST_NODE_TYPES.TSTypeReference &&
-            parent.typeName.type === AST_NODE_TYPES.TSQualifiedName &&
-            parent.typeName.right.name === 'FC'
-          ) {
-            return false
-          }
-          // This is a generic type argument that's not FC
-          return true
-        }
-        current = current.parent
-      }
-      return false
-    }
 
     const allTypeReferences: Array<{
       typeName: string
       node: TSESTree.TSTypeReference
       inFunctionArgs: boolean
       inFCProps: boolean
-      inGenericArgs: boolean
     }> = []
 
     return {
@@ -310,7 +268,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             node,
             inFunctionArgs: isInFunctionArgument(node),
             inFCProps: isInFCProps(node),
-            inGenericArgs: isInGenericArgs(node),
           })
         }
       },
@@ -321,17 +278,15 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         // Filter type references based on checkOnly option
         const filteredReferences = allTypeReferences.filter((typeRef) => {
           const { typeName } = typeRef
-
+          
           // If no checkOnly option, include all references
           if (!options.checkOnly || options.checkOnly.length === 0) {
             return true
           }
 
           // Count total references for this type
-          const allRefsForType = allTypeReferences.filter(
-            (ref) => ref.typeName === typeName,
-          )
-
+          const allRefsForType = allTypeReferences.filter(ref => ref.typeName === typeName)
+          
           // If type is used multiple times, ignore when checkOnly is set
           if (allRefsForType.length > 1) {
             return false
@@ -343,9 +298,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
               return true
             }
             if (checkContext === 'FC' && typeRef.inFCProps) {
-              return true
-            }
-            if (checkContext === 'generic-args' && typeRef.inGenericArgs) {
               return true
             }
           }
