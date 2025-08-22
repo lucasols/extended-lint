@@ -2164,7 +2164,7 @@ test('reproduce bug with all options', async () => {
     "
     - messageId: 'moveTypeAboveUsage'
       data: 'Type definition should be placed directly above its first usage.'
-      line: ??? adjust this to the correct line
+      line: 1
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
