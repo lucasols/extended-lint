@@ -1424,4 +1424,150 @@ tests.addInvalid(
   },
 )
 
+// Tests for generic-args-at-fn-calls option
+tests.addValid(
+  'checkOnly generic-args-at-fn-calls - ignores types used in function arguments',
+  `
+    function processUser(data: UserData) {
+      return data.name
+    }
+    
+    type UserData = { name: string }
+  `,
+  { checkOnly: ['generic-args-at-fn-calls'] },
+)
+
+tests.addValid(
+  'checkOnly generic-args-at-fn-calls - ignores types used in FC props',
+  `
+    const Button: React.FC<ButtonProps> = ({ label }) => {
+      return <button>{label}</button>
+    }
+    
+    type ButtonProps = { label: string }
+  `,
+  { checkOnly: ['generic-args-at-fn-calls'] },
+)
+
+tests.addValid(
+  'checkOnly generic-args-at-fn-calls - ignores variable declarations',
+  `
+    const config: Config = { debug: true }
+    
+    type Config = { debug: boolean }
+  `,
+  { checkOnly: ['generic-args-at-fn-calls'] },
+)
+
+tests.addInvalid(
+  'checkOnly generic-args-at-fn-calls - catches type used in function call generic',
+  `
+    const result = processData<DataType>({ value: 'test' })
+    
+    type DataType = { value: string }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type DataType = { value: string }
+    
+    const result = processData<DataType>({ value: 'test' })
+  `,
+    appendToOutput: '\n\n',
+    options: { checkOnly: ['generic-args-at-fn-calls'] },
+  },
+)
+
+tests.addInvalid(
+  'checkOnly generic-args-at-fn-calls - catches type used in method call generic',
+  `
+    const items = collection.filter<Item>(item => item.active)
+    
+    type Item = { active: boolean }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type Item = { active: boolean }
+    
+    const items = collection.filter<Item>(item => item.active)
+  `,
+    appendToOutput: '\n\n',
+    options: { checkOnly: ['generic-args-at-fn-calls'] },
+  },
+)
+
+tests.addInvalid(
+  'checkOnly generic-args-at-fn-calls - catches type in chained method call generic',
+  `
+    const result = data
+      .map<ProcessedItem>(item => ({ ...item, processed: true }))
+      .filter(item => item.active)
+    
+    type ProcessedItem = { processed: boolean; active: boolean }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type ProcessedItem = { processed: boolean; active: boolean }
+    
+    const result = data
+      .map<ProcessedItem>(item => ({ ...item, processed: true }))
+      .filter(item => item.active)
+  `,
+    appendToOutput: '\n\n',
+    options: { checkOnly: ['generic-args-at-fn-calls'] },
+  },
+)
+
+tests.addInvalid(
+  'checkOnly generic-args-at-fn-calls - catches type in constructor call generic',
+  `
+    const instance = new Collection<EntityType>()
+    
+    type EntityType = { id: string }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type EntityType = { id: string }
+    
+    const instance = new Collection<EntityType>()
+  `,
+    appendToOutput: '\n\n',
+    options: { checkOnly: ['generic-args-at-fn-calls'] },
+  },
+)
+
+tests.addInvalid(
+  'checkOnly generic-args-at-fn-calls - multiple generic args',
+  `
+    const result = transform<InputType, OutputType>(data, processor)
+    
+    type InputType = { raw: string }
+    type OutputType = { processed: string }
+  `,
+  [{ messageId: 'moveTypeAboveUsage' }],
+  {
+    output: `
+    type InputType = { raw: string }
+    
+    const result = transform<InputType, OutputType>(data, processor)
+    
+    type OutputType = { processed: string }
+  `,
+    options: { checkOnly: ['generic-args-at-fn-calls'] },
+  },
+)
+
+tests.addValid(
+  'checkOnly generic-args-at-fn-calls - type correctly above generic function call usage',
+  `
+    type ApiResponse = { data: string }
+    
+    const result = fetchData<ApiResponse>('/api/users')
+  `,
+  { checkOnly: ['generic-args-at-fn-calls'] },
+)
+
 tests.run()

@@ -4,7 +4,9 @@ import { z } from 'zod/v4'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const optionsSchema = z.object({
-  checkOnly: z.array(z.enum(['function-args', 'FC'])).optional(),
+  checkOnly: z
+    .array(z.enum(['function-args', 'FC', 'generic-args-at-fn-calls']))
+    .optional(),
   checkTypesFromSelectors: z.array(z.string()).optional(),
 })
 
@@ -209,11 +211,31 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       return false
     }
 
+    function isInGenericArgAtFunctionCall(node: TSESTree.Node): boolean {
+      let current = node.parent
+      while (current) {
+        // Check if we're inside a TSTypeParameterInstantiation
+        if (current.type === AST_NODE_TYPES.TSTypeParameterInstantiation) {
+          const parent = current.parent
+          // Check if the parent is a CallExpression or NewExpression
+          if (
+            parent.type === AST_NODE_TYPES.CallExpression ||
+            parent.type === AST_NODE_TYPES.NewExpression
+          ) {
+            return true
+          }
+        }
+        current = current.parent
+      }
+      return false
+    }
+
     const allTypeReferences: Array<{
       typeName: string
       node: TSESTree.TSTypeReference
       inFunctionArgs: boolean
       inFCProps: boolean
+      inGenericArgAtFunctionCall: boolean
     }> = []
 
     return {
@@ -278,6 +300,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             node,
             inFunctionArgs: isInFunctionArgument(node),
             inFCProps: isInFCProps(node),
+            inGenericArgAtFunctionCall: isInGenericArgAtFunctionCall(node),
           })
         }
       },
@@ -310,6 +333,9 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
               return true
             }
             if (checkContext === 'FC' && typeRef.inFCProps) {
+              return true
+            }
+            if (checkContext === 'generic-args-at-fn-calls' && typeRef.inGenericArgAtFunctionCall) {
               return true
             }
           }
