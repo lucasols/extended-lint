@@ -249,6 +249,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         
         for (let i = 0; i < sortedTypesToMove.length; i++) {
           const typeToMove = sortedTypesToMove[i]
+          if (!typeToMove) continue
           const { typeDef } = typeToMove
           const typeDefStatement = typeDef.statement
           const typeDefComments = sourceCode.getCommentsBefore(typeDefStatement)
@@ -524,6 +525,9 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           }
         }
 
+        // Sort types to process by their first usage position for deterministic order
+        typesToProcess.sort((a, b) => a.firstUsage.range[0] - b.firstUsage.range[0])
+        
         // Process all types that need to be moved in a single fix
         if (typesToProcess.length > 0) {
           checkAndReportAllTypes(typesToProcess)
