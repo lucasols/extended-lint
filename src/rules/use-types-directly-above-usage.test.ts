@@ -1001,7 +1001,7 @@ tests.addValid(
   `,
 )
 
-test.only('test case', async () => {
+test('test case', async () => {
   const { result } = await invalid(dedent`
     export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
       return produce(initial, recipe);
