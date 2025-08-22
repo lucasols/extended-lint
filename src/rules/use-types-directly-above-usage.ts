@@ -238,6 +238,181 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       inGenericArgAtFunctionCall: boolean
     }> = []
 
+    function checkAndReportAllTypes(
+      typesToProcess: Array<{
+        typeName: string
+        firstUsage: TSESTree.Statement
+      }>,
+    ) {
+      // Collect all types that actually need to be moved
+      const typesToMove: Array<{
+        typeName: string
+        typeDef: TypeDefinition
+        targetStatement: TSESTree.Statement
+      }> = []
+
+      for (const { typeName, firstUsage } of typesToProcess) {
+        const typeDef = typeDefinitions.get(typeName)
+        if (!typeDef) continue
+        if (typeDef.statement === firstUsage) continue
+
+        const typeDefIndex = programStatements.indexOf(typeDef.statement)
+        const usageIndex = programStatements.indexOf(firstUsage)
+
+        if (typeDefIndex === -1 || usageIndex === -1) continue
+
+        // Check if type definition comes after usage or not directly before
+        if (typeDefIndex > usageIndex || typeDefIndex !== usageIndex - 1) {
+          typesToMove.push({
+            typeName,
+            typeDef,
+            targetStatement: firstUsage,
+          })
+        }
+      }
+
+      if (typesToMove.length === 0) return
+
+      // Sort by original position to maintain relative order when possible
+      typesToMove.sort((a, b) => {
+        const aIndex = programStatements.indexOf(a.typeDef.statement)
+        const bIndex = programStatements.indexOf(b.typeDef.statement)
+        return aIndex - bIndex
+      })
+
+      // Report with combined fix for all types
+      const firstType = typesToMove[0]
+      if (!firstType) return
+      
+      context.report({
+        node: firstType.typeDef.node,
+        messageId: 'moveTypeAboveUsage',
+        fix: createCombinedFixer(typesToMove),
+      })
+    }
+
+    function createCombinedFixer(
+      typesToMove: Array<{
+        typeName: string
+        typeDef: TypeDefinition
+        targetStatement: TSESTree.Statement
+      }>,
+    ) {
+      return function* (fixer: TSESLint.RuleFixer) {
+        // Collect all removals and insertions
+        const operations: Array<{
+          type: 'remove'
+          range: [number, number]
+        }> = []
+        const insertions: Array<{
+          position: number
+          text: string
+        }> = []
+
+        // Group types by target statement
+        const typesByTarget = new Map<TSESTree.Statement, Array<typeof typesToMove[0]>>()
+        for (const typeToMove of typesToMove) {
+          const existing = typesByTarget.get(typeToMove.targetStatement) || []
+          existing.push(typeToMove)
+          typesByTarget.set(typeToMove.targetStatement, existing)
+        }
+
+        // Process removals (from bottom to top to preserve ranges)
+        for (const typeToMove of [...typesToMove].reverse()) {
+          const { typeDef } = typeToMove
+          const typeDefStatement = typeDef.statement
+          const typeDefComments = sourceCode.getCommentsBefore(typeDefStatement)
+
+          let rangeStart = typeDefStatement.range[0]
+          const rangeEnd = typeDefStatement.range[1]
+
+          // Include comments before the type definition
+          if (typeDefComments.length > 0 && typeDefComments[0]) {
+            rangeStart = typeDefComments[0].range[0]
+          }
+
+          // Include trailing whitespace and newlines to avoid leaving blank lines
+          let searchEnd = rangeEnd
+          while (searchEnd < sourceCode.text.length) {
+            const char = sourceCode.text[searchEnd]
+            if (char === '\n') {
+              searchEnd++
+              // If we find a newline, check if the next line is blank
+              let nextLineStart = searchEnd
+              while (
+                nextLineStart < sourceCode.text.length &&
+                (sourceCode.text[nextLineStart] === ' ' ||
+                  sourceCode.text[nextLineStart] === '\t')
+              ) {
+                nextLineStart++
+              }
+              // If next line is blank (only whitespace followed by newline), include it
+              if (
+                nextLineStart < sourceCode.text.length &&
+                sourceCode.text[nextLineStart] === '\n'
+              ) {
+                searchEnd = nextLineStart + 1
+              }
+              break
+            } else if (char === ' ' || char === '\t') {
+              searchEnd++
+            } else {
+              break
+            }
+          }
+
+          operations.push({
+            type: 'remove',
+            range: [rangeStart, searchEnd],
+          })
+        }
+
+        // Process insertions (group by target)
+        for (const [targetStatement, groupedTypes] of typesByTarget) {
+          const targetComments = sourceCode.getCommentsBefore(targetStatement)
+          const insertPosition =
+            targetComments.length > 0 && targetComments[0]
+              ? targetComments[0].range[0]
+              : targetStatement.range[0]
+
+          // Collect text for all types going to this location
+          const textsToInsert: string[] = []
+          for (const typeToMove of groupedTypes) {
+            const typeDefStatement = typeToMove.typeDef.statement
+            const typeDefText = sourceCode.getText(typeDefStatement)
+            const typeDefComments = sourceCode.getCommentsBefore(typeDefStatement)
+
+            let fullTypeDefText = typeDefText
+            if (typeDefComments.length > 0) {
+              const commentsText = typeDefComments
+                .map((comment) => sourceCode.getText(comment))
+                .join('\n')
+              fullTypeDefText = `${commentsText}\n${typeDefText}`
+            }
+            textsToInsert.push(fullTypeDefText)
+          }
+
+          insertions.push({
+            position: insertPosition,
+            text: `${textsToInsert.join('\n\n')}\n\n`,
+          })
+        }
+
+        // Apply all removals
+        for (const operation of operations) {
+          yield fixer.removeRange(operation.range)
+        }
+
+        // Apply all insertions
+        for (const insertion of insertions) {
+          yield fixer.insertTextBeforeRange(
+            [insertion.position, insertion.position],
+            insertion.text,
+          )
+        }
+      }
+    }
+
     return {
       Program(node) {
         programStatements.push(...node.body)
@@ -372,17 +547,9 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           }
         }
 
-        // Process types in order of their first usage position
-        // Only report one violation at a time to avoid fix conflicts
-        const sortedTypes = typesToProcess.sort(
-          (a, b) => a.firstUsage.range[0] - b.firstUsage.range[0],
-        )
-
-        if (sortedTypes.length > 0) {
-          const firstType = sortedTypes[0]
-          if (firstType) {
-            checkAndReportType(firstType.typeName, firstType.firstUsage)
-          }
+        // Process all types that need to be moved in a single fix
+        if (typesToProcess.length > 0) {
+          checkAndReportAllTypes(typesToProcess)
         }
       },
     }

@@ -364,11 +364,11 @@ tests.addInvalid(
       return data.valueA
     }
     
+    type TypeB = { valueB: number }
+    
     function processB(data: TypeB) {
       return data.valueB
     }
-    
-    type TypeB = { valueB: number }
   `,
   },
 )
@@ -1248,11 +1248,13 @@ tests.addInvalid(
       return data.name
     }
     
+    type ButtonProps = { label: string }
+    
     const Button: React.FC<ButtonProps> = ({ label }) => {
       return <button>{label}</button>
     }
-    
-    type ButtonProps = { label: string }`,
+
+`,
     options: { checkOnly: ['function-args', 'FC'] },
   },
 )
@@ -1552,9 +1554,10 @@ tests.addInvalid(
     output: `
     type InputType = { raw: string }
     
-    const result = transform<InputType, OutputType>(data, processor)
-    
     type OutputType = { processed: string }
+    
+    const result = transform<InputType, OutputType>(data, processor)
+
   `,
     options: { checkOnly: ['generic-args-at-fn-calls'] },
   },
@@ -1677,29 +1680,6 @@ export const apiConfigSchema = rc_obj_builder<ApiConfig>()({
   [{ messageId: 'moveTypeAboveUsage' }],
   {
     output: `
-export type ConfigB = {
-  title: string;
-  description: string | null;
-};
-
-export type ConfigC = {
-  name: string | null;
-  reference_id: string;
-  items: string[];
-};
-
-export type ConfigD = {
-  title: string;
-  visible: boolean;
-  content: string;
-};
-
-export type ConfigE = {
-  name: string;
-  description: string | null;
-  active: boolean;
-};
-
 export type ConfigA = {
   id: string;
   label: string | null;
@@ -1714,10 +1694,21 @@ const configASchema = rc_obj_builder<ConfigA>()({
   value: rc_unknown,
 });
 
+export type ConfigB = {
+  title: string;
+  description: string | null;
+};
+
 const configBSchema = rc_obj_builder<ConfigB>()({
   title: rc_string,
   description: rc_string.orNull(),
 });
+
+export type ConfigC = {
+  name: string | null;
+  reference_id: string;
+  items: string[];
+};
 
 const configCSchema = rc_obj_builder<ConfigC>()({
   name: rc_string.orNull(),
@@ -1725,11 +1716,23 @@ const configCSchema = rc_obj_builder<ConfigC>()({
   items: rc_array(rc_string),
 });
 
+export type ConfigD = {
+  title: string;
+  visible: boolean;
+  content: string;
+};
+
 const configDSchema = rc_obj_builder<ConfigD>()({
   title: rc_string,
   visible: rc_boolean,
   content: rc_string,
 });
+
+export type ConfigE = {
+  name: string;
+  description: string | null;
+  active: boolean;
+};
 
 const configESchema = rc_obj_builder<ConfigE>()({
   name: rc_string,
