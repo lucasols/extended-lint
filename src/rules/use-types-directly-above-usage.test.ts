@@ -370,7 +370,7 @@ tests.addInvalid(
       return data.valueB
     }
   `,
-    appendToOutput: '\n\n\n',
+    appendToOutput: '\n\n',
   },
 )
 
@@ -1257,7 +1257,7 @@ tests.addInvalid(
 
 `,
     options: { checkOnly: ['function-args', 'FC'] },
-    appendToOutput: '\n\n\n',
+    appendToOutput: '\n\n',
   },
 )
 
@@ -1559,10 +1559,9 @@ tests.addInvalid(
     type OutputType = { processed: string }
     
     const result = transform<InputType, OutputType>(data, processor)
-
   `,
     options: { checkOnly: ['generic-args-at-fn-calls'] },
-    appendToOutput: '\n\n\n',
+    appendToOutput: '\n\n',
   },
 )
 
@@ -1682,7 +1681,6 @@ export const apiConfigSchema = rc_obj_builder<ApiConfig>()({
   { checkOnly: ['generic-args-at-fn-calls'] },
   [{ messageId: 'moveTypeAboveUsage' }],
   {
-    prependToOutput: '\n\n\n\n\n\n\n\n',
     output: `
 export type ConfigA = {
   id: string;

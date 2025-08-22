@@ -44,7 +44,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
     // Store all program-level statements for easy lookup
     const programStatements: TSESTree.Statement[] = []
 
-
     function findStatementContaining(
       node: TSESTree.Node,
     ): TSESTree.Statement | null {
@@ -58,7 +57,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       }
       return null
     }
-
 
     function isInFunctionArgument(node: TSESTree.Node): boolean {
       let current = node.parent
@@ -138,12 +136,14 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       inFunctionArgs: boolean
       inFCProps: boolean
       inGenericArgAtFunctionCall: boolean
+      usagePosition: number
     }> = []
 
     function checkAndReportAllTypes(
       typesToProcess: Array<{
         typeName: string
         firstUsage: TSESTree.Statement
+        firstUsagePosition: number
       }>,
     ) {
       // Collect all types that actually need to be moved
@@ -151,9 +151,10 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         typeName: string
         typeDef: TypeDefinition
         targetStatement: TSESTree.Statement
+        firstUsagePosition: number
       }> = []
 
-      for (const { typeName, firstUsage } of typesToProcess) {
+      for (const { typeName, firstUsage, firstUsagePosition } of typesToProcess) {
         const typeDef = typeDefinitions.get(typeName)
         if (!typeDef) continue
         if (typeDef.statement === firstUsage) continue
@@ -165,27 +166,35 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
         // Check if type definition comes after usage or not directly before
         // Be more lenient only for specific checkOnly contexts that need it
-        const needsLenientPositioning = options.checkOnly && 
-          options.checkOnly.length > 0 && 
+        const needsLenientPositioning =
+          options.checkOnly &&
+          options.checkOnly.length > 0 &&
           options.checkOnly.includes('function-args')
-          
+
         const shouldMove = needsLenientPositioning
-          ? typeDefIndex > usageIndex  // Just needs to be above for function-args
-          : (typeDefIndex > usageIndex || typeDefIndex !== usageIndex - 1)  // Directly above otherwise
-          
+          ? typeDefIndex > usageIndex // Just needs to be above for function-args
+          : typeDefIndex > usageIndex || typeDefIndex !== usageIndex - 1 // Directly above otherwise
+
         if (shouldMove) {
           typesToMove.push({
             typeName,
             typeDef,
             targetStatement: firstUsage,
+            firstUsagePosition,
           })
         }
       }
 
       if (typesToMove.length === 0) return
 
-      // Sort by original position to maintain relative order when possible
+      // Sort by first usage position to maintain order as they appear in the code
       typesToMove.sort((a, b) => {
+        // Primary sort: by first usage position
+        const positionDiff = a.firstUsagePosition - b.firstUsagePosition
+        if (positionDiff !== 0) {
+          return positionDiff
+        }
+        // Secondary sort: by original definition position for stability
         const aIndex = programStatements.indexOf(a.typeDef.statement)
         const bIndex = programStatements.indexOf(b.typeDef.statement)
         return aIndex - bIndex
@@ -194,7 +203,7 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       // Report with combined fix for all types
       const firstType = typesToMove[0]
       if (!firstType) return
-      
+
       context.report({
         node: firstType.typeDef.node,
         messageId: 'moveTypeAboveUsage',
@@ -207,49 +216,36 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         typeName: string
         typeDef: TypeDefinition
         targetStatement: TSESTree.Statement
+        firstUsagePosition: number
       }>,
     ) {
       return function* (fixer: TSESLint.RuleFixer) {
-        // Collect all removals and insertions
-        const operations: Array<{
-          type: 'remove'
-          range: [number, number]
-        }> = []
-        const insertions: Array<{
-          position: number
-          text: string
-        }> = []
-
         // Group types by target statement
-        const typesByTarget = new Map<TSESTree.Statement, Array<typeof typesToMove[0]>>()
+        const typesByTarget = new Map<
+          TSESTree.Statement,
+          Array<(typeof typesToMove)[0]>
+        >()
         for (const typeToMove of typesToMove) {
           const existing = typesByTarget.get(typeToMove.targetStatement) || []
           existing.push(typeToMove)
           typesByTarget.set(typeToMove.targetStatement, existing)
         }
 
-        // Sort each group by original position to ensure deterministic ordering
+        // Sort each group by usage position to maintain order they appear in the code
         for (const [, groupedTypes] of typesByTarget) {
           groupedTypes.sort((a, b) => {
-            const aIndex = programStatements.indexOf(a.typeDef.statement)
-            const bIndex = programStatements.indexOf(b.typeDef.statement)
-            return aIndex - bIndex
+            // Primary sort: by first usage position
+            const positionDiff = a.firstUsagePosition - b.firstUsagePosition
+            if (positionDiff !== 0) {
+              return positionDiff
+            }
+            // Secondary sort: by type name for absolute stability
+            return a.typeName.localeCompare(b.typeName)
           })
         }
 
-        // Calculate removal ranges for all types
-        const removalRanges: Array<[number, number]> = []
-        
-        // Sort by original position to calculate ranges correctly
-        const sortedTypesToMove = [...typesToMove].sort((a, b) => {
-          const aIndex = programStatements.indexOf(a.typeDef.statement)
-          const bIndex = programStatements.indexOf(b.typeDef.statement)
-          return aIndex - bIndex
-        })
-        
-        for (let i = 0; i < sortedTypesToMove.length; i++) {
-          const typeToMove = sortedTypesToMove[i]
-          if (!typeToMove) continue
+        // Calculate and apply removals for all types (no merging to avoid overlaps)
+        for (const typeToMove of typesToMove) {
           const { typeDef } = typeToMove
           const typeDefStatement = typeDef.statement
           const typeDefComments = sourceCode.getCommentsBefore(typeDefStatement)
@@ -262,79 +258,23 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             rangeStart = typeDefComments[0].range[0]
           }
 
-          // For adjacent types being moved, only include trailing whitespace for the last one
-          const nextType = sortedTypesToMove[i + 1]
-          const isLastType = !nextType
-          const nextTypeStatement = nextType?.typeDef.statement
-          
-          // Check if this and next type are adjacent in the source
-          const isAdjacentToNext = nextTypeStatement && 
-            programStatements.indexOf(nextTypeStatement) === programStatements.indexOf(typeDefStatement) + 1
-          
-          // Include trailing whitespace and newlines, but be careful with adjacent types
-          if (isLastType || !isAdjacentToNext) {
-            // Include trailing whitespace and newlines to avoid leaving blank lines
-            let searchEnd = rangeEnd
-            while (searchEnd < sourceCode.text.length) {
-              const char = sourceCode.text[searchEnd]
-              if (char === '\n') {
-                searchEnd++
-                // If we find a newline, check if the next line is blank
-                let nextLineStart = searchEnd
-                while (
-                  nextLineStart < sourceCode.text.length &&
-                  (sourceCode.text[nextLineStart] === ' ' ||
-                    sourceCode.text[nextLineStart] === '\t')
-                ) {
-                  nextLineStart++
-                }
-                // If next line is blank (only whitespace followed by newline), include it
-                if (
-                  nextLineStart < sourceCode.text.length &&
-                  sourceCode.text[nextLineStart] === '\n'
-                ) {
-                  searchEnd = nextLineStart + 1
-                }
-                break
-              } else if (char === ' ' || char === '\t') {
-                searchEnd++
-              } else {
-                break
-              }
-            }
-            rangeEnd = searchEnd
-          }
-
-          removalRanges.push([rangeStart, rangeEnd])
-        }
-
-        // Sort ranges by start position
-        removalRanges.sort((a, b) => a[0] - b[0])
-        
-        // Merge overlapping ranges
-        const mergedRanges: Array<[number, number]> = []
-        for (const range of removalRanges) {
-          if (mergedRanges.length === 0) {
-            mergedRanges.push(range)
-          } else {
-            const lastRange = mergedRanges[mergedRanges.length - 1]
-            if (!lastRange) continue
-            
-            // If ranges overlap or are adjacent, merge them
-            if (range[0] <= lastRange[1]) {
-              lastRange[1] = Math.max(lastRange[1], range[1])
+          // Include trailing whitespace but preserve overall file structure
+          let searchEnd = rangeEnd
+          let newlinesFound = 0
+          while (searchEnd < sourceCode.text.length && newlinesFound < 2) {
+            const char = sourceCode.text[searchEnd]
+            if (char === '\n') {
+              newlinesFound++
+              searchEnd++
+            } else if (char === ' ' || char === '\t') {
+              searchEnd++
             } else {
-              mergedRanges.push(range)
+              break
             }
           }
-        }
+          rangeEnd = searchEnd
 
-        // Apply merged removals (from bottom to top to preserve ranges)
-        for (const range of [...mergedRanges].reverse()) {
-          operations.push({
-            type: 'remove',
-            range,
-          })
+          yield fixer.removeRange([rangeStart, rangeEnd])
         }
 
         // Process insertions (group by target)
@@ -350,7 +290,8 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           for (const typeToMove of groupedTypes) {
             const typeDefStatement = typeToMove.typeDef.statement
             const typeDefText = sourceCode.getText(typeDefStatement)
-            const typeDefComments = sourceCode.getCommentsBefore(typeDefStatement)
+            const typeDefComments =
+              sourceCode.getCommentsBefore(typeDefStatement)
 
             let fullTypeDefText = typeDefText
             if (typeDefComments.length > 0) {
@@ -362,22 +303,9 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             textsToInsert.push(fullTypeDefText)
           }
 
-          insertions.push({
-            position: insertPosition,
-            text: `${textsToInsert.join('\n\n')}\n\n`,
-          })
-        }
-
-        // Apply all removals
-        for (const operation of operations) {
-          yield fixer.removeRange(operation.range)
-        }
-
-        // Apply all insertions
-        for (const insertion of insertions) {
           yield fixer.insertTextBeforeRange(
-            [insertion.position, insertion.position],
-            insertion.text,
+            [insertPosition, insertPosition],
+            `${textsToInsert.join('\n\n')}\n\n`,
           )
         }
       }
@@ -443,13 +371,14 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           const inFunctionArgs = isInFunctionArgument(node)
           const inFCProps = isInFCProps(node)
           const inGenericArgAtFunctionCall = isInGenericArgAtFunctionCall(node)
-          
+
           allTypeReferences.push({
             typeName: node.typeName.name,
             node,
             inFunctionArgs,
             inFCProps,
             inGenericArgAtFunctionCall,
+            usagePosition: node.range[0],
           })
         }
       },
@@ -464,7 +393,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             return true
           }
 
-
           // Check if this reference is in the specified contexts
           for (const checkContext of options.checkOnly) {
             if (checkContext === 'function-args' && typeRef.inFunctionArgs) {
@@ -473,7 +401,10 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
             if (checkContext === 'FC' && typeRef.inFCProps) {
               return true
             }
-            if (checkContext === 'generic-args-at-fn-calls' && typeRef.inGenericArgAtFunctionCall) {
+            if (
+              checkContext === 'generic-args-at-fn-calls' &&
+              typeRef.inGenericArgAtFunctionCall
+            ) {
               return true
             }
           }
@@ -488,7 +419,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           if (typeDefinitions.has(typeName)) {
             const statement = findStatementContaining(node)
             const def = typeDefinitions.get(typeName)
-
 
             if (statement && def && statement !== def.statement) {
               if (!typeUsagesMap.has(typeName)) {
@@ -508,26 +438,36 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         const typesToProcess: Array<{
           typeName: string
           firstUsage: TSESTree.Statement
+          firstUsagePosition: number
         }> = []
 
         for (const [typeName, usageStatements] of typeUsagesMap) {
           if (usageStatements.length > 0) {
             let firstUsage = usageStatements[0]
             if (!firstUsage) continue
+            let firstUsagePosition = Number.MAX_SAFE_INTEGER
+            
+            // Find the first usage statement and the earliest position within it
             for (const current of usageStatements) {
               if (current.range[0] < firstUsage.range[0]) {
                 firstUsage = current
               }
             }
             
-            
-            typesToProcess.push({ typeName, firstUsage })
+            // Find the earliest usage position for this type within the first usage statement
+            for (const typeRef of filteredReferences) {
+              if (typeRef.typeName === typeName) {
+                const statement = findStatementContaining(typeRef.node)
+                if (statement === firstUsage && typeRef.usagePosition < firstUsagePosition) {
+                  firstUsagePosition = typeRef.usagePosition
+                }
+              }
+            }
+
+            typesToProcess.push({ typeName, firstUsage, firstUsagePosition })
           }
         }
 
-        // Sort types to process by their first usage position for deterministic order
-        typesToProcess.sort((a, b) => a.firstUsage.range[0] - b.firstUsage.range[0])
-        
         // Process all types that need to be moved in a single fix
         if (typesToProcess.length > 0) {
           checkAndReportAllTypes(typesToProcess)

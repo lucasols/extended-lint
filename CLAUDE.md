@@ -25,6 +25,8 @@ This is an **ESLint plugin** (`extended-lint`) that provides custom linting rule
 - Use `_dev_simulateFileName` for file-path dependent rules
 - Methods: `tests.addValid()`, `tests.addInvalid()`, `tests.addInvalidWithOptions()`, `tests.run()`
 - No describe blocks for simple files
+- Tests will have the code lines in which the test is located in the test result, e.g. `1: Test name`
+- Trailing or leading newlines in output are not a issue as the code will be formatted by the user, so don't worry about it. Juste use `appendToOutput` or `prependToOutput` to add newlines to fix the output if needed. DON'T change the rule code to handle this.
 
 # Architecture
 
