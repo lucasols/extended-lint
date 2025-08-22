@@ -56,6 +56,11 @@ export function createNewTester<
       },
       languageOptions: {
         parser: typescriptParser,
+        parserOptions: {
+          ecmaFeatures: {
+            jsx: true,
+          },
+        },
       },
     },
   })
