@@ -310,24 +310,12 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
         // Filter type references based on checkOnly option
         const filteredReferences = allTypeReferences.filter((typeRef) => {
-          const { typeName } = typeRef
-
           // If no checkOnly option, include all references
           if (!options.checkOnly || options.checkOnly.length === 0) {
             return true
           }
 
-          // Count total references for this type
-          const allRefsForType = allTypeReferences.filter(
-            (ref) => ref.typeName === typeName,
-          )
-
-          // If type is used multiple times, ignore when checkOnly is set
-          if (allRefsForType.length > 1) {
-            return false
-          }
-
-          // Check if this single reference is in the specified contexts
+          // Check if this reference is in the specified contexts
           for (const checkContext of options.checkOnly) {
             if (checkContext === 'function-args' && typeRef.inFunctionArgs) {
               return true
