@@ -496,11 +496,44 @@ describe('React component and hook behavior checking', () => {
     `)
   })
 
-  test('PascalCase function without FC type should not be checked', async () => {
+  test('PascalCase function without FC type should not be checked (no JSX)', async () => {
     await valid(
       dedent`
         const RegularFunction = () => {
           return 'This should not be checked'
+        }
+      `,
+    )
+  })
+
+  test('PascalCase function with JSX should be considered valid component', async () => {
+    await valid(
+      dedent`
+        const MyComponent = () => {
+          return <div>Hello World</div>
+        }
+      `,
+    )
+  })
+
+  test('PascalCase function with JSX and hooks should be valid', async () => {
+    await valid(
+      dedent`
+        import { useState } from 'react'
+        
+        const Counter = () => {
+          const [count, setCount] = useState(0)
+          return <div>{count}</div>
+        }
+      `,
+    )
+  })
+
+  test('PascalCase function declaration with JSX should be valid', async () => {
+    await valid(
+      dedent`
+        function MyComponent() {
+          return <div>Hello</div>
         }
       `,
     )
@@ -763,7 +796,7 @@ describe('Functions calling hooks validation', () => {
     `)
   })
 
-  test('PascalCase function without FC type calling hooks should show error', async () => {
+  test('PascalCase function without FC type calling hooks (no JSX) should show error', async () => {
     const { result } = await invalid(dedent`
       import { useState } from 'react'
       
@@ -779,6 +812,24 @@ describe('Functions calling hooks validation', () => {
         line: 3
       "
     `)
+  })
+
+  test('PascalCase function calling hooks with JSX should be valid', async () => {
+    await valid(
+      dedent`
+        import { useState } from 'react'
+        
+        const Component = () => {
+          const [count] = useState(0)
+          return <div>{count}</div>
+        }
+
+        function MyComponent() {
+          const [count] = useState(0)
+          return <div>{count}</div>
+        }
+      `,
+    )
   })
 
   test('Function expression calling hooks should show error', async () => {

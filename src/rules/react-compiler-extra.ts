@@ -152,6 +152,7 @@ function isReactComponentOrHook(
     | TSESTree.FunctionDeclaration,
   identifier?: TSESTree.Identifier,
   typeAnnotation?: TSESTree.TSTypeAnnotation,
+  sourceCode?: TSESLint.SourceCode,
 ): boolean {
   // Check FC type annotation - only check PascalCase functions if they have FC type
   if (typeAnnotation && isFCType(typeAnnotation)) {
@@ -183,7 +184,17 @@ function isReactComponentOrHook(
     return true
   }
 
-  // Don't check PascalCase functions without FC type annotation
+  // Check PascalCase functions that contain JSX (without FC type annotation)
+  if (sourceCode) {
+    const functionName = identifier?.name || 
+      (functionNode.type === AST_NODE_TYPES.FunctionDeclaration && functionNode.id?.name)
+    
+    if (functionName && isPascalCase(functionName)) {
+      const analysis = analyzeReactBehavior(functionNode.body, sourceCode)
+      if (analysis.containsJSX) return true
+    }
+  }
+
   return false
 }
 
@@ -374,6 +385,7 @@ function callsHooksButNotValidComponent(
     functionNode,
     identifier,
     typeAnnotation,
+    sourceCode,
   )
 
   // If it calls hooks but isn't a valid React component or hook, it's a violation
@@ -590,7 +602,7 @@ const rule = createRule<
 
           // Check if this looks like a React component or hook
           if (
-            isReactComponentOrHook(functionNode, identifier, typeAnnotation)
+            isReactComponentOrHook(functionNode, identifier, typeAnnotation, context.sourceCode)
           ) {
             const behavesLikeComponent = behavesLikeReactComponentOrHook(
               functionNode,
@@ -639,7 +651,7 @@ const rule = createRule<
         }
 
         // Check function declarations that might be React components or hooks
-        if (isReactComponentOrHook(node)) {
+        if (isReactComponentOrHook(node, undefined, undefined, context.sourceCode)) {
           const behavesLikeComponent = behavesLikeReactComponentOrHook(
             node,
             context.sourceCode,
