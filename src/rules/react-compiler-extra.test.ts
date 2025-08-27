@@ -368,3 +368,221 @@ describe('with runOnlyWithEnableCompilerDirective option', () => {
     `)
   })
 })
+
+describe('FC component return type checking', () => {
+  test('FC component returning JSX is valid', async () => {
+    await valid(
+      dedent`
+        import { FC } from 'react'
+        
+        const Component: FC = () => {
+          return <div>Hello</div>
+        }
+      `,
+    )
+  })
+
+  test('React.FC component returning JSX is valid', async () => {
+    await valid(
+      dedent`
+        import React from 'react'
+        
+        const Component: React.FC = () => {
+          return <div>Hello</div>
+        }
+      `,
+    )
+  })
+
+  test('FC component with conditional JSX return is valid', async () => {
+    await valid(
+      dedent`
+        import { FC } from 'react'
+        
+        const Component: FC = () => {
+          return true ? <div>Hello</div> : <span>World</span>
+        }
+      `,
+    )
+  })
+
+  test('FC component with logical AND JSX return is valid', async () => {
+    await valid(
+      dedent`
+        import { FC } from 'react'
+        
+        const Component: FC = () => {
+          return true && <div>Hello</div>
+        }
+      `,
+    )
+  })
+
+  test('FC component with React.createElement is valid', async () => {
+    await valid(
+      dedent`
+        import React, { FC } from 'react'
+        
+        const Component: FC = () => {
+          return React.createElement('div', null, 'Hello')
+        }
+      `,
+    )
+  })
+
+  test('FC component with early return JSX is valid', async () => {
+    await valid(
+      dedent`
+        import { FC } from 'react'
+        
+        const condition = true
+        
+        const Component: FC = () => {
+          if (condition) {
+            return <div>Early JSX return</div>
+          }
+          return <span>Normal JSX return</span>
+        }
+      `,
+    )
+  })
+
+  test('FC component returning string should show error', async () => {
+    const { result } = await invalid(dedent`
+      import { FC } from 'react'
+      
+      const Component: FC = () => {
+        return 'Hello World'
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'fcComponentShouldReturnJsx'
+        data: 'React.FC components should return JSX elements for optimal React compiler detection. Consider wrapping the return value in a fragment.'
+        line: 3
+      "
+    `)
+  })
+
+  test('React.FC component returning number should show error', async () => {
+    const { result } = await invalid(dedent`
+      import React from 'react'
+      
+      const Component: React.FC = () => {
+        return 42
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'fcComponentShouldReturnJsx'
+        data: 'React.FC components should return JSX elements for optimal React compiler detection. Consider wrapping the return value in a fragment.'
+        line: 3
+      "
+    `)
+  })
+
+  test('FC component returning object should show error', async () => {
+    const { result } = await invalid(dedent`
+      import { FC } from 'react'
+      
+      const Component: FC = () => {
+        return { message: 'Hello' }
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'fcComponentShouldReturnJsx'
+        data: 'React.FC components should return JSX elements for optimal React compiler detection. Consider wrapping the return value in a fragment.'
+        line: 3
+      "
+    `)
+  })
+
+  test('FC component with arrow function expression returning string should show error', async () => {
+    const { result } = await invalid(dedent`
+      import { FC } from 'react'
+      
+      const Component: FC = () => 'Hello World'
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'fcComponentShouldReturnJsx'
+        data: 'React.FC components should return JSX elements for optimal React compiler detection. Consider wrapping the return value in a fragment.'
+        line: 3
+      "
+    `)
+  })
+
+  test('FC component returning mixed conditional with JSX branch is valid', async () => {
+    await valid(
+      dedent`
+        import { FC } from 'react'
+        
+        const isLoading = true
+        
+        const Component: FC = () => {
+          return isLoading ? 'Loading...' : <div>Content</div>
+        }
+      `,
+    )
+  })
+
+  test('FC component with multiple return statements, some non-JSX is valid when at least one returns JSX', async () => {
+    await valid(
+      dedent`
+        import { FC } from 'react'
+        
+        const condition = true
+        
+        const Component: FC = () => {
+          if (condition) {
+            return 'Early return'
+          }
+          return <div>Normal return</div>
+        }
+      `,
+    )
+  })
+
+  test('FC component with multiple return statements, all non-JSX should show error', async () => {
+    const { result } = await invalid(dedent`
+      import { FC } from 'react'
+      
+      const condition = true
+      
+      const Component: FC = () => {
+        if (condition) {
+          return 'Early return'
+        }
+        return 'Normal return'
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'fcComponentShouldReturnJsx'
+        data: 'React.FC components should return JSX elements for optimal React compiler detection. Consider wrapping the return value in a fragment.'
+        line: 5
+      "
+    `)
+  })
+
+  test('regular function without FC type should not be checked', async () => {
+    await valid(
+      dedent`
+        const regularFunction = () => {
+          return 'This is fine'
+        }
+      `,
+    )
+  })
+
+  test('component with different type annotation should not be checked', async () => {
+    await valid(
+      dedent`
+        const Component: () => string = () => {
+          return 'This is fine'
+        }
+      `,
+    )
+  })
+})
