@@ -422,7 +422,7 @@ describe('React component and hook behavior checking', () => {
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+        data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
         line: 3
       "
     `)
@@ -475,7 +475,7 @@ describe('React component and hook behavior checking', () => {
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+        data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
         line: 3
       "
     `)
@@ -490,7 +490,7 @@ describe('React component and hook behavior checking', () => {
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+        data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
         line: 1
       "
     `)
@@ -618,7 +618,7 @@ describe('React component and hook behavior checking', () => {
       expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
         "
         - messageId: 'fcComponentShouldReturnJsx'
-          data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+          data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
           line: 3
         "
       `)
@@ -638,7 +638,7 @@ describe('React component and hook behavior checking', () => {
       expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
         "
         - messageId: 'fcComponentShouldReturnJsx'
-          data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+          data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
           line: 1
         "
       `)
@@ -661,7 +661,7 @@ describe('React component and hook behavior checking', () => {
       expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
         "
         - messageId: 'fcComponentShouldReturnJsx'
-          data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+          data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
           line: 4
         "
       `)
