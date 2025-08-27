@@ -1,4 +1,9 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from '@typescript-eslint/utils'
+import {
+  AST_NODE_TYPES,
+  ESLintUtils,
+  TSESLint,
+  TSESTree,
+} from '@typescript-eslint/utils'
 import { z } from 'zod/v4'
 import { traverseAST } from '../astUtils'
 import { getJsonSchemaFromZod } from '../createRule'
@@ -61,14 +66,14 @@ function createsJSX(node: TSESTree.Expression | null | undefined): boolean {
       ) {
         return true
       }
-      
+
       // Check arguments of function calls for JSX content
       for (const arg of node.arguments) {
         if (arg.type !== AST_NODE_TYPES.SpreadElement && createsJSX(arg)) {
           return true
         }
       }
-      
+
       return false
 
     default:
@@ -89,7 +94,6 @@ function isFCType(typeAnnotation: TSESTree.TSTypeAnnotation): boolean {
 
     if (
       typeNode.typeName.type === AST_NODE_TYPES.TSQualifiedName &&
-       
       typeNode.typeName.left.type === AST_NODE_TYPES.Identifier &&
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- type guard needed for TS
       typeNode.typeName.right.type === AST_NODE_TYPES.Identifier
@@ -124,7 +128,10 @@ function isHookName(functionName: string): boolean {
  * Checks if a function is potentially a React component or hook based on name or type
  */
 function isReactComponentOrHook(
-  functionNode: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
+  functionNode:
+    | TSESTree.ArrowFunctionExpression
+    | TSESTree.FunctionExpression
+    | TSESTree.FunctionDeclaration,
   identifier?: TSESTree.Identifier,
   typeAnnotation?: TSESTree.TSTypeAnnotation,
 ): boolean {
@@ -135,7 +142,10 @@ function isReactComponentOrHook(
       return isPascalCase(identifier.name)
     }
     // For function declarations with FC type, check the function's own id
-    if (functionNode.type === AST_NODE_TYPES.FunctionDeclaration && functionNode.id) {
+    if (
+      functionNode.type === AST_NODE_TYPES.FunctionDeclaration &&
+      functionNode.id
+    ) {
       return isPascalCase(functionNode.id.name)
     }
     return true // FC type without name restriction
@@ -147,7 +157,11 @@ function isReactComponentOrHook(
   }
 
   // For function declarations, check if it's a hook
-  if (functionNode.type === AST_NODE_TYPES.FunctionDeclaration && functionNode.id && isHookName(functionNode.id.name)) {
+  if (
+    functionNode.type === AST_NODE_TYPES.FunctionDeclaration &&
+    functionNode.id &&
+    isHookName(functionNode.id.name)
+  ) {
     return true
   }
 
@@ -155,13 +169,14 @@ function isReactComponentOrHook(
   return false
 }
 
-
-
 /**
  * Checks if a function has the 'use memo' string directive (makes it valid)
  */
 function hasUseMemoStringDirective(
-  functionNode: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
+  functionNode:
+    | TSESTree.ArrowFunctionExpression
+    | TSESTree.FunctionExpression
+    | TSESTree.FunctionDeclaration,
 ): boolean {
   // Check for 'use memo' directive in the function body
   if (functionNode.body.type === AST_NODE_TYPES.BlockStatement) {
@@ -198,48 +213,52 @@ function analyzeReactBehavior(
     containsHookCalls: false,
   }
 
-  traverseAST(node, (currentNode): boolean | void => {
-    // Early exit if we found both
-    if (result.containsJSX && result.containsHookCalls) return true
+  traverseAST(
+    node,
+    (currentNode): boolean | void => {
+      // Early exit if we found both
+      if (result.containsJSX && result.containsHookCalls) return true
 
-    // Check current node
-    switch (currentNode.type) {
-      case AST_NODE_TYPES.JSXElement:
-      case AST_NODE_TYPES.JSXFragment:
-        result.containsJSX = true
-        break
-
-      case AST_NODE_TYPES.CallExpression:
-        // Check for hook calls
-        if (isHook(currentNode.callee)) {
-          result.containsHookCalls = true
-        }
-        
-        // Check if this call expression creates JSX
-        if (createsJSX(currentNode)) {
+      // Check current node
+      switch (currentNode.type) {
+        case AST_NODE_TYPES.JSXElement:
+        case AST_NODE_TYPES.JSXFragment:
           result.containsJSX = true
-        }
-        break
+          break
 
-      case AST_NODE_TYPES.ReturnStatement:
-        if (currentNode.argument && createsJSX(currentNode.argument)) {
-          result.containsJSX = true
-        }
-        break
+        case AST_NODE_TYPES.CallExpression:
+          // Check for hook calls
+          if (isHook(currentNode.callee)) {
+            result.containsHookCalls = true
+          }
 
-      case AST_NODE_TYPES.VariableDeclarator:
-        if (currentNode.init && createsJSX(currentNode.init)) {
-          result.containsJSX = true
-        }
-        break
+          // Check if this call expression creates JSX
+          if (createsJSX(currentNode)) {
+            result.containsJSX = true
+          }
+          break
 
-      case AST_NODE_TYPES.AssignmentExpression:
-        if (createsJSX(currentNode.right)) {
-          result.containsJSX = true
-        }
-        break
-    }
-  }, sourceCode)
+        case AST_NODE_TYPES.ReturnStatement:
+          if (currentNode.argument && createsJSX(currentNode.argument)) {
+            result.containsJSX = true
+          }
+          break
+
+        case AST_NODE_TYPES.VariableDeclarator:
+          if (currentNode.init && createsJSX(currentNode.init)) {
+            result.containsJSX = true
+          }
+          break
+
+        case AST_NODE_TYPES.AssignmentExpression:
+          if (createsJSX(currentNode.right)) {
+            result.containsJSX = true
+          }
+          break
+      }
+    },
+    sourceCode,
+  )
 
   return result
 }
@@ -248,7 +267,10 @@ function analyzeReactBehavior(
  * Checks if a function behaves like a React component or hook according to compiler heuristics
  */
 function behavesLikeReactComponentOrHook(
-  functionNode: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
+  functionNode:
+    | TSESTree.ArrowFunctionExpression
+    | TSESTree.FunctionExpression
+    | TSESTree.FunctionDeclaration,
   sourceCode: TSESLint.SourceCode,
 ): boolean {
   const body = functionNode.body
@@ -295,7 +317,7 @@ const rule = createRule<
       thisKeywordInMethod:
         'Object method uses `this` keyword which would have different behavior if converted to an arrow function. Fix this manually.',
       fcComponentShouldReturnJsx:
-        'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.',
+        'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.',
       addUseMemoDirective:
         'Add "use memo" directive to opt into React compiler memoization',
     },
@@ -459,20 +481,23 @@ const rule = createRule<
         if (
           node.id.type === AST_NODE_TYPES.Identifier &&
           node.init &&
-          (
-            node.init.type === AST_NODE_TYPES.ArrowFunctionExpression ||
-            node.init.type === AST_NODE_TYPES.FunctionExpression
-          )
+          (node.init.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+            node.init.type === AST_NODE_TYPES.FunctionExpression)
         ) {
           const functionNode = node.init
           const identifier = node.id
           const typeAnnotation = node.id.typeAnnotation
 
           // Check if this looks like a React component or hook
-          if (isReactComponentOrHook(functionNode, identifier, typeAnnotation)) {
-            const behavesLikeComponent = behavesLikeReactComponentOrHook(functionNode, context.sourceCode)
+          if (
+            isReactComponentOrHook(functionNode, identifier, typeAnnotation)
+          ) {
+            const behavesLikeComponent = behavesLikeReactComponentOrHook(
+              functionNode,
+              context.sourceCode,
+            )
             const hasStringDirective = hasUseMemoStringDirective(functionNode)
-            
+
             // Valid if it behaves like a component/hook OR has string directive
             if (!behavesLikeComponent && !hasStringDirective) {
               context.report({
@@ -483,9 +508,14 @@ const rule = createRule<
                     messageId: 'addUseMemoDirective',
                     fix(fixer) {
                       // Add 'use memo' directive at the beginning of function body
-                      if (functionNode.body.type === AST_NODE_TYPES.BlockStatement) {
+                      if (
+                        functionNode.body.type === AST_NODE_TYPES.BlockStatement
+                      ) {
                         const openBrace = functionNode.body.range[0] + 1
-                        return fixer.insertTextAfterRange([openBrace, openBrace], '\n  "use memo"\n')
+                        return fixer.insertTextAfterRange(
+                          [openBrace, openBrace],
+                          '\n  "use memo"\n',
+                        )
                       }
                       // For arrow functions with expression body, we can't easily add the directive
                       return null
@@ -501,9 +531,12 @@ const rule = createRule<
       FunctionDeclaration(node) {
         // Check function declarations that might be React components or hooks
         if (isReactComponentOrHook(node)) {
-          const behavesLikeComponent = behavesLikeReactComponentOrHook(node, context.sourceCode)
+          const behavesLikeComponent = behavesLikeReactComponentOrHook(
+            node,
+            context.sourceCode,
+          )
           const hasStringDirective = hasUseMemoStringDirective(node)
-          
+
           // Valid if it behaves like a component/hook OR has string directive
           if (!behavesLikeComponent && !hasStringDirective) {
             context.report({
@@ -515,7 +548,10 @@ const rule = createRule<
                   fix(fixer) {
                     // Add 'use memo' directive at the beginning of function body
                     const openBrace = node.body.range[0] + 1
-                    return fixer.insertTextAfterRange([openBrace, openBrace], '\n  "use memo"\n')
+                    return fixer.insertTextAfterRange(
+                      [openBrace, openBrace],
+                      '\n  "use memo"\n',
+                    )
                   },
                 },
               ],
