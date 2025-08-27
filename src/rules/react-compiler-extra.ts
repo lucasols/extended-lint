@@ -381,12 +381,22 @@ function callsHooksButNotValidComponent(
   }
 
   // Check if this is a valid React component or hook
-  const isValidReactComponentOrHook = isReactComponentOrHook(
+  let isValidReactComponentOrHook = isReactComponentOrHook(
     functionNode,
     identifier,
     typeAnnotation,
     sourceCode,
   )
+
+  // Special case: PascalCase functions with any type annotation that call hooks are valid
+  if (!isValidReactComponentOrHook && typeAnnotation) {
+    const functionName = identifier?.name || 
+      (functionNode.type === AST_NODE_TYPES.FunctionDeclaration && functionNode.id?.name)
+    
+    if (functionName && isPascalCase(functionName)) {
+      isValidReactComponentOrHook = true
+    }
+  }
 
   // If it calls hooks but isn't a valid React component or hook, it's a violation
   return !isValidReactComponentOrHook
