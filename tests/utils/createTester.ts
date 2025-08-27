@@ -35,11 +35,14 @@ const ruleTester = new RuleTester({
   },
 })
 
-export function getErrorsFromResult(result: TestExecutionResult) {
+export function getErrorsFromResult(
+  result: TestExecutionResult,
+  includeData = false,
+) {
   return compactSnapshot(
     result.messages.map((m) => ({
       messageId: m.messageId,
-      data: m.message,
+      data: includeData ? m.message : undefined,
       line: m.line,
     })),
   )

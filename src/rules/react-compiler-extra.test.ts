@@ -54,9 +54,7 @@ test('hook call with object method', async () => {
   `)
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'objectMethodIsNotSupported'
-      data: 'Object methods such as \`{ method() {} }\` have limited support to optimizations in the React compiler, use a function expression \`{ method: () => {} }\` instead.'
-      line: 2
+    - { messageId: 'objectMethodIsNotSupported', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -79,9 +77,7 @@ test('hook call with object method using this', async () => {
   `)
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'thisKeywordInMethod'
-      data: 'Object method uses \`this\` keyword which would have different behavior if converted to an arrow function. Fix this manually.'
-      line: 2
+    - { messageId: 'thisKeywordInMethod', line: 2 }
     "
   `)
 })
@@ -99,9 +95,7 @@ test('hook call with nested this usage', async () => {
   `)
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'thisKeywordInMethod'
-      data: 'Object method uses \`this\` keyword which would have different behavior if converted to an arrow function. Fix this manually.'
-      line: 2
+    - { messageId: 'thisKeywordInMethod', line: 2 }
     "
   `)
 })
@@ -116,9 +110,7 @@ test('useCallback with object method', async () => {
   `)
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'objectMethodIsNotSupported'
-      data: 'Object methods such as \`{ method() {} }\` have limited support to optimizations in the React compiler, use a function expression \`{ method: () => {} }\` instead.'
-      line: 2
+    - { messageId: 'objectMethodIsNotSupported', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -140,9 +132,7 @@ test('useMemo with object method', async () => {
   `)
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'objectMethodIsNotSupported'
-      data: 'Object methods such as \`{ method() {} }\` have limited support to optimizations in the React compiler, use a function expression \`{ method: () => {} }\` instead.'
-      line: 2
+    - { messageId: 'objectMethodIsNotSupported', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -167,12 +157,8 @@ test('multiple object methods in hook call', async () => {
   `)
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'objectMethodIsNotSupported'
-      data: 'Object methods such as \`{ method() {} }\` have limited support to optimizations in the React compiler, use a function expression \`{ method: () => {} }\` instead.'
-      line: 2
-    - messageId: 'objectMethodIsNotSupported'
-      data: 'Object methods such as \`{ method() {} }\` have limited support to optimizations in the React compiler, use a function expression \`{ method: () => {} }\` instead.'
-      line: 5
+    - { messageId: 'objectMethodIsNotSupported', line: 2 }
+    - { messageId: 'objectMethodIsNotSupported', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -203,12 +189,8 @@ test('mixed methods with and without this', async () => {
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'objectMethodIsNotSupported'
-      data: 'Object methods such as \`{ method() {} }\` have limited support to optimizations in the React compiler, use a function expression \`{ method: () => {} }\` instead.'
-      line: 2
-    - messageId: 'thisKeywordInMethod'
-      data: 'Object method uses \`this\` keyword which would have different behavior if converted to an arrow function. Fix this manually.'
-      line: 5
+    - { messageId: 'objectMethodIsNotSupported', line: 2 }
+    - { messageId: 'thisKeywordInMethod', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -233,9 +215,7 @@ test('hook call with generator method', async () => {
   `)
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'objectMethodIsNotSupported'
-      data: 'Object methods such as \`{ method() {} }\` have limited support to optimizations in the React compiler, use a function expression \`{ method: () => {} }\` instead.'
-      line: 2
+    - { messageId: 'objectMethodIsNotSupported', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -257,9 +237,7 @@ test('hook call with object method with parameters', async () => {
   `)
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'objectMethodIsNotSupported'
-      data: 'Object methods such as \`{ method() {} }\` have limited support to optimizations in the React compiler, use a function expression \`{ method: () => {} }\` instead.'
-      line: 2
+    - { messageId: 'objectMethodIsNotSupported', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -297,9 +275,7 @@ test('nested hook call with object method using this', async () => {
   `)
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'thisKeywordInMethod'
-      data: 'Object method uses \`this\` keyword which would have different behavior if converted to an arrow function. Fix this manually.'
-      line: 3
+    - { messageId: 'thisKeywordInMethod', line: 3 }
     "
   `)
 })
@@ -332,9 +308,7 @@ describe('with runOnlyWithEnableCompilerDirective option', () => {
     })
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'objectMethodIsNotSupported'
-        data: 'Object methods such as \`{ method() {} }\` have limited support to optimizations in the React compiler, use a function expression \`{ method: () => {} }\` instead.'
-        line: 3
+      - { messageId: 'objectMethodIsNotSupported', line: 3 }
       "
     `)
     expect(result.output).toMatchInlineSnapshot(`
@@ -361,9 +335,7 @@ describe('with runOnlyWithEnableCompilerDirective option', () => {
     })
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'thisKeywordInMethod'
-        data: 'Object method uses \`this\` keyword which would have different behavior if converted to an arrow function. Fix this manually.'
-        line: 3
+      - { messageId: 'thisKeywordInMethod', line: 3 }
       "
     `)
   })
@@ -421,9 +393,7 @@ describe('React component and hook behavior checking', () => {
 
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
-        line: 3
+      - { messageId: 'fcComponentShouldReturnJsx', line: 3 }
       "
     `)
   })
@@ -474,9 +444,7 @@ describe('React component and hook behavior checking', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
-        line: 3
+      - { messageId: 'fcComponentShouldReturnJsx', line: 3 }
       "
     `)
   })
@@ -489,9 +457,7 @@ describe('React component and hook behavior checking', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
-        line: 1
+      - { messageId: 'fcComponentShouldReturnJsx', line: 1 }
       "
     `)
   })
@@ -650,9 +616,7 @@ describe('React component and hook behavior checking', () => {
       `)
       expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
         "
-        - messageId: 'fcComponentShouldReturnJsx'
-          data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
-          line: 3
+        - { messageId: 'fcComponentShouldReturnJsx', line: 3 }
         "
       `)
       // Check that suggestions are provided
@@ -670,9 +634,7 @@ describe('React component and hook behavior checking', () => {
       `)
       expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
         "
-        - messageId: 'fcComponentShouldReturnJsx'
-          data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
-          line: 1
+        - { messageId: 'fcComponentShouldReturnJsx', line: 1 }
         "
       `)
       // Check that suggestions are provided
@@ -693,9 +655,7 @@ describe('React component and hook behavior checking', () => {
       `)
       expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
         "
-        - messageId: 'fcComponentShouldReturnJsx'
-          data: 'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.'
-          line: 4
+        - { messageId: 'fcComponentShouldReturnJsx', line: 4 }
         "
       `)
       // Comments are ignored, so suggestions should still be provided
@@ -755,9 +715,7 @@ describe('Functions calling hooks validation', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'functionCallingHooksMustBeComponent'
-        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
-        line: 3
+      - { messageId: 'functionCallingHooksMustBeComponent', line: 3 }
       "
     `)
   })
@@ -773,9 +731,7 @@ describe('Functions calling hooks validation', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'functionCallingHooksMustBeComponent'
-        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
-        line: 3
+      - { messageId: 'functionCallingHooksMustBeComponent', line: 3 }
       "
     `)
   })
@@ -789,9 +745,7 @@ describe('Functions calling hooks validation', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'functionCallingHooksMustBeComponent'
-        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
-        line: 1
+      - { messageId: 'functionCallingHooksMustBeComponent', line: 1 }
       "
     `)
   })
@@ -807,9 +761,7 @@ describe('Functions calling hooks validation', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'functionCallingHooksMustBeComponent'
-        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
-        line: 3
+      - { messageId: 'functionCallingHooksMustBeComponent', line: 3 }
       "
     `)
   })
@@ -845,9 +797,7 @@ describe('Functions calling hooks validation', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'functionCallingHooksMustBeComponent'
-        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
-        line: 4
+      - { messageId: 'functionCallingHooksMustBeComponent', line: 4 }
       "
     `)
   })
@@ -866,9 +816,7 @@ describe('Functions calling hooks validation', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'functionCallingHooksMustBeComponent'
-        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
-        line: 4
+      - { messageId: 'functionCallingHooksMustBeComponent', line: 4 }
       "
     `)
   })
@@ -939,9 +887,7 @@ describe('Use memo directive naming validation', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'useMemoDirectiveNaming'
-        data: 'Functions using "use memo" directive must follow React naming conventions (PascalCase for components or start with "use" for hooks).'
-        line: 1
+      - { messageId: 'useMemoDirectiveNaming', line: 1 }
       "
     `)
   })
@@ -955,9 +901,7 @@ describe('Use memo directive naming validation', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'useMemoDirectiveNaming'
-        data: 'Functions using "use memo" directive must follow React naming conventions (PascalCase for components or start with "use" for hooks).'
-        line: 1
+      - { messageId: 'useMemoDirectiveNaming', line: 1 }
       "
     `)
   })
@@ -971,9 +915,7 @@ describe('Use memo directive naming validation', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'useMemoDirectiveNaming'
-        data: 'Functions using "use memo" directive must follow React naming conventions (PascalCase for components or start with "use" for hooks).'
-        line: 1
+      - { messageId: 'useMemoDirectiveNaming', line: 1 }
       "
     `)
   })
@@ -989,9 +931,7 @@ describe('Use memo directive naming validation', () => {
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
-      - messageId: 'useMemoDirectiveNaming'
-        data: 'Functions using "use memo" directive must follow React naming conventions (PascalCase for components or start with "use" for hooks).'
-        line: 2
+      - { messageId: 'useMemoDirectiveNaming', line: 2 }
       "
     `)
   })

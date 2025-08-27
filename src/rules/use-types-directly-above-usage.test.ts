@@ -190,9 +190,7 @@ test('type alias below function that uses it', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -220,9 +218,7 @@ test('interface below function that uses it', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -253,9 +249,7 @@ test('props type below React component', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -287,9 +281,7 @@ test('props type below React FC component', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -320,9 +312,7 @@ test('props type below FC component with import alias', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 7
+    - { messageId: 'moveTypeAboveUsage', line: 7 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -350,9 +340,7 @@ test('type below arrow function', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -378,9 +366,7 @@ test('type below function with return type annotation', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -411,9 +397,7 @@ test('multiple misplaced types each used by single function', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 9
+    - { messageId: 'moveTypeAboveUsage', line: 9 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -450,9 +434,7 @@ test('type between functions where first function uses it', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -484,9 +466,7 @@ test('interface used in function parameter and return type by same function only
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -514,9 +494,7 @@ test('type used in generic constraint', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -560,9 +538,7 @@ test('variable declaration with type below - options example', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 6
+    - { messageId: 'moveTypeAboveUsage', line: 6 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -674,9 +650,7 @@ test('type with comments should preserve formatting', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 6
+    - { messageId: 'moveTypeAboveUsage', line: 6 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -711,9 +685,7 @@ test('shared type should move above first function usage', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 9
+    - { messageId: 'moveTypeAboveUsage', line: 9 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -747,9 +719,7 @@ test('props type should move above first FC component', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 9
+    - { messageId: 'moveTypeAboveUsage', line: 9 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -783,9 +753,7 @@ test('shared props should move above first component (mixed function and FC)', a
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 9
+    - { messageId: 'moveTypeAboveUsage', line: 9 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -819,9 +787,7 @@ test('type used in param and return type should move above first usage', async (
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 9
+    - { messageId: 'moveTypeAboveUsage', line: 9 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -855,9 +821,7 @@ test('variable declaration with type below - config example', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 6
+    - { messageId: 'moveTypeAboveUsage', line: 6 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -889,9 +853,7 @@ test('multiple variables with shared type - should move above first variable', a
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 4
+    - { messageId: 'moveTypeAboveUsage', line: 4 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -927,9 +889,7 @@ test('mixed function and variable usage - should move above first occurrence', a
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 10
+    - { messageId: 'moveTypeAboveUsage', line: 10 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -967,9 +927,7 @@ test('variable comes first - type should move above variable not function', asyn
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 7
+    - { messageId: 'moveTypeAboveUsage', line: 7 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -997,9 +955,7 @@ test('type below variable - now always checked', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 3
+    - { messageId: 'moveTypeAboveUsage', line: 3 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1050,9 +1006,7 @@ test('type not directly above usage with code in between', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 1
+    - { messageId: 'moveTypeAboveUsage', line: 1 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1111,9 +1065,7 @@ test('type not directly above usage with single variable in between', async () =
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 1
+    - { messageId: 'moveTypeAboveUsage', line: 1 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1165,9 +1117,7 @@ test('test case', async () => {
   `)
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1213,9 +1163,7 @@ test('test case 2', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 13
+    - { messageId: 'moveTypeAboveUsage', line: 13 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1264,9 +1212,7 @@ test('real file with imports', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 8
+    - { messageId: 'moveTypeAboveUsage', line: 8 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1327,9 +1273,7 @@ test('checkOnly function - catches type used in function argument', async () => 
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1356,9 +1300,7 @@ test('checkOnly FC - catches type used in FC props', async () => {
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1387,9 +1329,7 @@ test('checkOnly FC - catches type used in FC with import alias', async () => {
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 7
+    - { messageId: 'moveTypeAboveUsage', line: 7 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1449,9 +1389,7 @@ test('checkOnly both function and FC - catches both contexts', async () => {
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 9
+    - { messageId: 'moveTypeAboveUsage', line: 9 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1498,9 +1436,7 @@ test('checkOnly function - catches arrow function arguments', async () => {
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 3
+    - { messageId: 'moveTypeAboveUsage', line: 3 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1636,9 +1572,7 @@ test('keep comments on functions', async () => {
   )
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 1
+    - { messageId: 'moveTypeAboveUsage', line: 1 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1704,9 +1638,7 @@ test('checkOnly generic-args-at-fn-calls - catches type used in function call ge
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 3
+    - { messageId: 'moveTypeAboveUsage', line: 3 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1729,9 +1661,7 @@ test('checkOnly generic-args-at-fn-calls - catches type used in method call gene
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 3
+    - { messageId: 'moveTypeAboveUsage', line: 3 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1756,9 +1686,7 @@ test('checkOnly generic-args-at-fn-calls - catches type in chained method call g
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1783,9 +1711,7 @@ test('checkOnly generic-args-at-fn-calls - catches type in constructor call gene
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 3
+    - { messageId: 'moveTypeAboveUsage', line: 3 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1809,9 +1735,7 @@ test('checkOnly generic-args-at-fn-calls - multiple generic args', async () => {
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 3
+    - { messageId: 'moveTypeAboveUsage', line: 3 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -1941,9 +1865,7 @@ test('reproduce bug', async () => {
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 1
+    - { messageId: 'moveTypeAboveUsage', line: 1 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
@@ -2162,9 +2084,7 @@ test('reproduce bug with all options', async () => {
   })
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
-      line: 1
+    - { messageId: 'moveTypeAboveUsage', line: 1 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`
