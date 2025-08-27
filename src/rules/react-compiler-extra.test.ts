@@ -530,4 +530,34 @@ describe('React component and hook behavior checking', () => {
       `,
     )
   })
+
+  test('FC component with createPortal containing JSX is valid', async () => {
+    await valid(
+      dedent`
+        import { FC } from 'react'
+        import { createPortal } from 'react-dom'
+        
+        const TableActionsMenuPlugin: FC<{anchorElem: HTMLElement}> = ({ anchorElem }) => {
+          return createPortal(
+            <div>Menu content</div>,
+            anchorElem,
+          )
+        }
+      `,
+    )
+  })
+
+  test('FC component with nested function calls containing JSX is valid', async () => {
+    await valid(
+      dedent`
+        import { FC } from 'react'
+        
+        const Component: FC = () => {
+          return someFunction(
+            anotherFunction(<span>Nested JSX</span>)
+          )
+        }
+      `,
+    )
+  })
 })

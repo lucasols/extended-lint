@@ -136,7 +136,7 @@ function createsJSX(node: TSESTree.Expression | null | undefined): boolean {
       return false
 
     case AST_NODE_TYPES.CallExpression:
-      // Check for React.createElement or jsx() calls
+      // Check for React.createElement calls
       if (
         node.callee.type === AST_NODE_TYPES.MemberExpression &&
         node.callee.object.type === AST_NODE_TYPES.Identifier &&
@@ -146,6 +146,14 @@ function createsJSX(node: TSESTree.Expression | null | undefined): boolean {
       ) {
         return true
       }
+      
+      // Check arguments of function calls for JSX content
+      for (const arg of node.arguments) {
+        if (arg.type !== AST_NODE_TYPES.SpreadElement && createsJSX(arg)) {
+          return true
+        }
+      }
+      
       return false
 
     default:
