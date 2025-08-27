@@ -369,8 +369,8 @@ describe('with runOnlyWithEnableCompilerDirective option', () => {
   })
 })
 
-describe('FC component return type checking', () => {
-  test('FC component returning JSX is valid', async () => {
+describe('React component and hook behavior checking', () => {
+  test('FC component creating JSX is valid', async () => {
     await valid(
       dedent`
         import { FC } from 'react'
@@ -382,7 +382,7 @@ describe('FC component return type checking', () => {
     )
   })
 
-  test('React.FC component returning JSX is valid', async () => {
+  test('React.FC component creating JSX is valid', async () => {
     await valid(
       dedent`
         import React from 'react'
@@ -394,60 +394,56 @@ describe('FC component return type checking', () => {
     )
   })
 
-  test('FC component with conditional JSX return is valid', async () => {
+  test('FC component calling hooks is valid', async () => {
+    await valid(
+      dedent`
+        import { FC, useState } from 'react'
+        
+        const Component: FC = () => {
+          const [count, setCount] = useState(0)
+          return count.toString()
+        }
+      `,
+    )
+  })
+
+  test('FC component creating JSX in variable assignment is valid', async () => {
     await valid(
       dedent`
         import { FC } from 'react'
         
         const Component: FC = () => {
-          return true ? <div>Hello</div> : <span>World</span>
+          const element = <div>Hello</div>
+          return element
         }
       `,
     )
   })
 
-  test('FC component with logical AND JSX return is valid', async () => {
+  test('hook function creating JSX is valid', async () => {
     await valid(
       dedent`
-        import { FC } from 'react'
-        
-        const Component: FC = () => {
-          return true && <div>Hello</div>
+        function useCustomHook() {
+          return <div>Hook JSX</div>
         }
       `,
     )
   })
 
-  test('FC component with React.createElement is valid', async () => {
+  test('hook function calling other hooks is valid', async () => {
     await valid(
       dedent`
-        import React, { FC } from 'react'
+        import { useState } from 'react'
         
-        const Component: FC = () => {
-          return React.createElement('div', null, 'Hello')
+        function useCounter() {
+          const [count, setCount] = useState(0)
+          return { count, setCount }
         }
       `,
     )
   })
 
-  test('FC component with early return JSX is valid', async () => {
-    await valid(
-      dedent`
-        import { FC } from 'react'
-        
-        const condition = true
-        
-        const Component: FC = () => {
-          if (condition) {
-            return <div>Early JSX return</div>
-          }
-          return <span>Normal JSX return</span>
-        }
-      `,
-    )
-  })
-
-  test('FC component returning string should show error', async () => {
+  test('FC component with neither JSX nor hooks should show error', async () => {
     const { result } = await invalid(dedent`
       import { FC } from 'react'
       
@@ -458,115 +454,38 @@ describe('FC component return type checking', () => {
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React.FC components should return JSX elements for optimal React compiler detection. Consider wrapping the return value in a fragment.'
+        data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
         line: 3
       "
     `)
   })
 
-  test('React.FC component returning number should show error', async () => {
+  test('hook function with neither JSX nor hooks should show error', async () => {
     const { result } = await invalid(dedent`
-      import React from 'react'
-      
-      const Component: React.FC = () => {
-        return 42
+      function useData() {
+        return { data: 'some data' }
       }
     `)
     expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React.FC components should return JSX elements for optimal React compiler detection. Consider wrapping the return value in a fragment.'
-        line: 3
+        data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+        line: 1
       "
     `)
   })
 
-  test('FC component returning object should show error', async () => {
-    const { result } = await invalid(dedent`
-      import { FC } from 'react'
-      
-      const Component: FC = () => {
-        return { message: 'Hello' }
-      }
-    `)
-    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-      "
-      - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React.FC components should return JSX elements for optimal React compiler detection. Consider wrapping the return value in a fragment.'
-        line: 3
-      "
-    `)
-  })
-
-  test('FC component with arrow function expression returning string should show error', async () => {
-    const { result } = await invalid(dedent`
-      import { FC } from 'react'
-      
-      const Component: FC = () => 'Hello World'
-    `)
-    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-      "
-      - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React.FC components should return JSX elements for optimal React compiler detection. Consider wrapping the return value in a fragment.'
-        line: 3
-      "
-    `)
-  })
-
-  test('FC component returning mixed conditional with JSX branch is valid', async () => {
+  test('PascalCase function without FC type should not be checked', async () => {
     await valid(
       dedent`
-        import { FC } from 'react'
-        
-        const isLoading = true
-        
-        const Component: FC = () => {
-          return isLoading ? 'Loading...' : <div>Content</div>
+        const RegularFunction = () => {
+          return 'This should not be checked'
         }
       `,
     )
   })
 
-  test('FC component with multiple return statements, some non-JSX is valid when at least one returns JSX', async () => {
-    await valid(
-      dedent`
-        import { FC } from 'react'
-        
-        const condition = true
-        
-        const Component: FC = () => {
-          if (condition) {
-            return 'Early return'
-          }
-          return <div>Normal return</div>
-        }
-      `,
-    )
-  })
-
-  test('FC component with multiple return statements, all non-JSX should show error', async () => {
-    const { result } = await invalid(dedent`
-      import { FC } from 'react'
-      
-      const condition = true
-      
-      const Component: FC = () => {
-        if (condition) {
-          return 'Early return'
-        }
-        return 'Normal return'
-      }
-    `)
-    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-      "
-      - messageId: 'fcComponentShouldReturnJsx'
-        data: 'React.FC components should return JSX elements for optimal React compiler detection. Consider wrapping the return value in a fragment.'
-        line: 5
-      "
-    `)
-  })
-
-  test('regular function without FC type should not be checked', async () => {
+  test('regular function should not be checked', async () => {
     await valid(
       dedent`
         const regularFunction = () => {
@@ -581,6 +500,32 @@ describe('FC component return type checking', () => {
       dedent`
         const Component: () => string = () => {
           return 'This is fine'
+        }
+      `,
+    )
+  })
+
+  test('FC component with mixed JSX and non-JSX returns is valid', async () => {
+    await valid(
+      dedent`
+        import { FC } from 'react'
+        
+        const isLoading = true
+        
+        const Component: FC = () => {
+          return isLoading ? 'Loading...' : <div>Content</div>
+        }
+      `,
+    )
+  })
+
+  test('hook function with React.createElement is valid', async () => {
+    await valid(
+      dedent`
+        import React from 'react'
+        
+        function useElement() {
+          return React.createElement('div', null, 'Hello')
         }
       `,
     )
