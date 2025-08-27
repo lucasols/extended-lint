@@ -673,3 +673,165 @@ describe('React component and hook behavior checking', () => {
     })
   })
 })
+
+describe('Functions calling hooks validation', () => {
+  test('React component calling hooks is valid', async () => {
+    await valid(
+      dedent`
+        import { FC, useState } from 'react'
+        
+        const Component: FC = () => {
+          const [count] = useState(0)
+          return <div>{count}</div>
+        }
+      `,
+    )
+  })
+
+  test('Hook function calling hooks is valid', async () => {
+    await valid(
+      dedent`
+        import { useState } from 'react'
+        
+        function useCounter() {
+          const [count, setCount] = useState(0)
+          return { count, setCount }
+        }
+      `,
+    )
+  })
+
+  test('Regular function not calling hooks should be ignored', async () => {
+    await valid(
+      dedent`
+        function regularFunction() {
+          return 'regular function'
+        }
+      `,
+    )
+  })
+
+  test('Regular function calling hooks should show error', async () => {
+    const { result } = await invalid(dedent`
+      import { useState } from 'react'
+      
+      function regularFunction() {
+        const [count] = useState(0)
+        return count
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'functionCallingHooksMustBeComponent'
+        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
+        line: 3
+      "
+    `)
+  })
+
+  test('Arrow function calling hooks should show error', async () => {
+    const { result } = await invalid(dedent`
+      import { useState } from 'react'
+      
+      const regularFunction = () => {
+        const [count] = useState(0)
+        return count
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'functionCallingHooksMustBeComponent'
+        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
+        line: 3
+      "
+    `)
+  })
+
+  test('Function calling namespaced hooks should show error', async () => {
+    const { result } = await invalid(dedent`
+      function regularFunction() {
+        const data = test.useState(0)
+        return data
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'functionCallingHooksMustBeComponent'
+        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
+        line: 1
+      "
+    `)
+  })
+
+  test('PascalCase function without FC type calling hooks should show error', async () => {
+    const { result } = await invalid(dedent`
+      import { useState } from 'react'
+      
+      const Component = () => {
+        const [count] = useState(0)
+        return count
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'functionCallingHooksMustBeComponent'
+        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
+        line: 3
+      "
+    `)
+  })
+
+  test('Function expression calling hooks should show error', async () => {
+    const { result } = await invalid(dedent`
+      import { useState } from 'react'
+      
+      const obj = {
+        method: function() {
+          const [count] = useState(0)
+          return count
+        }
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'functionCallingHooksMustBeComponent'
+        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
+        line: 4
+      "
+    `)
+  })
+
+  test('Nested function calling hooks should show error', async () => {
+    const { result } = await invalid(dedent`
+      import { useState } from 'react'
+      
+      function parentFunction() {
+        function nestedFunction() {
+          const [count] = useState(0)
+          return count
+        }
+        return nestedFunction()
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'functionCallingHooksMustBeComponent'
+        data: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
+        line: 4
+      "
+    `)
+  })
+
+  test('Valid hook function with useCallback', async () => {
+    await valid(
+      dedent`
+        import { useCallback } from 'react'
+        
+        function useCustomHook() {
+          const callback = useCallback(() => {}, [])
+          return callback
+        }
+      `,
+    )
+  })
+})

@@ -33,6 +33,24 @@ function isHook(callee: TSESTree.CallExpression['callee']): boolean {
 }
 
 /**
+ * Checks if a callee is a React hook (starts with "use"), including member expressions
+ */
+function isHookIncludingMemberExpressions(callee: TSESTree.CallExpression['callee']): boolean {
+  if (callee.type === AST_NODE_TYPES.Identifier) {
+    return callee.name.startsWith('use')
+  }
+
+  // Check for member expressions like namespace.useSomething
+  if (callee.type === AST_NODE_TYPES.MemberExpression) {
+    if (callee.property.type === AST_NODE_TYPES.Identifier) {
+      return callee.property.name.startsWith('use')
+    }
+  }
+
+  return false
+}
+
+/**
  * Checks if an expression creates JSX
  */
 function createsJSX(node: TSESTree.Expression | null | undefined): boolean {
@@ -292,6 +310,76 @@ function containsThisKeyword(sourceCode: string): boolean {
   return hasThisRegex.test(sourceCode)
 }
 
+/**
+ * Analyze React component behavior for hook validation (includes member expressions)
+ * Only checks direct calls, not nested functions
+ */
+function analyzeReactBehaviorForHookValidation(
+  node: TSESTree.Node,
+  sourceCode: TSESLint.SourceCode,
+): ReactAnalysisResult {
+  const result: ReactAnalysisResult = {
+    containsJSX: false,
+    containsHookCalls: false,
+  }
+
+  traverseAST(
+    node,
+    (currentNode): boolean | void => {
+      // Early exit if we found hook calls (JSX not needed for this check)
+      if (result.containsHookCalls) return true
+
+      // Skip nested functions - we don't want to analyze hook calls inside nested functions
+      if (currentNode.type === AST_NODE_TYPES.FunctionDeclaration ||
+          currentNode.type === AST_NODE_TYPES.FunctionExpression ||
+          currentNode.type === AST_NODE_TYPES.ArrowFunctionExpression) {
+        // Skip traversing into nested functions
+        if (currentNode !== node) return true
+      }
+
+      // Check current node
+      if (currentNode.type === AST_NODE_TYPES.CallExpression) {
+        // Check for hook calls (including member expressions)
+        if (isHookIncludingMemberExpressions(currentNode.callee)) {
+          result.containsHookCalls = true
+        }
+      }
+    },
+    sourceCode,
+  )
+
+  return result
+}
+
+/**
+ * Checks if a function calls hooks but is not a valid React component or hook
+ */
+function callsHooksButNotValidComponent(
+  functionNode:
+    | TSESTree.ArrowFunctionExpression
+    | TSESTree.FunctionExpression
+    | TSESTree.FunctionDeclaration,
+  sourceCode: TSESLint.SourceCode,
+  identifier?: TSESTree.Identifier,
+  typeAnnotation?: TSESTree.TSTypeAnnotation,
+): boolean {
+  // Check if function calls hooks (including member expressions)
+  const analysis = analyzeReactBehaviorForHookValidation(functionNode.body, sourceCode)
+  if (!analysis.containsHookCalls) {
+    return false // Doesn't call hooks, so no violation
+  }
+
+  // Check if this is a valid React component or hook
+  const isValidReactComponentOrHook = isReactComponentOrHook(
+    functionNode,
+    identifier,
+    typeAnnotation,
+  )
+
+  // If it calls hooks but isn't a valid React component or hook, it's a violation
+  return !isValidReactComponentOrHook
+}
+
 type Options = z.infer<typeof optionsSchema>
 
 const rule = createRule<
@@ -301,6 +389,7 @@ const rule = createRule<
   | 'thisKeywordInMethod'
   | 'fcComponentShouldReturnJsx'
   | 'addUseMemoDirective'
+  | 'functionCallingHooksMustBeComponent'
 >({
   name,
   meta: {
@@ -320,6 +409,8 @@ const rule = createRule<
         'React components and hooks should create JSX elements, call other hooks or use the "use memo" directive for optimal React compiler detection.',
       addUseMemoDirective:
         'Add "use memo" directive to opt into React compiler memoization',
+      functionCallingHooksMustBeComponent:
+        'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").',
     },
     hasSuggestions: true,
     schema: [getJsonSchemaFromZod(optionsSchema)],
@@ -488,6 +579,15 @@ const rule = createRule<
           const identifier = node.id
           const typeAnnotation = node.id.typeAnnotation
 
+          // Check if this function calls hooks but is not a valid React component or hook
+          if (callsHooksButNotValidComponent(functionNode, context.sourceCode, identifier, typeAnnotation)) {
+            context.report({
+              node: functionNode,
+              messageId: 'functionCallingHooksMustBeComponent',
+            })
+            return
+          }
+
           // Check if this looks like a React component or hook
           if (
             isReactComponentOrHook(functionNode, identifier, typeAnnotation)
@@ -529,6 +629,15 @@ const rule = createRule<
       },
 
       FunctionDeclaration(node) {
+        // Check if this function calls hooks but is not a valid React component or hook
+        if (callsHooksButNotValidComponent(node, context.sourceCode)) {
+          context.report({
+            node,
+            messageId: 'functionCallingHooksMustBeComponent',
+          })
+          return
+        }
+
         // Check function declarations that might be React components or hooks
         if (isReactComponentOrHook(node)) {
           const behavesLikeComponent = behavesLikeReactComponentOrHook(
@@ -557,6 +666,16 @@ const rule = createRule<
               ],
             })
           }
+        }
+      },
+
+      FunctionExpression(node) {
+        // Check if this function expression calls hooks but is not a valid React component or hook
+        if (callsHooksButNotValidComponent(node, context.sourceCode)) {
+          context.report({
+            node,
+            messageId: 'functionCallingHooksMustBeComponent',
+          })
         }
       },
     }
