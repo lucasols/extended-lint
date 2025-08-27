@@ -885,4 +885,24 @@ describe('Functions calling hooks validation', () => {
       `,
     )
   })
+
+  test('PascalCase function with type other than FC should be valid', async () => {
+    await valid(
+      dedent`
+        export const DataLoader: CommandProcessor = ({ context }) => {
+          const itemsData = dataCollection.useListQuery({ filter: 'active' });
+
+          return processLoadedItems(context, {
+            items: itemsData.results.map((item) => {
+              return {
+                title: item.title,
+              };
+            }),
+            loading: itemsData.isLoading,
+            errorState: itemsData.error || null,
+          });
+        };
+      `,
+    )
+  })
 })
