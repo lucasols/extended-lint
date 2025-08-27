@@ -407,6 +407,27 @@ describe('React component and hook behavior checking', () => {
     )
   })
 
+  test('FC component calling hooks inside namespace is not valid', async () => {
+    const { result } = await invalid(
+      dedent`
+        import { FC, useState } from 'react'
+        
+        const Component: FC = () => {
+          const [count, setCount] = namespace.useTest(0)
+          return count.toString()
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'fcComponentShouldReturnJsx'
+        data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+        line: 3
+      "
+    `)
+  })
+
   test('FC component creating JSX in variable assignment is valid', async () => {
     await valid(
       dedent`
@@ -575,7 +596,6 @@ describe('React component and hook behavior checking', () => {
       )
     })
 
-
     test('hook function with "use memo" directive is valid', async () => {
       await valid(
         dedent`
@@ -604,7 +624,9 @@ describe('React component and hook behavior checking', () => {
       `)
       // Check that suggestions are provided
       expect(result.messages[0]?.suggestions).toBeDefined()
-      expect(result.messages[0]?.suggestions?.[0]?.messageId).toBe('addUseMemoDirective')
+      expect(result.messages[0]?.suggestions?.[0]?.messageId).toBe(
+        'addUseMemoDirective',
+      )
     })
 
     test('hook function without JSX/hooks should suggest "use memo"', async () => {
@@ -622,7 +644,9 @@ describe('React component and hook behavior checking', () => {
       `)
       // Check that suggestions are provided
       expect(result.messages[0]?.suggestions).toBeDefined()
-      expect(result.messages[0]?.suggestions?.[0]?.messageId).toBe('addUseMemoDirective')
+      expect(result.messages[0]?.suggestions?.[0]?.messageId).toBe(
+        'addUseMemoDirective',
+      )
     })
 
     test('FC component with comment directive should still show error', async () => {
@@ -643,7 +667,9 @@ describe('React component and hook behavior checking', () => {
       `)
       // Comments are ignored, so suggestions should still be provided
       expect(result.messages[0]?.suggestions).toBeDefined()
-      expect(result.messages[0]?.suggestions?.[0]?.messageId).toBe('addUseMemoDirective')
+      expect(result.messages[0]?.suggestions?.[0]?.messageId).toBe(
+        'addUseMemoDirective',
+      )
     })
   })
 })

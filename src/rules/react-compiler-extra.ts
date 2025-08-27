@@ -24,13 +24,6 @@ function isHook(callee: TSESTree.CallExpression['callee']): boolean {
     return callee.name.startsWith('use')
   }
 
-  if (
-    callee.type === AST_NODE_TYPES.MemberExpression &&
-    callee.property.type === AST_NODE_TYPES.Identifier
-  ) {
-    return callee.property.name.startsWith('use')
-  }
-
   return false
 }
 
