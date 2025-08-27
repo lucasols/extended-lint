@@ -1,5 +1,6 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from '@typescript-eslint/utils'
 import { z } from 'zod/v4'
+import { traverseAST } from '../astUtils'
 import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
@@ -15,9 +16,8 @@ const optionsSchema = z.object({
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
 
-
 /**
- * Checks if a callee is a hook (starts with "use")
+ * Checks if a callee is a React hook (starts with "use")
  */
 function isHook(callee: TSESTree.CallExpression['callee']): boolean {
   if (callee.type === AST_NODE_TYPES.Identifier) {
@@ -32,6 +32,55 @@ function isHook(callee: TSESTree.CallExpression['callee']): boolean {
   }
 
   return false
+}
+
+/**
+ * Checks if an expression creates JSX
+ */
+function createsJSX(node: TSESTree.Expression | null | undefined): boolean {
+  if (!node) return false
+
+  switch (node.type) {
+    case AST_NODE_TYPES.JSXElement:
+    case AST_NODE_TYPES.JSXFragment:
+      return true
+
+    case AST_NODE_TYPES.ConditionalExpression:
+      return createsJSX(node.consequent) || createsJSX(node.alternate)
+
+    case AST_NODE_TYPES.LogicalExpression:
+      if (node.operator === '&&') {
+        return createsJSX(node.right)
+      }
+      if (node.operator === '||') {
+        return createsJSX(node.left) || createsJSX(node.right)
+      }
+      return false
+
+    case AST_NODE_TYPES.CallExpression:
+      // Check for React.createElement calls
+      if (
+        node.callee.type === AST_NODE_TYPES.MemberExpression &&
+        node.callee.object.type === AST_NODE_TYPES.Identifier &&
+        node.callee.object.name === 'React' &&
+        node.callee.property.type === AST_NODE_TYPES.Identifier &&
+        node.callee.property.name === 'createElement'
+      ) {
+        return true
+      }
+      
+      // Check arguments of function calls for JSX content
+      for (const arg of node.arguments) {
+        if (arg.type !== AST_NODE_TYPES.SpreadElement && createsJSX(arg)) {
+          return true
+        }
+      }
+      
+      return false
+
+    default:
+      return false
+  }
 }
 
 /**
@@ -113,175 +162,6 @@ function isReactComponentOrHook(
   return false
 }
 
-/**
- * Checks if an expression creates JSX
- */
-function createsJSX(node: TSESTree.Expression | null | undefined): boolean {
-  if (!node) return false
-
-  switch (node.type) {
-    case AST_NODE_TYPES.JSXElement:
-    case AST_NODE_TYPES.JSXFragment:
-      return true
-
-    case AST_NODE_TYPES.ConditionalExpression:
-      return createsJSX(node.consequent) || createsJSX(node.alternate)
-
-    case AST_NODE_TYPES.LogicalExpression:
-      if (node.operator === '&&') {
-        return createsJSX(node.right)
-      }
-      if (node.operator === '||') {
-        return createsJSX(node.left) || createsJSX(node.right)
-      }
-      return false
-
-    case AST_NODE_TYPES.CallExpression:
-      // Check for React.createElement calls
-      if (
-        node.callee.type === AST_NODE_TYPES.MemberExpression &&
-        node.callee.object.type === AST_NODE_TYPES.Identifier &&
-        node.callee.object.name === 'React' &&
-        node.callee.property.type === AST_NODE_TYPES.Identifier &&
-        node.callee.property.name === 'createElement'
-      ) {
-        return true
-      }
-      
-      // Check arguments of function calls for JSX content
-      for (const arg of node.arguments) {
-        if (arg.type !== AST_NODE_TYPES.SpreadElement && createsJSX(arg)) {
-          return true
-        }
-      }
-      
-      return false
-
-    default:
-      return false
-  }
-}
-
-/**
- * Checks if a function body contains JSX creation anywhere
- */
-function containsJSXCreation(node: TSESTree.Node, visited = new Set<TSESTree.Node>()): boolean {
-  if (visited.has(node)) return false
-  visited.add(node)
-
-  // Check if current node is JSX
-  if (node.type === AST_NODE_TYPES.JSXElement || node.type === AST_NODE_TYPES.JSXFragment) {
-    return true
-  }
-
-  // Check return statements
-  if (node.type === AST_NODE_TYPES.ReturnStatement && node.argument) {
-    if (createsJSX(node.argument)) return true
-  }
-
-  // Check variable declarations for JSX assignments
-  if (node.type === AST_NODE_TYPES.VariableDeclaration) {
-    for (const declarator of node.declarations) {
-      if (declarator.init && createsJSX(declarator.init)) return true
-    }
-  }
-
-  // Check assignment expressions
-  if (node.type === AST_NODE_TYPES.AssignmentExpression) {
-    if (createsJSX(node.right)) return true
-  }
-
-  // Check call expressions for React.createElement
-  if (node.type === AST_NODE_TYPES.CallExpression) {
-    if (createsJSX(node)) return true
-  }
-
-  // Check block statements
-  if (node.type === AST_NODE_TYPES.BlockStatement) {
-    for (const statement of node.body) {
-      if (containsJSXCreation(statement, visited)) return true
-    }
-  }
-
-  // Check if statements
-  if (node.type === AST_NODE_TYPES.IfStatement) {
-    if (containsJSXCreation(node.consequent, visited)) return true
-    if (node.alternate && containsJSXCreation(node.alternate, visited)) return true
-  }
-
-  // Check expression statements
-  if (node.type === AST_NODE_TYPES.ExpressionStatement) {
-    if (createsJSX(node.expression)) return true
-  }
-
-  return false
-}
-
-/**
- * Checks if a function calls any React hooks
- */
-function callsHooks(functionBody: TSESTree.BlockStatement | TSESTree.Expression): boolean {
-  if (functionBody.type !== AST_NODE_TYPES.BlockStatement) {
-    // Arrow function with expression body - check if it's a hook call
-    if (functionBody.type === AST_NODE_TYPES.CallExpression) {
-      return isHook(functionBody.callee)
-    }
-    return false
-  }
-
-  return containsHookCalls(functionBody)
-}
-
-/**
- * Checks if a function body contains hook calls
- */
-function containsHookCalls(node: TSESTree.Node, visited = new Set<TSESTree.Node>()): boolean {
-  if (visited.has(node)) return false
-  visited.add(node)
-
-  // Check if current node is a hook call
-  if (node.type === AST_NODE_TYPES.CallExpression) {
-    if (isHook(node.callee)) return true
-  }
-
-  // Check block statements
-  if (node.type === AST_NODE_TYPES.BlockStatement) {
-    for (const statement of node.body) {
-      if (containsHookCalls(statement, visited)) return true
-    }
-  }
-
-  // Check variable declarations for hook calls in initializers
-  if (node.type === AST_NODE_TYPES.VariableDeclaration) {
-    for (const declarator of node.declarations) {
-      if (declarator.init && declarator.init.type === AST_NODE_TYPES.CallExpression) {
-        if (isHook(declarator.init.callee)) return true
-      }
-    }
-  }
-
-  // Check expression statements
-  if (node.type === AST_NODE_TYPES.ExpressionStatement) {
-    if (node.expression.type === AST_NODE_TYPES.CallExpression) {
-      if (isHook(node.expression.callee)) return true
-    }
-  }
-
-  // Check if statements
-  if (node.type === AST_NODE_TYPES.IfStatement) {
-    if (containsHookCalls(node.consequent, visited)) return true
-    if (node.alternate && containsHookCalls(node.alternate, visited)) return true
-  }
-
-  // Check return statements
-  if (node.type === AST_NODE_TYPES.ReturnStatement && node.argument) {
-    if (node.argument.type === AST_NODE_TYPES.CallExpression && isHook(node.argument.callee)) {
-      return true
-    }
-  }
-
-  return false
-}
 
 
 /**
@@ -307,29 +187,84 @@ function hasUseMemoStringDirective(
   return false
 }
 
+type ReactAnalysisResult = {
+  containsJSX: boolean
+  containsHookCalls: boolean
+}
+
+/**
+ * Analyze React component behavior using the generic AST traversal
+ * Combines JSX detection and hook call detection in a single pass for performance
+ */
+function analyzeReactBehavior(
+  node: TSESTree.Node,
+  sourceCode: TSESLint.SourceCode,
+): ReactAnalysisResult {
+  const result: ReactAnalysisResult = {
+    containsJSX: false,
+    containsHookCalls: false,
+  }
+
+  traverseAST(node, (currentNode): boolean | void => {
+    // Early exit if we found both
+    if (result.containsJSX && result.containsHookCalls) return true
+
+    // Check current node
+    switch (currentNode.type) {
+      case AST_NODE_TYPES.JSXElement:
+      case AST_NODE_TYPES.JSXFragment:
+        result.containsJSX = true
+        break
+
+      case AST_NODE_TYPES.CallExpression:
+        // Check for hook calls
+        if (isHook(currentNode.callee)) {
+          result.containsHookCalls = true
+        }
+        
+        // Check if this call expression creates JSX
+        if (createsJSX(currentNode)) {
+          result.containsJSX = true
+        }
+        break
+
+      case AST_NODE_TYPES.ReturnStatement:
+        if (currentNode.argument && createsJSX(currentNode.argument)) {
+          result.containsJSX = true
+        }
+        break
+
+      case AST_NODE_TYPES.VariableDeclarator:
+        if (currentNode.init && createsJSX(currentNode.init)) {
+          result.containsJSX = true
+        }
+        break
+
+      case AST_NODE_TYPES.AssignmentExpression:
+        if (createsJSX(currentNode.right)) {
+          result.containsJSX = true
+        }
+        break
+    }
+  }, sourceCode)
+
+  return result
+}
 
 /**
  * Checks if a function behaves like a React component or hook according to compiler heuristics
  */
 function behavesLikeReactComponentOrHook(
   functionNode: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
+  sourceCode: TSESLint.SourceCode,
 ): boolean {
   const body = functionNode.body
 
-  // For expression body (arrow functions), check directly
-  if (body.type !== AST_NODE_TYPES.BlockStatement) {
-    // Check if expression body creates JSX or is a hook call
-    return createsJSX(body) || (body.type === AST_NODE_TYPES.CallExpression && isHook(body.callee))
-  }
-
-  // Check if function creates JSX anywhere in the body
-  const createsJSXAnywhere = containsJSXCreation(body)
-
-  // Check if function calls any hooks
-  const callsAnyHooks = callsHooks(body)
+  // Use the optimized combined analysis
+  const analysis = analyzeReactBehavior(body, sourceCode)
 
   // According to React Compiler heuristics: function is component/hook if it creates JSX and/or calls hooks
-  return createsJSXAnywhere || callsAnyHooks
+  return analysis.containsJSX || analysis.containsHookCalls
 }
 
 const hasThisRegex = /\bthis[.[]/
@@ -542,7 +477,7 @@ const rule = createRule<
 
           // Check if this looks like a React component or hook
           if (isReactComponentOrHook(functionNode, identifier, typeAnnotation)) {
-            const behavesLikeComponent = behavesLikeReactComponentOrHook(functionNode)
+            const behavesLikeComponent = behavesLikeReactComponentOrHook(functionNode, context.sourceCode)
             const hasStringDirective = hasUseMemoStringDirective(functionNode)
             
             // Valid if it behaves like a component/hook OR has string directive
@@ -573,7 +508,7 @@ const rule = createRule<
       FunctionDeclaration(node) {
         // Check function declarations that might be React components or hooks
         if (isReactComponentOrHook(node)) {
-          const behavesLikeComponent = behavesLikeReactComponentOrHook(node)
+          const behavesLikeComponent = behavesLikeReactComponentOrHook(node, context.sourceCode)
           const hasStringDirective = hasUseMemoStringDirective(node)
           
           // Valid if it behaves like a component/hook OR has string directive

@@ -64,3 +64,73 @@ export function getVarReferences(
 
   return variable.references.filter((ref) => !ref.init)
 }
+
+/**
+ * Type guard to check if a value is a TSESTree Node
+ */
+// eslint-disable-next-line @ls-stack/no-type-guards -- Required for generic AST traversal
+function isASTNode(value: unknown): value is TSESTree.Node {
+  if (value === null || typeof value !== 'object') {
+    return false
+  }
+  
+  if (!('type' in value)) return false
+  
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Required for AST traversal
+  const potentialNode = value as Record<string, unknown>
+  return typeof potentialNode.type === 'string'
+}
+
+/**
+ * Get child property safely from AST node
+ */
+function getChildProperty(node: TSESTree.Node, key: string): unknown {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Required for AST traversal
+  const nodeRecord = node as unknown as Record<string, unknown>
+  return nodeRecord[key]
+}
+
+/**
+ * Generic AST traversal function using visitorKeys
+ */
+export function traverseAST(
+  node: TSESTree.Node,
+  visitor: (node: TSESTree.Node) => boolean | void,
+  sourceCode: TSESLint.SourceCode,
+): void {
+  const visitorKeys = sourceCode.visitorKeys
+  const visited = new Set<TSESTree.Node>()
+
+  function traverse(currentNode: TSESTree.Node): boolean {
+    if (visited.has(currentNode)) return false
+    visited.add(currentNode)
+
+    // Call visitor function - if it returns true, stop traversing
+    const shouldStop = visitor(currentNode)
+    if (shouldStop === true) return true
+
+    // Traverse child nodes using visitorKeys
+    const keys = visitorKeys[currentNode.type]
+    if (keys) {
+      for (const key of keys) {
+        const child = getChildProperty(currentNode, key)
+        if (child) {
+          if (Array.isArray(child)) {
+            for (const item of child) {
+              if (isASTNode(item)) {
+                if (traverse(item)) return true
+              }
+            }
+          } else if (isASTNode(child)) {
+            if (traverse(child)) return true
+          }
+        }
+      }
+    }
+
+    return false
+  }
+
+  traverse(node)
+}
+
