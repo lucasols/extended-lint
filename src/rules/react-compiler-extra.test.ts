@@ -4,7 +4,7 @@ import {
   createNewTester,
   getErrorsFromResult,
 } from '../../tests/utils/createTester'
-import { reactCompilerExtra } from '../react-compiler-extra'
+import { reactCompilerExtra } from './react-compiler-extra'
 
 const { valid, invalid } = createNewTester(reactCompilerExtra)
 
