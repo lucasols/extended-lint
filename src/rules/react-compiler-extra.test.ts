@@ -906,3 +906,125 @@ describe('Functions calling hooks validation', () => {
     )
   })
 })
+
+describe('Use memo directive naming validation', () => {
+  test('PascalCase function with use memo directive should be valid', async () => {
+    await valid(
+      dedent`
+        const MyComponent = () => {
+          "use memo"
+          return calculateExpensiveValue()
+        }
+      `,
+    )
+  })
+
+  test('Hook function with use memo directive should be valid', async () => {
+    await valid(
+      dedent`
+        function useCustomHook() {
+          "use memo"
+          return calculateExpensiveValue()
+        }
+      `,
+    )
+  })
+
+  test('camelCase function with use memo directive should show error', async () => {
+    const { result } = await invalid(dedent`
+      const regularFunction = () => {
+        "use memo"
+        return calculateExpensiveValue()
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'useMemoDirectiveNaming'
+        data: 'Functions using "use memo" directive must follow React naming conventions (PascalCase for components or start with "use" for hooks).'
+        line: 1
+      "
+    `)
+  })
+
+  test('lowercase function with use memo directive should show error', async () => {
+    const { result } = await invalid(dedent`
+      function myfunction() {
+        "use memo"
+        return calculateExpensiveValue()
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'useMemoDirectiveNaming'
+        data: 'Functions using "use memo" directive must follow React naming conventions (PascalCase for components or start with "use" for hooks).'
+        line: 1
+      "
+    `)
+  })
+
+  test('Arrow function with use memo directive should show error', async () => {
+    const { result } = await invalid(dedent`
+      const helper = () => {
+        "use memo"
+        return calculateExpensiveValue()
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'useMemoDirectiveNaming'
+        data: 'Functions using "use memo" directive must follow React naming conventions (PascalCase for components or start with "use" for hooks).'
+        line: 1
+      "
+    `)
+  })
+
+  test('Function expression with use memo directive should show error', async () => {
+    const { result } = await invalid(dedent`
+      const obj = {
+        helper: function() {
+          "use memo"
+          return calculateExpensiveValue()
+        }
+      }
+    `)
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'useMemoDirectiveNaming'
+        data: 'Functions using "use memo" directive must follow React naming conventions (PascalCase for components or start with "use" for hooks).'
+        line: 2
+      "
+    `)
+  })
+
+  test('PascalCase function declaration with use memo directive should be valid', async () => {
+    await valid(
+      dedent`
+        function MyComponent() {
+          "use memo"
+          return calculateExpensiveValue()
+        }
+      `,
+    )
+  })
+
+  test('Hook function starting with use prefix should be valid', async () => {
+    await valid(
+      dedent`
+        const useCalculateValue = () => {
+          "use memo"
+          return calculateExpensiveValue()
+        }
+      `,
+    )
+  })
+
+  test('Function without use memo directive should not be checked', async () => {
+    await valid(
+      dedent`
+        const regularFunction = () => {
+          return 'no use memo directive'
+        }
+      `,
+    )
+  })
+})

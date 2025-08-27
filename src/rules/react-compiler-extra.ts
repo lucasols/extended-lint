@@ -363,6 +363,13 @@ function analyzeReactBehaviorForHookValidation(
 }
 
 /**
+ * Checks if a function name follows React naming conventions (PascalCase or starts with "use")
+ */
+function isValidReactFunctionName(functionName: string): boolean {
+  return isPascalCase(functionName) || isHookName(functionName)
+}
+
+/**
  * Checks if a function calls hooks but is not a valid React component or hook
  */
 function callsHooksButNotValidComponent(
@@ -412,6 +419,7 @@ const rule = createRule<
   | 'fcComponentShouldReturnJsx'
   | 'addUseMemoDirective'
   | 'functionCallingHooksMustBeComponent'
+  | 'useMemoDirectiveNaming'
 >({
   name,
   meta: {
@@ -433,6 +441,8 @@ const rule = createRule<
         'Add "use memo" directive to opt into React compiler memoization',
       functionCallingHooksMustBeComponent:
         'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").',
+      useMemoDirectiveNaming:
+        'Functions using "use memo" directive must follow React naming conventions (PascalCase for components or start with "use" for hooks).',
     },
     hasSuggestions: true,
     schema: [getJsonSchemaFromZod(optionsSchema)],
@@ -601,6 +611,17 @@ const rule = createRule<
           const identifier = node.id
           const typeAnnotation = node.id.typeAnnotation
 
+          // Check if function with "use memo" directive follows React naming conventions
+          if (hasUseMemoStringDirective(functionNode)) {
+            if (!isValidReactFunctionName(identifier.name)) {
+              context.report({
+                node: functionNode,
+                messageId: 'useMemoDirectiveNaming',
+              })
+              return
+            }
+          }
+
           // Check if this function calls hooks but is not a valid React component or hook
           if (callsHooksButNotValidComponent(functionNode, context.sourceCode, identifier, typeAnnotation)) {
             context.report({
@@ -651,6 +672,17 @@ const rule = createRule<
       },
 
       FunctionDeclaration(node) {
+        // Check if function with "use memo" directive follows React naming conventions
+        if (node.id && hasUseMemoStringDirective(node)) {
+          if (!isValidReactFunctionName(node.id.name)) {
+            context.report({
+              node,
+              messageId: 'useMemoDirectiveNaming',
+            })
+            return
+          }
+        }
+
         // Check if this function calls hooks but is not a valid React component or hook
         if (callsHooksButNotValidComponent(node, context.sourceCode)) {
           context.report({
@@ -692,6 +724,16 @@ const rule = createRule<
       },
 
       FunctionExpression(node) {
+        // Check if function expression with "use memo" directive follows React naming conventions
+        // Function expressions can't be directly named with React conventions, so they should not use "use memo"
+        if (hasUseMemoStringDirective(node)) {
+          context.report({
+            node,
+            messageId: 'useMemoDirectiveNaming',
+          })
+          return
+        }
+
         // Check if this function expression calls hooks but is not a valid React component or hook
         if (callsHooksButNotValidComponent(node, context.sourceCode)) {
           context.report({
