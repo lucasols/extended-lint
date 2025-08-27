@@ -560,4 +560,90 @@ describe('React component and hook behavior checking', () => {
       `,
     )
   })
+
+  describe('use memo directive', () => {
+    test('FC component with "use memo" directive is valid', async () => {
+      await valid(
+        dedent`
+          import { FC } from 'react'
+          
+          const Component: FC = () => {
+            "use memo"
+            return calculateExpensiveValue()
+          }
+        `,
+      )
+    })
+
+
+    test('hook function with "use memo" directive is valid', async () => {
+      await valid(
+        dedent`
+          function useExpensiveValue() {
+            "use memo"
+            return calculateExpensiveValue()
+          }
+        `,
+      )
+    })
+
+    test('FC component without JSX/hooks should suggest "use memo"', async () => {
+      const { result } = await invalid(dedent`
+        import { FC } from 'react'
+        
+        const Component: FC = () => {
+          return 'Hello World'
+        }
+      `)
+      expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+        "
+        - messageId: 'fcComponentShouldReturnJsx'
+          data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+          line: 3
+        "
+      `)
+      // Check that suggestions are provided
+      expect(result.messages[0]?.suggestions).toBeDefined()
+      expect(result.messages[0]?.suggestions?.[0]?.messageId).toBe('addUseMemoDirective')
+    })
+
+    test('hook function without JSX/hooks should suggest "use memo"', async () => {
+      const { result } = await invalid(dedent`
+        function useData() {
+          return { data: 'some data' }
+        }
+      `)
+      expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+        "
+        - messageId: 'fcComponentShouldReturnJsx'
+          data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+          line: 1
+        "
+      `)
+      // Check that suggestions are provided
+      expect(result.messages[0]?.suggestions).toBeDefined()
+      expect(result.messages[0]?.suggestions?.[0]?.messageId).toBe('addUseMemoDirective')
+    })
+
+    test('FC component with comment directive should still show error', async () => {
+      const { result } = await invalid(dedent`
+        import { FC } from 'react'
+        
+        // "use memo" 
+        const Component: FC = () => {
+          return 'Hello World'
+        }
+      `)
+      expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+        "
+        - messageId: 'fcComponentShouldReturnJsx'
+          data: 'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.'
+          line: 4
+        "
+      `)
+      // Comments are ignored, so suggestions should still be provided
+      expect(result.messages[0]?.suggestions).toBeDefined()
+      expect(result.messages[0]?.suggestions?.[0]?.messageId).toBe('addUseMemoDirective')
+    })
+  })
 })

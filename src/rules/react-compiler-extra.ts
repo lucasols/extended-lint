@@ -15,6 +15,7 @@ const optionsSchema = z.object({
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
 
+
 /**
  * Checks if a callee is a hook (starts with "use")
  */
@@ -284,6 +285,30 @@ function containsHookCalls(node: TSESTree.Node, visited = new Set<TSESTree.Node>
 
 
 /**
+ * Checks if a function has the 'use memo' string directive (makes it valid)
+ */
+function hasUseMemoStringDirective(
+  functionNode: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
+): boolean {
+  // Check for 'use memo' directive in the function body
+  if (functionNode.body.type === AST_NODE_TYPES.BlockStatement) {
+    for (const statement of functionNode.body.body) {
+      if (
+        statement.type === AST_NODE_TYPES.ExpressionStatement &&
+        statement.expression.type === AST_NODE_TYPES.Literal &&
+        typeof statement.expression.value === 'string' &&
+        statement.expression.value === 'use memo'
+      ) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+
+/**
  * Checks if a function behaves like a React component or hook according to compiler heuristics
  */
 function behavesLikeReactComponentOrHook(
@@ -325,6 +350,7 @@ const rule = createRule<
   | 'replaceWithFunctionExpression'
   | 'thisKeywordInMethod'
   | 'fcComponentShouldReturnJsx'
+  | 'addUseMemoDirective'
 >({
   name,
   meta: {
@@ -342,8 +368,10 @@ const rule = createRule<
         'Object method uses `this` keyword which would have different behavior if converted to an arrow function. Fix this manually.',
       fcComponentShouldReturnJsx:
         'React components and hooks should create JSX elements or call other hooks for optimal React compiler detection.',
+      addUseMemoDirective:
+        'Add "use memo" directive to opt into React compiler memoization',
     },
-    hasSuggestions: false,
+    hasSuggestions: true,
     schema: [getJsonSchemaFromZod(optionsSchema)],
   },
   defaultOptions: [{}],
@@ -514,11 +542,28 @@ const rule = createRule<
 
           // Check if this looks like a React component or hook
           if (isReactComponentOrHook(functionNode, identifier, typeAnnotation)) {
-            // Check if it behaves like a component/hook (creates JSX or calls hooks)
-            if (!behavesLikeReactComponentOrHook(functionNode)) {
+            const behavesLikeComponent = behavesLikeReactComponentOrHook(functionNode)
+            const hasStringDirective = hasUseMemoStringDirective(functionNode)
+            
+            // Valid if it behaves like a component/hook OR has string directive
+            if (!behavesLikeComponent && !hasStringDirective) {
               context.report({
                 node: functionNode,
                 messageId: 'fcComponentShouldReturnJsx',
+                suggest: [
+                  {
+                    messageId: 'addUseMemoDirective',
+                    fix(fixer) {
+                      // Add 'use memo' directive at the beginning of function body
+                      if (functionNode.body.type === AST_NODE_TYPES.BlockStatement) {
+                        const openBrace = functionNode.body.range[0] + 1
+                        return fixer.insertTextAfterRange([openBrace, openBrace], '\n  "use memo"\n')
+                      }
+                      // For arrow functions with expression body, we can't easily add the directive
+                      return null
+                    },
+                  },
+                ],
               })
             }
           }
@@ -528,11 +573,24 @@ const rule = createRule<
       FunctionDeclaration(node) {
         // Check function declarations that might be React components or hooks
         if (isReactComponentOrHook(node)) {
-          // Check if it behaves like a component/hook (creates JSX or calls hooks)
-          if (!behavesLikeReactComponentOrHook(node)) {
+          const behavesLikeComponent = behavesLikeReactComponentOrHook(node)
+          const hasStringDirective = hasUseMemoStringDirective(node)
+          
+          // Valid if it behaves like a component/hook OR has string directive
+          if (!behavesLikeComponent && !hasStringDirective) {
             context.report({
               node,
               messageId: 'fcComponentShouldReturnJsx',
+              suggest: [
+                {
+                  messageId: 'addUseMemoDirective',
+                  fix(fixer) {
+                    // Add 'use memo' directive at the beginning of function body
+                    const openBrace = node.body.range[0] + 1
+                    return fixer.insertTextAfterRange([openBrace, openBrace], '\n  "use memo"\n')
+                  },
+                },
+              ],
             })
           }
         }
