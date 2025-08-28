@@ -16,26 +16,47 @@ const SPLIT_PATTERN = /[\s_-]+/
 function hasUnstableValues(
   node: TSESTree.JSXElement | TSESTree.JSXFragment,
   sourceCode: TSESLint.SourceCode,
-): boolean {
-  let foundUnstableValue = false
-
-  traverseAST(
-    node,
-    (current) => {
-      switch (current.type) {
-        case AST_NODE_TYPES.ObjectExpression:
-        case AST_NODE_TYPES.ArrowFunctionExpression:
-        case AST_NODE_TYPES.FunctionExpression:
-        case AST_NODE_TYPES.ArrayExpression:
-          foundUnstableValue = true
-          return true // Stop traversing
+): { hasUnstable: boolean; problematicProps: string[] } {
+  const problematicProps: string[] = []
+  
+  if (node.type === AST_NODE_TYPES.JSXElement) {
+    for (const attr of node.openingElement.attributes) {
+      if (attr.type === AST_NODE_TYPES.JSXAttribute && 
+          attr.name.type === AST_NODE_TYPES.JSXIdentifier &&
+          attr.value?.type === AST_NODE_TYPES.JSXExpressionContainer &&
+          attr.value.expression.type !== AST_NODE_TYPES.JSXEmptyExpression) {
+        
+        const propName = attr.name.name
+        const expression = attr.value.expression
+        
+        // Check if this prop contains unstable values
+        let hasUnstableInProp = false
+        
+        traverseAST(
+          expression,
+          (current) => {
+            switch (current.type) {
+              case AST_NODE_TYPES.ObjectExpression:
+              case AST_NODE_TYPES.ArrowFunctionExpression:
+              case AST_NODE_TYPES.FunctionExpression:
+              case AST_NODE_TYPES.ArrayExpression:
+                hasUnstableInProp = true
+                return true // Stop traversing
+            }
+            return false
+          },
+          sourceCode,
+        )
+        
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- hasUnstableInProp is modified by the traverseAST callback
+        if (hasUnstableInProp) {
+          problematicProps.push(propName)
+        }
       }
-      return false
-    },
-    sourceCode,
-  )
+    }
+  }
 
-  return foundUnstableValue
+  return { hasUnstable: problematicProps.length > 0, problematicProps }
 }
 
 function returnsJSX(
@@ -343,7 +364,7 @@ export const reactOptimizedCollections = createExtendedLintRule<
     },
     messages: {
       unstableValueInMap:
-        'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.',
+        'Unstable values in {{problematicProps}} prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.',
       extractComponent: 'Extract to {{componentName}} component',
     },
     schema: [getJsonSchemaFromZod(optionsSchema)],
@@ -418,9 +439,10 @@ function handleMapCall(
     jsxNode = callback.body.body[0].argument
   }
 
-  if (!jsxNode || !hasUnstableValues(jsxNode, sourceCode)) {
-    return
-  }
+  if (!jsxNode) return
+
+  const unstableCheck = hasUnstableValues(jsxNode, sourceCode)
+  if (!unstableCheck.hasUnstable) return
 
   const componentName = inferComponentName(node, callback.params)
   const paramNames = callback.params.map((param) => {
@@ -436,9 +458,14 @@ function handleMapCall(
       ? findKeyProp(jsxNode, sourceCode)
       : null
 
+  const problematicPropsText = unstableCheck.problematicProps.length === 1 
+    ? `prop "${unstableCheck.problematicProps[0]}"`
+    : `props "${unstableCheck.problematicProps.join('", "')}"` 
+
   context.report({
     node: jsxNode,
     messageId: 'unstableValueInMap',
+    data: { problematicProps: problematicPropsText },
     suggest: [
       {
         messageId: 'extractComponent',
@@ -509,7 +536,8 @@ function handlePushCall(
 
   const jsxNode = firstArg
 
-  if (!hasUnstableValues(jsxNode, sourceCode)) return
+  const unstableCheck = hasUnstableValues(jsxNode, sourceCode)
+  if (!unstableCheck.hasUnstable) return
 
   const componentName = inferComponentNameFromPush(jsxNode)
   const closureVars = extractClosureVariables(jsxNode, [], sourceCode)
@@ -518,9 +546,14 @@ function handlePushCall(
       ? findKeyProp(jsxNode, sourceCode)
       : null
 
+  const problematicPropsText = unstableCheck.problematicProps.length === 1 
+    ? `prop "${unstableCheck.problematicProps[0]}"`
+    : `props "${unstableCheck.problematicProps.join('", "')}"` 
+
   context.report({
     node: jsxNode,
     messageId: 'unstableValueInMap',
+    data: { problematicProps: problematicPropsText },
     suggest: [
       {
         messageId: 'extractComponent',

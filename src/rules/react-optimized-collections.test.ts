@@ -113,7 +113,7 @@ describe('invalid cases - should error and suggest', () => {
     expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'unstableValueInMap'
-        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        msg: 'Unstable values in prop "style" prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
         line: 3
       "
     `)
@@ -161,7 +161,7 @@ describe('invalid cases - should error and suggest', () => {
     expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'unstableValueInMap'
-        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        msg: 'Unstable values in prop "onClick" prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
         line: 3
       "
     `)
@@ -223,7 +223,7 @@ describe('invalid cases - should error and suggest', () => {
     expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'unstableValueInMap'
-        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        msg: 'Unstable values in props "style", "onClick" prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
         line: 8
       "
     `)
@@ -285,7 +285,7 @@ describe('invalid cases - should error and suggest', () => {
     expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'unstableValueInMap'
-        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        msg: 'Unstable values in prop "style" prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
         line: 3
       "
     `)
@@ -327,7 +327,7 @@ describe('invalid cases - should error and suggest', () => {
     expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'unstableValueInMap'
-        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        msg: 'Unstable values in prop "data-tags" prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
         line: 3
       "
     `)
@@ -373,7 +373,7 @@ describe('invalid cases - should error and suggest', () => {
     expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'unstableValueInMap'
-        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        msg: 'Unstable values in prop "style" prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
         line: 5
       "
     `)
@@ -423,7 +423,7 @@ describe('invalid cases - should error and suggest', () => {
     expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
       - messageId: 'unstableValueInMap'
-        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        msg: 'Unstable values in prop "onClick" prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
         line: 5
       "
     `)
@@ -527,7 +527,7 @@ test('runOnlyWithEnableCompilerDirective option works', async () => {
   expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
     - messageId: 'unstableValueInMap'
-      msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+      msg: 'Unstable values in prop "style" prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
       line: 4
     "
   `)
