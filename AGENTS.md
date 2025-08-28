@@ -53,10 +53,11 @@ test('invalid case description', async () => {
 
     export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
   `)
+
+  // use getErrorsFromResult(result, true) to include final message in the snapshot
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
     - messageId: 'moveTypeAboveUsage'
-      data: 'Type definition should be placed directly above its first usage.'
       line: 5
     "
   `)
