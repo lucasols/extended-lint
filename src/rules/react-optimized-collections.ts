@@ -12,6 +12,9 @@ const hasEnableCompilerDirectiveRegex =
 
 const NUMERIC_PATTERN = /^\d+$/
 const SPLIT_PATTERN = /[\s_-]+/
+const CAMEL_CASE_PATTERN = /[a-z][A-Z]/
+const COMPOUND_WORD_PATTERN = /^(.+?)([A-Z][a-z]+s?)$/
+const ALREADY_CAMEL_CASE_PATTERN = /^[a-z][a-zA-Z]*$/
 
 function hasUnstableValues(
   node: TSESTree.JSXElement | TSESTree.JSXFragment,
@@ -128,6 +131,29 @@ function singularize(word: string): string {
   const irregular = irregulars[word.toLowerCase()]
   if (irregular) return irregular
 
+  // Handle compound words like userAccounts, productCategories, etc.
+  // Look for known pluralization patterns at the end
+  if (word.match(CAMEL_CASE_PATTERN)) { // camelCase detected
+    // Try to find the last capitalized word
+    const match = word.match(COMPOUND_WORD_PATTERN);
+    if (match) {
+      const prefix = match[1];
+      const suffix = match[2];
+      
+      if (!prefix || !suffix) return singularizeSimple(word);
+      
+      const singularSuffix = singularizeSimple(suffix);
+      
+      if (singularSuffix !== suffix) {
+        return prefix + singularSuffix;
+      }
+    }
+  }
+
+  return singularizeSimple(word)
+}
+
+function singularizeSimple(word: string): string {
   if (word.endsWith('ies')) return `${word.slice(0, -3)}y`
   if (word.endsWith('es') && word.length > 3) {
     return word.slice(0, -2)
@@ -135,11 +161,17 @@ function singularize(word: string): string {
   if (word.endsWith('s') && word.length > 1) {
     return word.slice(0, -1)
   }
-
+  
   return word
 }
 
 function pascalCase(str: string): string {
+  // If already in camelCase, just capitalize the first letter
+  if (str.match(ALREADY_CAMEL_CASE_PATTERN)) {
+    return str.charAt(0).toUpperCase() + str.slice(1)
+  }
+  
+  // Otherwise split and recombine
   return str
     .split(SPLIT_PATTERN)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())

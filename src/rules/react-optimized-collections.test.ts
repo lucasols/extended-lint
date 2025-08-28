@@ -292,18 +292,53 @@ describe('invalid cases - should error and suggest', () => {
     expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
       "function UserList({ userAccounts }) {
         return userAccounts.map(account => (
-          <Useraccount key={account.id} account={account} />
+          <UserAccount key={account.id} account={account} />
         ));
       }
 
-      type UseraccountProps = {
-        account: UseraccountType;
+      type UserAccountProps = {
+        account: UserAccountType;
       };
 
-      const Useraccount: FC<UseraccountProps> = ({ account }) => {
+      const UserAccount: FC<UserAccountProps> = ({ account }) => {
         return (
           <div key={account.id} style={{ padding: 5 }}>
             {account.name}
+          </div>
+        );
+      };"
+    `)
+  })
+
+  test('advanced name inference patterns', async () => {
+    const { result } = await invalid({
+      code: dedent`
+        function ProductList({ productCategories, blogPosts, adminUsers }) {
+          return productCategories.map(category => (
+            <div key={category.id} style={{ margin: 10 }}>
+              {category.name}
+            </div>
+          ));
+        }
+      `,
+      options: [{ runOnlyWithEnableCompilerDirective: false }],
+    })
+
+    expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
+      "function ProductList({ productCategories, blogPosts, adminUsers }) {
+        return productCategories.map(category => (
+          <ProductCategory key={category.id} category={category} />
+        ));
+      }
+
+      type ProductCategoryProps = {
+        category: ProductCategoryType;
+      };
+
+      const ProductCategory: FC<ProductCategoryProps> = ({ category }) => {
+        return (
+          <div key={category.id} style={{ margin: 10 }}>
+            {category.name}
           </div>
         );
       };"
