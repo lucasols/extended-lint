@@ -15,7 +15,6 @@ import {
 } from 'eslint-vitest-rule-tester'
 import { fileURLToPath } from 'node:url'
 
-
 const newlineOnlyRegex = /^\n+$/
 
 const ruleTester = new RuleTester({
@@ -44,6 +43,16 @@ export function getErrorsFromResult(
     result.messages.map((m) => ({
       messageId: m.messageId,
       data: includeData ? m.message : undefined,
+      line: m.line,
+    })),
+  )
+}
+
+export function getErrorsWithMsgFromResult(result: TestExecutionResult) {
+  return compactSnapshot(
+    result.messages.map((m) => ({
+      messageId: m.messageId,
+      msg: m.message,
       line: m.line,
     })),
   )
@@ -408,11 +417,14 @@ export function getSuggestionOutput(
     throw new Error('No suggestion found')
   }
 
-  const originalSource = result.steps.length > 0 ? result.steps[0]?.output ?? result.output : result.output
+  const originalSource =
+    result.steps.length > 0
+      ? result.steps[0]?.output ?? result.output
+      : result.output
   const fix = suggestion.fix
 
   const before = originalSource.slice(0, fix.range[0])
   const after = originalSource.slice(fix.range[1])
-  
+
   return before + fix.text + after
 }

@@ -2,7 +2,7 @@ import { dedent } from '@ls-stack/utils/dedent'
 import { describe, expect, test } from 'vitest'
 import {
   createNewTester,
-  getErrorsFromResult,
+  getErrorsWithMsgFromResult,
   getSuggestionOutput,
 } from '../../tests/utils/createTester'
 import { reactOptimizedCollections } from './react-optimized-collections'
@@ -110,9 +110,11 @@ describe('invalid cases - should error and suggest', () => {
       options: [{ runOnlyWithEnableCompilerDirective: false }],
     })
 
-    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
-      - { messageId: 'unstableValueInMap', line: 3 }
+      - messageId: 'unstableValueInMap'
+        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        line: 3
       "
     `)
     expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
@@ -156,9 +158,11 @@ describe('invalid cases - should error and suggest', () => {
       options: [{ runOnlyWithEnableCompilerDirective: false }],
     })
 
-    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
-      - { messageId: 'unstableValueInMap', line: 3 }
+      - messageId: 'unstableValueInMap'
+        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        line: 3
       "
     `)
     expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
@@ -170,7 +174,7 @@ describe('invalid cases - should error and suggest', () => {
 
       type TodoProps = {
         todo: TodoType;
-        onDelete: (...args: any[]) => void;
+        onDelete: unknown;
       };
 
       const Todo: FC<TodoProps> = ({ todo, onDelete }) => {
@@ -216,9 +220,11 @@ describe('invalid cases - should error and suggest', () => {
       options: [{ runOnlyWithEnableCompilerDirective: false }],
     })
 
-    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
-      - { messageId: 'unstableValueInMap', line: 8 }
+      - messageId: 'unstableValueInMap'
+        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        line: 8
       "
     `)
     expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
@@ -238,9 +244,9 @@ describe('invalid cases - should error and suggest', () => {
       type ProductProps = {
         product: ProductType;
         index: number;
-        handleClick: any;
-        currency: any;
-        theme: any;
+        handleClick: unknown;
+        currency: unknown;
+        theme: unknown;
       };
 
       const Product: FC<ProductProps> = ({ product, index, handleClick, currency, theme }) => {
@@ -276,9 +282,11 @@ describe('invalid cases - should error and suggest', () => {
       options: [{ runOnlyWithEnableCompilerDirective: false }],
     })
 
-    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
-      - { messageId: 'unstableValueInMap', line: 3 }
+      - messageId: 'unstableValueInMap'
+        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        line: 3
       "
     `)
     expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
@@ -316,9 +324,11 @@ describe('invalid cases - should error and suggest', () => {
       options: [{ runOnlyWithEnableCompilerDirective: false }],
     })
 
-    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
       "
-      - { messageId: 'unstableValueInMap', line: 3 }
+      - messageId: 'unstableValueInMap'
+        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        line: 3
       "
     `)
     expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
@@ -340,6 +350,143 @@ describe('invalid cases - should error and suggest', () => {
         );
       };"
     `)
+  })
+
+  test('array.push with inline object', async () => {
+    const { result } = await invalid({
+      code: dedent`
+        function buildList(items) {
+          const elements = [];
+          for (const item of items) {
+            elements.push(
+              <div key={item.id} style={{ padding: 10 }}>
+                {item.name}
+              </div>
+            );
+          }
+          return elements;
+        }
+      `,
+      options: [{ runOnlyWithEnableCompilerDirective: false }],
+    })
+
+    expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'unstableValueInMap'
+        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        line: 5
+      "
+    `)
+    expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
+      "function buildList(items) {
+        const elements = [];
+        for (const item of items) {
+          elements.push(
+            <ListItem key={item.id} item={item} />
+          );
+        }
+        return elements;
+      }
+
+      type ListItemProps = {
+        item: unknown;
+      };
+
+      const ListItem: FC<ListItemProps> = ({ item }) => {
+        return (
+          <div key={item.id} style={{ padding: 10 }}>
+              {item.name}
+            </div>
+        );
+      };"
+    `)
+  })
+
+  test('array.push with inline function', async () => {
+    const { result } = await invalid({
+      code: dedent`
+        function buildList(items, onDelete) {
+          const elements = [];
+          for (const item of items) {
+            elements.push(
+              <div key={item.id} onClick={() => onDelete(item.id)}>
+                {item.name}
+              </div>
+            );
+          }
+          return elements;
+        }
+      `,
+      options: [{ runOnlyWithEnableCompilerDirective: false }],
+    })
+
+    expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - messageId: 'unstableValueInMap'
+        msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+        line: 5
+      "
+    `)
+    expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
+      "function buildList(items, onDelete) {
+        const elements = [];
+        for (const item of items) {
+          elements.push(
+            <ListItem key={item.id} item={item} onDelete={onDelete} />
+          );
+        }
+        return elements;
+      }
+
+      type ListItemProps = {
+        item: unknown;
+        onDelete: unknown;
+      };
+
+      const ListItem: FC<ListItemProps> = ({ item, onDelete }) => {
+        return (
+          <div key={item.id} onClick={() => onDelete(item.id)}>
+              {item.name}
+            </div>
+        );
+      };"
+    `)
+  })
+})
+
+describe('array.push cases - valid (no errors)', () => {
+  test('array.push with stable values', async () => {
+    await valid(
+      dedent`
+        function buildList(items, className) {
+          const elements = [];
+          for (const item of items) {
+            elements.push(
+              <div key={item.id} className={className}>
+                {item.name}
+              </div>
+            );
+          }
+          return elements;
+        }
+      `,
+    )
+  })
+
+  test('array.push with already extracted component', async () => {
+    await valid(
+      dedent`
+        const ListItem = ({ item }) => <div>{item.name}</div>;
+        
+        function buildList(items) {
+          const elements = [];
+          for (const item of items) {
+            elements.push(<ListItem key={item.id} item={item} />);
+          }
+          return elements;
+        }
+      `,
+    )
   })
 })
 
@@ -377,9 +524,11 @@ test('runOnlyWithEnableCompilerDirective option works', async () => {
     options: [{ runOnlyWithEnableCompilerDirective: true }],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'unstableValueInMap', line: 4 }
+    - messageId: 'unstableValueInMap'
+      msg: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract the problematic props to outside the loop or extract the item to a separate component.'
+      line: 4
     "
   `)
 })
