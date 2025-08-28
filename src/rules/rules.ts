@@ -27,6 +27,7 @@ import { preferReactHookAlternative } from './prefer-react-hook-alternative'
 import { preferSingleLineIf } from './prefer-single-line-if'
 import { reactCompilerExtra } from './react-compiler-extra'
 import { reactCompilerMigration } from './react-compiler-migration'
+import { reactCompilerOptimizedCollections } from './react-compiler-optimized-collections'
 import { requireDescription } from './require-description'
 import { requireReadsToVarProp } from './require-reads-to-var-prop'
 import { rulesOfHooksESLintRule } from './rules-of-hooks'
@@ -55,6 +56,8 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [collapseSimpleObjsInOneLine.name]: collapseSimpleObjsInOneLine.rule,
   [reactCompilerMigration.name]: reactCompilerMigration.rule,
   [reactCompilerExtra.name]: reactCompilerExtra.rule,
+  [reactCompilerOptimizedCollections.name]:
+    reactCompilerOptimizedCollections.rule,
   [improvedNoUnnecessaryCondition.name]: improvedNoUnnecessaryCondition.rule,
   [noUnnecessaryCasting.name]: noUnnecessaryCasting.rule,
   [noUnnecessaryTyping.name]: noUnnecessaryTyping.rule,
