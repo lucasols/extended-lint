@@ -1,0 +1,384 @@
+import {
+  AST_NODE_TYPES,
+  TSESLint,
+  TSESTree,
+} from '@typescript-eslint/utils'
+import { z } from 'zod'
+import { traverseAST } from '../astUtils'
+import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
+
+const optionsSchema = z.object({
+  runOnlyWithEnableCompilerDirective: z.boolean().optional(),
+})
+
+const hasEnableCompilerDirectiveRegex =
+  /eslint +react-compiler\/react-compiler: +\["error/
+
+const NUMERIC_PATTERN = /^\d+$/
+const SPLIT_PATTERN = /[\s_-]+/
+
+function hasUnstableValues(node: TSESTree.JSXElement | TSESTree.JSXFragment, sourceCode: TSESLint.SourceCode): boolean {
+  let foundUnstableValue = false
+
+  traverseAST(node, (current) => {
+    switch (current.type) {
+      case AST_NODE_TYPES.ObjectExpression:
+      case AST_NODE_TYPES.ArrowFunctionExpression:
+      case AST_NODE_TYPES.FunctionExpression:
+      case AST_NODE_TYPES.ArrayExpression:
+        foundUnstableValue = true
+        return true // Stop traversing
+    }
+    return false
+  }, sourceCode)
+
+  return foundUnstableValue
+}
+
+function returnsJSX(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): boolean {
+  if (node.body.type === AST_NODE_TYPES.JSXElement || node.body.type === AST_NODE_TYPES.JSXFragment) {
+    return true
+  }
+
+  if (node.body.type === AST_NODE_TYPES.BlockStatement) {
+    for (const stmt of node.body.body) {
+      if (stmt.type === AST_NODE_TYPES.ReturnStatement && stmt.argument) {
+        if (stmt.argument.type === AST_NODE_TYPES.JSXElement || stmt.argument.type === AST_NODE_TYPES.JSXFragment) {
+          return true
+        }
+      }
+    }
+  }
+
+  return false
+}
+
+function inferComponentName(
+  callNode: TSESTree.CallExpression,
+  params: TSESTree.Parameter[]
+): string {
+  const callee = callNode.callee
+  
+  if (callee.type === AST_NODE_TYPES.MemberExpression) {
+    const object = callee.object
+    
+    if (object.type === AST_NODE_TYPES.Identifier) {
+      const arrayName = object.name
+      
+      const singularized = singularize(arrayName)
+      if (singularized !== arrayName) {
+        return pascalCase(singularized)
+      }
+    }
+  }
+
+  if (params.length > 0) {
+    const firstParam = params[0]
+    if (firstParam && firstParam.type === AST_NODE_TYPES.Identifier) {
+      return pascalCase(firstParam.name)
+    }
+  }
+
+  return 'ListItem'
+}
+
+function singularize(word: string): string {
+  const irregulars: Record<string, string> = {
+    people: 'person',
+    children: 'child',
+    feet: 'foot',
+    teeth: 'tooth',
+    mice: 'mouse',
+    men: 'man',
+    women: 'woman',
+  }
+
+  const irregular = irregulars[word.toLowerCase()]
+  if (irregular) return irregular
+
+  if (word.endsWith('ies')) return `${word.slice(0, -3)  }y`
+  if (word.endsWith('es') && word.length > 3) {
+    return word.slice(0, -2)
+  }
+  if (word.endsWith('s') && word.length > 1) {
+    return word.slice(0, -1)
+  }
+  
+  return word
+}
+
+function pascalCase(str: string): string {
+  return str
+    .split(SPLIT_PATTERN)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('')
+}
+
+function extractClosureVariables(
+  jsxNode: TSESTree.JSXElement | TSESTree.JSXFragment,
+  mapParams: string[],
+  sourceCode: TSESLint.SourceCode
+): { name: string; type: string }[] {
+  const closureVars: { name: string; type: string }[] = []
+  const usedVars = new Set<string>()
+  
+  // Known built-in identifiers that should not be considered closure variables
+  const builtIns = new Set(['console', 'document', 'window', 'Math', 'Object', 'Array', 'String', 'Number', 'Boolean', 'undefined', 'null'])
+
+  traverseAST(jsxNode, (node) => {
+    if (node.type === AST_NODE_TYPES.Identifier && 
+        !mapParams.includes(node.name) && 
+        !builtIns.has(node.name) &&
+        !NUMERIC_PATTERN.test(node.name)) {
+      
+      const parent = node.parent
+      
+      // Skip object property keys (like 'padding' in {padding: 10})
+      if (parent.type === AST_NODE_TYPES.Property && parent.key === node) {
+        return false
+      }
+      
+      // Skip object property names in member expressions (like 'id' in todo.id)
+      if (parent.type === AST_NODE_TYPES.MemberExpression && 
+          parent.property === node && !parent.computed) {
+        return false
+      }
+      
+      // Skip JSX tag names  
+      if (parent.type === AST_NODE_TYPES.JSXOpeningElement || 
+          parent.type === AST_NODE_TYPES.JSXClosingElement) {
+        return false
+      }
+      
+      // Skip JSX attribute names (like 'key' in key={...})
+      if (parent.type === AST_NODE_TYPES.JSXAttribute && 
+          parent.name.type === AST_NODE_TYPES.JSXIdentifier && 
+          parent.name.name === node.name) {
+        return false
+      }
+      
+      usedVars.add(node.name)
+    }
+    return false
+  }, sourceCode)
+
+  for (const varName of usedVars) {
+    if (!mapParams.includes(varName)) {
+      closureVars.push({ name: varName, type: 'any' })
+    }
+  }
+
+  return closureVars
+}
+
+function generateComponent(
+  componentName: string,
+  jsxNode: TSESTree.JSXElement | TSESTree.JSXFragment,
+  mapParams: TSESTree.Parameter[],
+  closureVars: { name: string; type: string }[],
+  sourceCode: TSESLint.SourceCode
+): string {
+  const paramNames = mapParams.map(param => {
+    if (param.type === AST_NODE_TYPES.Identifier) {
+      return param.name
+    }
+    return 'item'
+  })
+
+  const props = [
+    ...paramNames.map((name, index) => ({
+      name,
+      type: index === 0 ? `${componentName}Type` : index === 1 ? 'number' : 'any'
+    })),
+    ...closureVars
+  ]
+
+  const propsInterface = props.map(prop => {
+    let propType = prop.type
+    if (prop.name.includes('on') && propType === 'any') {
+      propType = '(...args: any[]) => void'
+    }
+    return `  ${prop.name}: ${propType};`
+  }).join('\n')
+
+  const propsDestructured = props.map(prop => prop.name).join(', ')
+  const jsxText = sourceCode.getText(jsxNode)
+  const propsTypeName = `${componentName}Props`
+
+  return `type ${propsTypeName} = {
+${propsInterface}
+};
+
+const ${componentName}: FC<${propsTypeName}> = ({ ${propsDestructured} }) => {
+  return (
+    ${jsxText}
+  );
+};`
+}
+
+function generateMapReplacement(
+  componentName: string,
+  mapParams: TSESTree.Parameter[],
+  closureVars: { name: string; type: string }[],
+  keyProp: string | null
+): string {
+  const paramNames = mapParams.map(param => {
+    if (param.type === AST_NODE_TYPES.Identifier) {
+      return param.name
+    }
+    return 'item'
+  })
+
+  const props = [
+    keyProp ? `key={${keyProp}}` : `key={${paramNames[0]}.id}`,
+    ...paramNames.map(name => `${name}={${name}}`),
+    ...closureVars.map(v => `${v.name}={${v.name}}`)
+  ].filter(Boolean)
+
+  return `<${componentName} ${props.join(' ')} />`
+}
+
+function findKeyProp(jsxNode: TSESTree.JSXElement, sourceCode: TSESLint.SourceCode): string | null {
+  for (const attr of jsxNode.openingElement.attributes) {
+    if (attr.type === AST_NODE_TYPES.JSXAttribute && 
+        attr.name.type === AST_NODE_TYPES.JSXIdentifier && 
+        attr.name.name === 'key' &&
+        attr.value &&
+        attr.value.type === AST_NODE_TYPES.JSXExpressionContainer &&
+        attr.value.expression.type !== AST_NODE_TYPES.JSXEmptyExpression) {
+      return sourceCode.getText(attr.value.expression)
+    }
+  }
+  return null
+}
+
+type Options = z.infer<typeof optionsSchema>
+
+export const reactOptimizedCollections = createExtendedLintRule<[Options], 'unstableValueInMap' | 'extractComponent'>({
+  name: 'react-optimized-collections',
+  meta: {
+    type: 'suggestion',
+    docs: {
+      description: 'Detect unstable values in map renders that prevent React Compiler optimization',
+    },
+    messages: {
+      unstableValueInMap: 'Unstable values in map render prevent React Compiler from optimizing individual list items. Extract to a separate component.',
+      extractComponent: 'Extract to {{componentName}} component',
+    },
+    schema: [getJsonSchemaFromZod(optionsSchema)],
+    hasSuggestions: true,
+  },
+  defaultOptions: [{ runOnlyWithEnableCompilerDirective: false }],
+  create(context, [options]) {
+    const { sourceCode } = context
+    
+    if (options.runOnlyWithEnableCompilerDirective) {
+      let isEnabled = false
+      for (const comment of sourceCode.getAllComments()) {
+        if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
+          isEnabled = true
+          break
+        }
+      }
+      if (!isEnabled) return {}
+    }
+
+    return {
+      CallExpression(node) {
+        if (node.callee.type === AST_NODE_TYPES.MemberExpression &&
+            node.callee.property.type === AST_NODE_TYPES.Identifier &&
+            node.callee.property.name === 'map') {
+          
+          const callback = node.arguments[0]
+          if (!callback || 
+              (callback.type !== AST_NODE_TYPES.ArrowFunctionExpression && 
+               callback.type !== AST_NODE_TYPES.FunctionExpression)) {
+            return
+          }
+
+          if (!returnsJSX(callback)) return
+
+          let jsxNode: TSESTree.JSXElement | TSESTree.JSXFragment | null = null
+          
+          if (callback.body.type === AST_NODE_TYPES.JSXElement || 
+              callback.body.type === AST_NODE_TYPES.JSXFragment) {
+            jsxNode = callback.body
+          } else if (callback.body.type === AST_NODE_TYPES.BlockStatement && 
+                     callback.body.body[0]?.type === AST_NODE_TYPES.ReturnStatement && 
+                     callback.body.body[0].argument &&
+                     (callback.body.body[0].argument.type === AST_NODE_TYPES.JSXElement ||
+                      callback.body.body[0].argument.type === AST_NODE_TYPES.JSXFragment)) {
+            jsxNode = callback.body.body[0].argument
+          }
+
+          if (!jsxNode || !hasUnstableValues(jsxNode, sourceCode)) {
+            return
+          }
+
+          const componentName = inferComponentName(node, callback.params)
+          const paramNames = callback.params.map(param => {
+            if (param.type === AST_NODE_TYPES.Identifier) {
+              return param.name
+            }
+            return 'item'
+          })
+          
+          const closureVars = extractClosureVariables(jsxNode, paramNames, sourceCode)
+          const keyProp = jsxNode.type === AST_NODE_TYPES.JSXElement ? findKeyProp(jsxNode, sourceCode) : null
+
+          context.report({
+            node: jsxNode,
+            messageId: 'unstableValueInMap',
+            suggest: [
+              {
+                messageId: 'extractComponent',
+                data: { componentName },
+                fix: (fixer) => {
+                  const componentCode = generateComponent(
+                    componentName, 
+                    jsxNode, 
+                    callback.params, 
+                    closureVars, 
+                    sourceCode
+                  )
+                  
+                  const mapReplacement = generateMapReplacement(
+                    componentName,
+                    callback.params,
+                    closureVars,
+                    keyProp
+                  )
+
+                  // Find the containing function to insert the component before it
+                  let containingFunction: TSESTree.Node = node
+                  
+                  // Traverse up to find the containing function declaration
+                  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- parent can be null at top level
+                  while (containingFunction.parent && 
+                         containingFunction.parent.type !== AST_NODE_TYPES.Program) {
+                    if (containingFunction.type === AST_NODE_TYPES.FunctionDeclaration ||
+                        (containingFunction.type === AST_NODE_TYPES.VariableDeclarator &&
+                         containingFunction.init &&
+                         (containingFunction.init.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+                          containingFunction.init.type === AST_NODE_TYPES.FunctionExpression))) {
+                      break
+                    }
+                    containingFunction = containingFunction.parent
+                  }
+
+                  const fixes: TSESLint.RuleFix[] = []
+
+                  fixes.push(fixer.insertTextAfter(containingFunction, `\n\n${componentCode}`))
+
+                  fixes.push(fixer.replaceText(jsxNode, mapReplacement))
+
+                  return fixes
+                }
+              }
+            ]
+          })
+        }
+      }
+    }
+  }
+})
