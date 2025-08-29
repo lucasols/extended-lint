@@ -1066,4 +1066,84 @@ describe('string assertions', () => {
       `,
     )
   })
+
+  test('valid optional chaining startsWith on possibly undefined', async () => {
+    await valid(
+      dedent`
+        function test(text: string | undefined) {
+          if (text?.startsWith('a')) {
+            console.log('maybe starts with a')
+          }
+        }
+      `,
+    )
+  })
+
+  test('always false startsWith with optional chaining on literal string', async () => {
+    const { result } = await invalid(
+      dedent`
+        const status: 'active' = 'active'
+        if (status?.startsWith('xyz')) {
+          console.log('never happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'alwaysFalseStartsWithCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('always true startsWith with optional chaining on literal string', async () => {
+    const { result } = await invalid(
+      dedent`
+        const status: 'active' = 'active'
+        if (status?.startsWith('act')) {
+          console.log('always happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'unnecessaryStartsWithCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('always false endsWith with optional chaining on union type', async () => {
+    const { result } = await invalid(
+      dedent`
+        const status: 'active' | 'inactive' = 'active' as 'active' | 'inactive'
+        if (status?.endsWith('xyz')) {
+          console.log('never happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'alwaysFalseEndsWithCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('always true endsWith with optional chaining on union type', async () => {
+    const { result } = await invalid(
+      dedent`
+        const status: 'active' | 'inactive' = 'active' as 'active' | 'inactive'
+        if (status?.endsWith('e')) {
+          console.log('always happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'unnecessaryEndsWithCondition', line: 2 }
+      "
+    `)
+  })
 })
