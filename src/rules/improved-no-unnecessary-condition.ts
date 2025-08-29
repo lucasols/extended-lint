@@ -6,6 +6,7 @@ import {
 } from '@typescript-eslint/utils'
 import ts from 'typescript'
 import { z } from 'zod/v4'
+import { traverseAST } from '../astUtils'
 import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
@@ -38,7 +39,16 @@ export const improvedNoUnnecessaryCondition = {
   name,
   rule: createRule<
     [Options],
-    'unnecessaryTypeofCondition' | 'alwaysFalseTypeofCondition'
+    | 'unnecessaryTypeofCondition'
+    | 'alwaysFalseTypeofCondition'
+    | 'unnecessaryStartsWithCondition'
+    | 'alwaysFalseStartsWithCondition'
+    | 'unnecessaryEndsWithCondition'
+    | 'alwaysFalseEndsWithCondition'
+    | 'unnecessaryIncludesCondition'
+    | 'alwaysFalseIncludesCondition'
+    | 'unnecessaryLengthCondition'
+    | 'alwaysFalseLengthCondition'
   >({
     name,
     meta: {
@@ -51,6 +61,22 @@ export const improvedNoUnnecessaryCondition = {
           'This condition is unnecessary. The type of "{{name}}" is always "{{type}}".',
         alwaysFalseTypeofCondition:
           'This condition will always be false. The type of "{{name}}" is "{{actualType}}" so the condition has no overlap with "{{conditionType}}".',
+        unnecessaryStartsWithCondition:
+          'This startsWith check is unnecessary as it always evaluates to true.',
+        alwaysFalseStartsWithCondition:
+          'This startsWith check will always be false.',
+        unnecessaryEndsWithCondition:
+          'This endsWith check is unnecessary as it always evaluates to true.',
+        alwaysFalseEndsWithCondition:
+          'This endsWith check will always be false.',
+        unnecessaryIncludesCondition:
+          'This includes check is unnecessary as it always evaluates to true.',
+        alwaysFalseIncludesCondition:
+          'This includes check will always be false.',
+        unnecessaryLengthCondition:
+          'This length comparison is unnecessary as it always evaluates to true.',
+        alwaysFalseLengthCondition:
+          'This length comparison will always be false.',
       },
       schema: [getJsonSchemaFromZod(optionsSchema)],
     },
@@ -66,7 +92,8 @@ export const improvedNoUnnecessaryCondition = {
 
       function isTypeofExpression(
         node: TSESTree.Node,
-      ): node is TSESTree.UnaryExpression { // eslint-disable-line @ls-stack/no-type-guards -- necessary type guard for AST node type checking
+        // eslint-disable-next-line @ls-stack/no-type-guards -- necessary type guard for AST node type checking
+      ): node is TSESTree.UnaryExpression {
         return (
           node.type === AST_NODE_TYPES.UnaryExpression &&
           node.operator === 'typeof'
@@ -319,8 +346,255 @@ export const improvedNoUnnecessaryCondition = {
         }
       }
 
+      function getStringLiteralValuesFromType(type: ts.Type): string[] | null {
+        if (
+          type.flags & ts.TypeFlags.Any ||
+          type.flags & ts.TypeFlags.Unknown
+        ) {
+          return null
+        }
+
+        if (type.isUnion()) {
+          const values: string[] = []
+          for (const t of type.types) {
+            if (t.flags & ts.TypeFlags.StringLiteral) {
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe access to StringLiteralType value
+              const literal = (t as ts.StringLiteralType).value
+              values.push(literal)
+            } else {
+              return null
+            }
+          }
+          return values
+        }
+
+        if (type.flags & ts.TypeFlags.StringLiteral) {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe access to StringLiteralType value
+          const literal = (type as ts.StringLiteralType).value
+          return [literal]
+        }
+
+        return null
+      }
+
+      function getStringLiteralValuesFromExpression(
+        node: TSESTree.Expression,
+      ): string[] | null {
+        if (!checker) return null
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe conversion from ESTree to TS node
+        const tsNode = parserServices.esTreeNodeToTSNodeMap.get(
+          node,
+        ) as ts.Expression
+        const typeAtLoc = checker.getTypeAtLocation(tsNode)
+        const fromLoc = getStringLiteralValuesFromType(typeAtLoc)
+        if (fromLoc) return fromLoc
+
+        const symbol = checker.getSymbolAtLocation(tsNode)
+        if (symbol) {
+          const typeOfSym = checker.getTypeOfSymbolAtLocation(symbol, tsNode)
+          const fromSym = getStringLiteralValuesFromType(typeOfSym)
+          if (fromSym) return fromSym
+        }
+
+        return null
+      }
+
+      function getStringLiteralValuesFromIdentifierAnnotation(
+        id: TSESTree.Identifier,
+      ): string[] | null {
+        const programNode = context.sourceCode.ast
+        let found: string[] | null = null
+
+        traverseAST(
+          programNode,
+          (n) => {
+            if (
+              n.type === AST_NODE_TYPES.VariableDeclarator &&
+              n.id.type === AST_NODE_TYPES.Identifier &&
+              n.id.name === id.name &&
+              n.id.typeAnnotation
+            ) {
+              const t = n.id.typeAnnotation.typeAnnotation
+              if (t.type === AST_NODE_TYPES.TSUnionType) {
+                const values: string[] = []
+                for (const tt of t.types) {
+                  if (
+                    tt.type === AST_NODE_TYPES.TSLiteralType &&
+                    tt.literal.type === AST_NODE_TYPES.Literal &&
+                    typeof tt.literal.value === 'string'
+                  ) {
+                    values.push(tt.literal.value)
+                  } else {
+                    return true
+                  }
+                }
+                found = values
+                return true
+              }
+              if (
+                t.type === AST_NODE_TYPES.TSLiteralType &&
+                t.literal.type === AST_NODE_TYPES.Literal &&
+                typeof t.literal.value === 'string'
+              ) {
+                found = [t.literal.value]
+                return true
+              }
+            }
+            return false
+          },
+          context.sourceCode,
+        )
+
+        return found
+      }
+
+      function checkStringAssertions(node: TSESTree.CallExpression) {
+        if (
+          node.callee.type !== AST_NODE_TYPES.MemberExpression ||
+          node.callee.property.type !== AST_NODE_TYPES.Identifier ||
+          node.callee.computed
+        )
+          return
+
+        const method = node.callee.property.name
+        if (
+          method !== 'startsWith' &&
+          method !== 'endsWith' &&
+          method !== 'includes'
+        )
+          return
+
+        if (node.arguments.length !== 1) return
+        const [firstArg] = node.arguments
+        if (
+          !firstArg ||
+          firstArg.type !== AST_NODE_TYPES.Literal ||
+          typeof firstArg.value !== 'string'
+        )
+          return
+
+        const objectExpr = node.callee.object
+        let possibleValues = getStringLiteralValuesFromExpression(objectExpr)
+        if (!possibleValues && objectExpr.type === AST_NODE_TYPES.Identifier) {
+          possibleValues =
+            getStringLiteralValuesFromIdentifierAnnotation(objectExpr)
+        }
+        if (!possibleValues || possibleValues.length === 0) return
+
+        const search = firstArg.value
+        if (method === 'includes' && possibleValues.length > 1) return
+        let trues = 0
+        let falses = 0
+        for (const v of possibleValues) {
+          const result =
+            method === 'startsWith'
+              ? v.startsWith(search)
+              : method === 'endsWith'
+              ? v.endsWith(search)
+              : v.includes(search)
+          if (result) trues++
+          else falses++
+          if (trues > 0 && falses > 0) return
+        }
+
+        if (trues > 0 && falses === 0) {
+          const id =
+            method === 'startsWith'
+              ? 'unnecessaryStartsWithCondition'
+              : method === 'endsWith'
+              ? 'unnecessaryEndsWithCondition'
+              : 'unnecessaryIncludesCondition'
+          context.report({ node, messageId: id })
+        } else if (falses > 0 && trues === 0) {
+          const id =
+            method === 'startsWith'
+              ? 'alwaysFalseStartsWithCondition'
+              : method === 'endsWith'
+              ? 'alwaysFalseEndsWithCondition'
+              : 'alwaysFalseIncludesCondition'
+          context.report({ node, messageId: id })
+        }
+      }
+
+      function checkStringLengthComparison(node: TSESTree.BinaryExpression) {
+        const numericOperators = new Set(['===', '!==', '>', '>=', '<', '<='])
+        if (!numericOperators.has(node.operator)) return
+
+        function getLengthInfo(
+          expr: TSESTree.Node,
+        ): { values: number[] } | null {
+          if (
+            expr.type !== AST_NODE_TYPES.MemberExpression ||
+            expr.computed ||
+            expr.property.type !== AST_NODE_TYPES.Identifier ||
+            expr.property.name !== 'length'
+          )
+            return null
+          const obj = expr.object
+          const strings = getStringLiteralValuesFromExpression(
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- acceptable cast for AST union
+            obj as unknown as TSESTree.Expression,
+          )
+          if (!strings || strings.length === 0) return null
+          const lengths: number[] = []
+          for (const s of strings) lengths.push(s.length)
+          return { values: lengths }
+        }
+
+        const leftLen = getLengthInfo(node.left)
+        const rightLen = getLengthInfo(node.right)
+
+        let lens: number[] | null = null
+        let literal: number | null = null
+
+        if (leftLen) {
+          if (
+            node.right.type === AST_NODE_TYPES.Literal &&
+            typeof node.right.value === 'number'
+          ) {
+            lens = leftLen.values
+            literal = node.right.value
+          }
+        } else if (rightLen) {
+          if (
+            node.left.type === AST_NODE_TYPES.Literal &&
+            typeof node.left.value === 'number'
+          ) {
+            lens = rightLen.values
+            literal = node.left.value
+          }
+        }
+
+        if (!lens || literal === null) return
+
+        let trues = 0
+        let falses = 0
+        for (const l of lens) {
+          let result = false
+          if (node.operator === '===') result = l === literal
+          else if (node.operator === '!==') result = l !== literal
+          else if (node.operator === '>') result = l > literal
+          else if (node.operator === '>=') result = l >= literal
+          else if (node.operator === '<') result = l < literal
+          else if (node.operator === '<=') result = l <= literal
+          if (result) trues++
+          else falses++
+          if (trues > 0 && falses > 0) return
+        }
+
+        if (trues > 0 && falses === 0) {
+          context.report({ node, messageId: 'unnecessaryLengthCondition' })
+        } else if (falses > 0 && trues === 0) {
+          context.report({ node, messageId: 'alwaysFalseLengthCondition' })
+        }
+      }
+
       return {
-        BinaryExpression: checkBinaryExpression,
+        BinaryExpression(node) {
+          checkBinaryExpression(node)
+          checkStringLengthComparison(node)
+        },
+        CallExpression: checkStringAssertions,
       }
     },
   }),
@@ -346,7 +620,8 @@ function getNodeText(
 function narrowStringToUnion<T extends string>(
   value: string,
   validValues: Set<T>,
-): value is T { // eslint-disable-line @ls-stack/no-type-guards -- necessary type guard for string union narrowing
+): value is T {
+  // eslint-disable-line @ls-stack/no-type-guards -- necessary type guard for string union narrowing
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe cast for type narrowing check
   return validValues.has(value as T)
 }
