@@ -66,11 +66,9 @@ test('invalid typeof check in ternary with literal types', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 3
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof check on string variable', async () => {
@@ -85,11 +83,9 @@ test('unnecessary typeof check on string variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof check on string variable, typeof on right side', async () => {
@@ -104,11 +100,9 @@ test('unnecessary typeof check on string variable, typeof on right side', async 
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check on string variable', async () => {
@@ -123,11 +117,9 @@ test('always false typeof check on string variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof check on number variable', async () => {
@@ -142,11 +134,9 @@ test('unnecessary typeof check on number variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check on number variable', async () => {
@@ -161,11 +151,9 @@ test('always false typeof check on number variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof check on boolean variable', async () => {
@@ -180,11 +168,9 @@ test('unnecessary typeof check on boolean variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check on boolean variable', async () => {
@@ -199,11 +185,9 @@ test('always false typeof check on boolean variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof check on object variable', async () => {
@@ -218,11 +202,9 @@ test('unnecessary typeof check on object variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('ignore `==` operator', async () => {
@@ -248,11 +230,9 @@ test('unnecessary typeof check with !== operator', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check with !== operator', async () => {
@@ -267,11 +247,9 @@ test('always false typeof check with !== operator', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof check in ternary expression', async () => {
@@ -285,11 +263,9 @@ test('unnecessary typeof check in ternary expression', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check in ternary expression', async () => {
@@ -303,11 +279,9 @@ test('always false typeof check in ternary expression', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof check with not operator in ternary expression', async () => {
@@ -321,11 +295,9 @@ test('unnecessary typeof check with not operator in ternary expression', async (
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check with not operator in ternary expression', async () => {
@@ -339,11 +311,9 @@ test('always false typeof check with not operator in ternary expression', async 
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof check in variable with union type', async () => {
@@ -359,11 +329,9 @@ test('unnecessary typeof check in variable with union type', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 3
+    - { messageId: 'alwaysFalseTypeofCondition', line: 3 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof check in variable with union type in ternary expression', async () => {
@@ -378,11 +346,9 @@ test('unnecessary typeof check in variable with union type in ternary expression
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 3
+    - { messageId: 'alwaysFalseTypeofCondition', line: 3 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof check in variable with union type with !== operator', async () => {
@@ -398,11 +364,9 @@ test('unnecessary typeof check in variable with union type with !== operator', a
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 3
+    - { messageId: 'unnecessaryTypeofCondition', line: 3 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('valid typeof check for function parameter that could be a function', async () => {
@@ -429,11 +393,9 @@ test('unnecessary typeof check on function variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check on function variable', async () => {
@@ -448,11 +410,9 @@ test('always false typeof check on function variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('valid typeof check for symbol parameter that could be a different type', async () => {
@@ -479,11 +439,9 @@ test('unnecessary typeof check on symbol variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check on symbol variable', async () => {
@@ -498,11 +456,9 @@ test('always false typeof check on symbol variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('valid typeof check for bigint parameter that could be a different type', async () => {
@@ -529,11 +485,9 @@ test('unnecessary typeof check on bigint variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check on bigint variable', async () => {
@@ -548,11 +502,9 @@ test('always false typeof check on bigint variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('valid typeof check for null parameter that could be a different type', async () => {
@@ -579,11 +531,9 @@ test('unnecessary typeof check on null variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check on null variable', async () => {
@@ -598,11 +548,9 @@ test('always false typeof check on null variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('valid typeof check for undefined parameter that could be a different type', async () => {
@@ -629,11 +577,9 @@ test('unnecessary typeof check on undefined variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check on undefined variable', async () => {
@@ -648,11 +594,9 @@ test('always false typeof check on undefined variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 // Complex Union Types (more than two types)
@@ -680,11 +624,9 @@ test('always false typeof check on complex union type', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary typeof negation check on complex union type', async () => {
@@ -699,11 +641,9 @@ test('unnecessary typeof negation check on complex union type', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 // Optional Chaining With Typeof
@@ -734,7 +674,6 @@ test('unnecessary typeof check with optional chaining', async () => {
     - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false typeof check with optional chaining', async () => {
@@ -752,7 +691,6 @@ test('always false typeof check with optional chaining', async () => {
     - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 // Logical Operators with Typeof
@@ -772,7 +710,6 @@ test('valid logical OR typeof checks on union type', async () => {
     - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('unnecessary logical OR typeof checks on string variable', async () => {
@@ -788,9 +725,9 @@ test('unnecessary logical OR typeof checks on string variable', async () => {
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
     - { messageId: 'unnecessaryTypeofCondition', line: 2 }
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false logical AND typeof checks on string variable', async () => {
@@ -806,9 +743,9 @@ test('always false logical AND typeof checks on string variable', async () => {
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
     - { messageId: 'unnecessaryTypeofCondition', line: 2 }
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('non nullable typeof check', async () => {
@@ -851,7 +788,6 @@ test('non nullable typeof check 3', async () => {
     - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('argument with generic type', async () => {
@@ -895,7 +831,6 @@ test('always false startsWith check on literal string', async () => {
     - { messageId: 'alwaysFalseStartsWithCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always true startsWith check on literal string', async () => {
@@ -913,7 +848,6 @@ test('always true startsWith check on literal string', async () => {
     - { messageId: 'unnecessaryStartsWithCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false endsWith check on union type', async () => {
@@ -931,7 +865,6 @@ test('always false endsWith check on union type', async () => {
     - { messageId: 'alwaysFalseEndsWithCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always true endsWith check on union type', async () => {
@@ -949,7 +882,6 @@ test('always true endsWith check on union type', async () => {
     - { messageId: 'unnecessaryEndsWithCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false includes check on literal string', async () => {
@@ -967,7 +899,6 @@ test('always false includes check on literal string', async () => {
     - { messageId: 'alwaysFalseIncludesCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always true includes check on literal string', async () => {
@@ -985,7 +916,6 @@ test('always true includes check on literal string', async () => {
     - { messageId: 'unnecessaryIncludesCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('valid includes check on union with mixed results', async () => {
@@ -1015,7 +945,6 @@ test('always false length comparison on literal string', async () => {
     - { messageId: 'alwaysFalseLengthCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always true length comparison on literal string', async () => {
@@ -1033,7 +962,6 @@ test('always true length comparison on literal string', async () => {
     - { messageId: 'unnecessaryLengthCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('always false length comparison with !== operator', async () => {
@@ -1051,7 +979,6 @@ test('always false length comparison with !== operator', async () => {
     - { messageId: 'alwaysFalseLengthCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('valid length comparison on union with different lengths', async () => {
@@ -1081,7 +1008,6 @@ test('always true length comparison on union with same lengths', async () => {
     - { messageId: 'unnecessaryLengthCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('string methods with empty string literal', async () => {
@@ -1099,7 +1025,6 @@ test('string methods with empty string literal', async () => {
     - { messageId: 'alwaysFalseStartsWithCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('string methods with empty string always true case', async () => {
@@ -1117,7 +1042,6 @@ test('string methods with empty string always true case', async () => {
     - { messageId: 'unnecessaryStartsWithCondition', line: 2 }
     "
   `)
-  expect(result.output).toMatchInlineSnapshot(`null`)
 })
 
 test('valid string method on any type', async () => {
