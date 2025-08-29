@@ -1,5 +1,5 @@
 import { dedent } from '@ls-stack/utils/dedent'
-import { expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import {
   createNewTester,
   getErrorsFromResult,
@@ -802,268 +802,268 @@ test('argument with generic type', async () => {
   )
 })
 
-// String method tests
+describe('string assertions', () => {
+  test('valid startsWith check on union type', async () => {
+    await valid(
+      dedent`
+        function test(status: 'active' | 'inactive' | 'pending') {
+          if (status.startsWith('act')) {
+            console.log('starts with act')
+          }
+        }
+      `,
+    )
+  })
 
-test('valid startsWith check on union type', async () => {
-  await valid(
-    dedent`
-      function test(status: 'active' | 'inactive' | 'pending') {
+  test('always false startsWith check on literal string', async () => {
+    const { result } = await invalid(
+      dedent`
+        const status: 'active' = 'active'
+        if (status.startsWith('xyz')) {
+          console.log('never happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'alwaysFalseStartsWithCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('always true startsWith check on literal string', async () => {
+    const { result } = await invalid(
+      dedent`
+        const status: 'active' = 'active'
         if (status.startsWith('act')) {
-          console.log('starts with act')
+          console.log('always happens')
         }
-      }
-    `,
-  )
-})
+      `,
+    )
 
-test('always false startsWith check on literal string', async () => {
-  const { result } = await invalid(
-    dedent`
-      const status: 'active' = 'active'
-      if (status.startsWith('xyz')) {
-        console.log('never happens')
-      }
-    `,
-  )
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'unnecessaryStartsWithCondition', line: 2 }
+      "
+    `)
+  })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'alwaysFalseStartsWithCondition', line: 2 }
-    "
-  `)
-})
-
-test('always true startsWith check on literal string', async () => {
-  const { result } = await invalid(
-    dedent`
-      const status: 'active' = 'active'
-      if (status.startsWith('act')) {
-        console.log('always happens')
-      }
-    `,
-  )
-
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'unnecessaryStartsWithCondition', line: 2 }
-    "
-  `)
-})
-
-test('always false endsWith check on union type', async () => {
-  const { result } = await invalid(
-    dedent`
-      const status: 'active' | 'inactive' = 'active' as 'active' | 'inactive'
-      if (status.endsWith('xyz')) {
-        console.log('never happens')
-      }
-    `,
-  )
-
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'alwaysFalseEndsWithCondition', line: 2 }
-    "
-  `)
-})
-
-test('always true endsWith check on union type', async () => {
-  const { result } = await invalid(
-    dedent`
-      const status: 'active' | 'inactive' = 'active' as 'active' | 'inactive'
-      if (status.endsWith('e')) {
-        console.log('always happens')
-      }
-    `,
-  )
-
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'unnecessaryEndsWithCondition', line: 2 }
-    "
-  `)
-})
-
-test('always false includes check on literal string', async () => {
-  const { result } = await invalid(
-    dedent`
-      const text: 'hello' = 'hello'
-      if (text.includes('xyz')) {
-        console.log('never happens')
-      }
-    `,
-  )
-
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'alwaysFalseIncludesCondition', line: 2 }
-    "
-  `)
-})
-
-test('always true includes check on literal string', async () => {
-  const { result } = await invalid(
-    dedent`
-      const text: 'hello' = 'hello'
-      if (text.includes('ell')) {
-        console.log('always happens')
-      }
-    `,
-  )
-
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'unnecessaryIncludesCondition', line: 2 }
-    "
-  `)
-})
-
-test('valid includes check on union with mixed results', async () => {
-  await valid(
-    dedent`
-      function test(text: 'hello' | 'world') {
-        if (text.includes('o')) {
-          console.log('some include o')
+  test('always false endsWith check on union type', async () => {
+    const { result } = await invalid(
+      dedent`
+        const status: 'active' | 'inactive' = 'active' as 'active' | 'inactive'
+        if (status.endsWith('xyz')) {
+          console.log('never happens')
         }
-      }
-    `,
-  )
-})
+      `,
+    )
 
-test('always false length comparison on literal string', async () => {
-  const { result } = await invalid(
-    dedent`
-      const text: 'hello' = 'hello'
-      if (text.length > 10) {
-        console.log('never happens')
-      }
-    `,
-  )
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'alwaysFalseEndsWithCondition', line: 2 }
+      "
+    `)
+  })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'alwaysFalseLengthCondition', line: 2 }
-    "
-  `)
-})
-
-test('always true length comparison on literal string', async () => {
-  const { result } = await invalid(
-    dedent`
-      const text: 'hello' = 'hello'
-      if (text.length === 5) {
-        console.log('always happens')
-      }
-    `,
-  )
-
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'unnecessaryLengthCondition', line: 2 }
-    "
-  `)
-})
-
-test('always false length comparison with !== operator', async () => {
-  const { result } = await invalid(
-    dedent`
-      const text: 'hello' = 'hello'
-      if (text.length !== 5) {
-        console.log('never happens')
-      }
-    `,
-  )
-
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'alwaysFalseLengthCondition', line: 2 }
-    "
-  `)
-})
-
-test('valid length comparison on union with different lengths', async () => {
-  await valid(
-    dedent`
-      function test(text: 'hi' | 'hello') {
-        if (text.length > 3) {
-          console.log('some are longer than 3')
+  test('always true endsWith check on union type', async () => {
+    const { result } = await invalid(
+      dedent`
+        const status: 'active' | 'inactive' = 'active' as 'active' | 'inactive'
+        if (status.endsWith('e')) {
+          console.log('always happens')
         }
-      }
-    `,
-  )
-})
+      `,
+    )
 
-test('always true length comparison on union with same lengths', async () => {
-  const { result } = await invalid(
-    dedent`
-      const text: 'cat' | 'dog' = 'cat' as 'cat' | 'dog'
-      if (text.length === 3) {
-        console.log('always happens')
-      }
-    `,
-  )
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'unnecessaryEndsWithCondition', line: 2 }
+      "
+    `)
+  })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'unnecessaryLengthCondition', line: 2 }
-    "
-  `)
-})
-
-test('string methods with empty string literal', async () => {
-  const { result } = await invalid(
-    dedent`
-      const empty: '' = ''
-      if (empty.startsWith('a')) {
-        console.log('never happens')
-      }
-    `,
-  )
-
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'alwaysFalseStartsWithCondition', line: 2 }
-    "
-  `)
-})
-
-test('string methods with empty string always true case', async () => {
-  const { result } = await invalid(
-    dedent`
-      const empty: '' = ''
-      if (empty.startsWith('')) {
-        console.log('always happens')
-      }
-    `,
-  )
-
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
-    "
-    - { messageId: 'unnecessaryStartsWithCondition', line: 2 }
-    "
-  `)
-})
-
-test('valid string method on any type', async () => {
-  await valid(
-    dedent`
-      function test(value: any) {
-        if (value.startsWith && value.startsWith('test')) {
-          console.log('might start with test')
+  test('always false includes check on literal string', async () => {
+    const { result } = await invalid(
+      dedent`
+        const text: 'hello' = 'hello'
+        if (text.includes('xyz')) {
+          console.log('never happens')
         }
-      }
-    `,
-  )
-})
+      `,
+    )
 
-test('valid string method on unknown string type', async () => {
-  await valid(
-    dedent`
-      function test(value: string) {
-        if (value.startsWith('test')) {
-          console.log('might start with test')
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'alwaysFalseIncludesCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('always true includes check on literal string', async () => {
+    const { result } = await invalid(
+      dedent`
+        const text: 'hello' = 'hello'
+        if (text.includes('ell')) {
+          console.log('always happens')
         }
-      }
-    `,
-  )
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'unnecessaryIncludesCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('valid includes check on union with mixed results', async () => {
+    await valid(
+      dedent`
+        function test(text: 'hello' | 'world') {
+          if (text.includes('o')) {
+            console.log('some include o')
+          }
+        }
+      `,
+    )
+  })
+
+  test('always false length comparison on literal string', async () => {
+    const { result } = await invalid(
+      dedent`
+        const text: 'hello' = 'hello'
+        if (text.length > 10) {
+          console.log('never happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'alwaysFalseLengthCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('always true length comparison on literal string', async () => {
+    const { result } = await invalid(
+      dedent`
+        const text: 'hello' = 'hello'
+        if (text.length === 5) {
+          console.log('always happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'unnecessaryLengthCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('always false length comparison with !== operator', async () => {
+    const { result } = await invalid(
+      dedent`
+        const text: 'hello' = 'hello'
+        if (text.length !== 5) {
+          console.log('never happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'alwaysFalseLengthCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('valid length comparison on union with different lengths', async () => {
+    await valid(
+      dedent`
+        function test(text: 'hi' | 'hello') {
+          if (text.length > 3) {
+            console.log('some are longer than 3')
+          }
+        }
+      `,
+    )
+  })
+
+  test('always true length comparison on union with same lengths', async () => {
+    const { result } = await invalid(
+      dedent`
+        const text: 'cat' | 'dog' = 'cat' as 'cat' | 'dog'
+        if (text.length === 3) {
+          console.log('always happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'unnecessaryLengthCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('string methods with empty string literal', async () => {
+    const { result } = await invalid(
+      dedent`
+        const empty: '' = ''
+        if (empty.startsWith('a')) {
+          console.log('never happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'alwaysFalseStartsWithCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('string methods with empty string always true case', async () => {
+    const { result } = await invalid(
+      dedent`
+        const empty: '' = ''
+        if (empty.startsWith('')) {
+          console.log('always happens')
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'unnecessaryStartsWithCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('valid string method on any type', async () => {
+    await valid(
+      dedent`
+        function test(value: any) {
+          if (value.startsWith && value.startsWith('test')) {
+            console.log('might start with test')
+          }
+        }
+      `,
+    )
+  })
+
+  test('valid string method on unknown string type', async () => {
+    await valid(
+      dedent`
+        function test(value: string) {
+          if (value.startsWith('test')) {
+            console.log('might start with test')
+          }
+        }
+      `,
+    )
+  })
 })
