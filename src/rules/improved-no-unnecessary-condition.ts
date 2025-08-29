@@ -620,8 +620,8 @@ function getNodeText(
 function narrowStringToUnion<T extends string>(
   value: string,
   validValues: Set<T>,
+  // eslint-disable-next-line @ls-stack/no-type-guards -- necessary type guard for type narrowing check
 ): value is T {
-  // eslint-disable-line @ls-stack/no-type-guards -- necessary type guard for string union narrowing
   // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe cast for type narrowing check
   return validValues.has(value as T)
 }
