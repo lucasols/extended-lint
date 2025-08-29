@@ -12,7 +12,7 @@ test('valid code with no typeof usage', async () => {
   await valid(
     dedent`
       const str = 'string'
-      if (str.length > 0) {
+      if (str > 0) {
         console.log(str)
       }
     `,
