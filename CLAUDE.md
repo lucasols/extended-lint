@@ -62,20 +62,21 @@ test('invalid case description', async () => {
     export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
   `)
 
-  // use getErrorsFromResult(result, true) to include final message in the snapshot
+  // use getErrorsWithMsgFromResult(result) to include final message in the snapshot when there is dynamic data in the message
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
     - messageId: 'moveTypeAboveUsage'
       line: 5
     "
   `)
+
+  // use result.output when there is auto fixable code
   expect(result.output).toMatchInlineSnapshot(`
     "export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
 
     export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
       return produce(initial, recipe);
     }
-
     "
   `)
 })

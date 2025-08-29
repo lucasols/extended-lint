@@ -34,6 +34,14 @@ This is an **ESLint plugin** (`extended-lint`) that provides custom linting rule
 ## Test Pattern
 
 ```typescript
+import { dedent } from '@ls-stack/utils/dedent'
+import { expect, test } from 'vitest'
+import {
+  createNewTester,
+  getErrorsFromResult,
+} from '../../tests/utils/createTester'
+import { ruleFunction } from './rule-name'
+
 const { valid, invalid } = createNewTester(ruleFunction)
 
 // Valid tests - no errors expected
@@ -59,20 +67,21 @@ test('invalid case description', async () => {
     export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
   `)
 
-  // use getErrorsFromResult(result, true) to include final message in the snapshot
+  // use getErrorsWithMsgFromResult(result) to include final message in the snapshot when there is dynamic data in the message
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
     - messageId: 'moveTypeAboveUsage'
       line: 5
     "
   `)
+
+  // use result.output when there is auto fixable code
   expect(result.output).toMatchInlineSnapshot(`
     "export type ProduceRecipe<T> = (draft: T) => void | undefined | T;
 
     export function defaultProduce<T>(initial: T, recipe: ProduceRecipe<T>): T {
       return produce(initial, recipe);
     }
-
     "
   `)
 })
