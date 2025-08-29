@@ -731,8 +731,7 @@ test('unnecessary typeof check with optional chaining', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -750,8 +749,7 @@ test('always false typeof check with optional chaining', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -771,8 +769,7 @@ test('valid logical OR typeof checks on union type', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -790,8 +787,7 @@ test('unnecessary logical OR typeof checks on string variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -809,8 +805,7 @@ test('always false logical AND typeof checks on string variable', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryTypeofCondition'
-      line: 2
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -853,8 +848,7 @@ test('non nullable typeof check 3', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseTypeofCondition'
-      line: 2
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -898,8 +892,7 @@ test('always false startsWith check on literal string', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseStartsWithCondition'
-      line: 2
+    - { messageId: 'alwaysFalseStartsWithCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -917,8 +910,7 @@ test('always true startsWith check on literal string', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryStartsWithCondition'
-      line: 2
+    - { messageId: 'unnecessaryStartsWithCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -936,8 +928,7 @@ test('always false endsWith check on union type', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseEndsWithCondition'
-      line: 2
+    - { messageId: 'alwaysFalseEndsWithCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -955,8 +946,7 @@ test('always true endsWith check on union type', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryEndsWithCondition'
-      line: 2
+    - { messageId: 'unnecessaryEndsWithCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -974,8 +964,7 @@ test('always false includes check on literal string', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseIncludesCondition'
-      line: 2
+    - { messageId: 'alwaysFalseIncludesCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -993,8 +982,7 @@ test('always true includes check on literal string', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryIncludesCondition'
-      line: 2
+    - { messageId: 'unnecessaryIncludesCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -1024,8 +1012,7 @@ test('always false length comparison on literal string', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseLengthCondition'
-      line: 2
+    - { messageId: 'alwaysFalseLengthCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -1043,8 +1030,7 @@ test('always true length comparison on literal string', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryLengthCondition'
-      line: 2
+    - { messageId: 'unnecessaryLengthCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -1062,8 +1048,7 @@ test('always false length comparison with !== operator', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseLengthCondition'
-      line: 2
+    - { messageId: 'alwaysFalseLengthCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -1093,8 +1078,7 @@ test('always true length comparison on union with same lengths', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryLengthCondition'
-      line: 2
+    - { messageId: 'unnecessaryLengthCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -1112,8 +1096,7 @@ test('string methods with empty string literal', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'alwaysFalseStartsWithCondition'
-      line: 2
+    - { messageId: 'alwaysFalseStartsWithCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
@@ -1131,8 +1114,7 @@ test('string methods with empty string always true case', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'unnecessaryStartsWithCondition'
-      line: 2
+    - { messageId: 'unnecessaryStartsWithCondition', line: 2 }
     "
   `)
   expect(result.output).toMatchInlineSnapshot(`null`)
