@@ -14,6 +14,7 @@ import {
   type TestExecutionResult,
 } from 'eslint-vitest-rule-tester'
 import { fileURLToPath } from 'node:url'
+import tseslint from 'typescript-eslint'
 
 const newlineOnlyRegex = /^\n+$/
 
@@ -62,21 +63,28 @@ export function createNewTester<
   M extends string,
   O extends readonly unknown[],
 >(rule: { name: string; rule: TSESLint.RuleModule<M, O> }) {
+  const parserOptions: TSESLint.ParserOptions = {
+    tsconfigRootDir: fileURLToPath(new URL('../fixture', import.meta.url)),
+    ecmaFeatures: {
+      jsx: true,
+    },
+    ecmaVersion: 2020,
+    sourceType: 'module',
+    projectService: {
+      allowDefaultProject: ['*.ts*'],
+      defaultProject: './tsconfig.json',
+    },
+  }
   return createRuleTester<O, M>({
     name: rule.name,
     rule: rule.rule,
-    configs: {
-      linterOptions: {
-        reportUnusedDisableDirectives: 'off',
-      },
-      languageOptions: {
-        parser: typescriptParser,
-        parserOptions: {
-          ecmaFeatures: {
-            jsx: true,
-          },
-        },
-      },
+
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
+    },
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions,
     },
   })
 }
