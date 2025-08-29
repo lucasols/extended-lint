@@ -29,6 +29,14 @@ This is an **ESLint plugin** (`extended-lint`) that provides custom linting rule
 ## Test Pattern
 
 ```typescript
+import { dedent } from '@ls-stack/utils/dedent'
+import { expect, test } from 'vitest'
+import {
+  createNewTester,
+  getErrorsFromResult,
+} from '../../tests/utils/createTester'
+import { ruleFunction } from './rule-name'
+
 const { valid, invalid } = createNewTester(ruleFunction)
 
 // Valid tests - no errors expected
