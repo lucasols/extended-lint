@@ -377,37 +377,57 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
       
       // Track when function is passed as argument
       'CallExpression > Identifier'(node: TSESTree.Identifier) {
-        const functionInfo = functions.get(node.name)
-        if (functionInfo) {
-          // Check if this identifier is being passed as an argument
+        const functionNodes = functionsByName.get(node.name)
+        if (functionNodes) {
           const parent = node.parent
           if (parent.type === AST_NODE_TYPES.CallExpression && parent.arguments.includes(node)) {
-            functionInfo.isPassedAsArgument = true
+            // Mark all functions with this name as passed as argument
+            for (const functionNode of functionNodes) {
+              const functionInfo = functions.get(functionNode)
+              if (functionInfo) {
+                functionInfo.isPassedAsArgument = true
+              }
+            }
           }
         }
       },
       
       // Track when function is used as JSX prop
       'JSXExpressionContainer > Identifier'(node: TSESTree.Identifier) {
-        const functionInfo = functions.get(node.name)
-        if (functionInfo) {
-          functionInfo.isPassedAsArgument = true
+        const functionNodes = functionsByName.get(node.name)
+        if (functionNodes) {
+          for (const functionNode of functionNodes) {
+            const functionInfo = functions.get(functionNode)
+            if (functionInfo) {
+              functionInfo.isPassedAsArgument = true
+            }
+          }
         }
       },
       
       // Track when function is returned
       'ReturnStatement > Identifier'(node: TSESTree.Identifier) {
-        const functionInfo = functions.get(node.name)
-        if (functionInfo) {
-          functionInfo.isPassedAsArgument = true
+        const functionNodes = functionsByName.get(node.name)
+        if (functionNodes) {
+          for (const functionNode of functionNodes) {
+            const functionInfo = functions.get(functionNode)
+            if (functionInfo) {
+              functionInfo.isPassedAsArgument = true
+            }
+          }
         }
       },
       
       // Track when function is returned as object property
       'ReturnStatement > ObjectExpression > Property > Identifier'(node: TSESTree.Identifier) {
-        const functionInfo = functions.get(node.name)
-        if (functionInfo) {
-          functionInfo.isPassedAsArgument = true
+        const functionNodes = functionsByName.get(node.name)
+        if (functionNodes) {
+          for (const functionNode of functionNodes) {
+            const functionInfo = functions.get(functionNode)
+            if (functionInfo) {
+              functionInfo.isPassedAsArgument = true
+            }
+          }
         }
       },
       
