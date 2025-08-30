@@ -28,15 +28,6 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
   },
   defaultOptions: [{}],
   create(context, [options]) {
-    const filename = context.filename || context.getFilename()
-
-    const isTestFile =
-      filename.includes('.tests.') ||
-      filename.includes('.test.') ||
-      filename.includes('.spec.')
-
-    if (!isTestFile) return {}
-
     const sourceCode = context.getSourceCode()
     const program = sourceCode.ast
 
