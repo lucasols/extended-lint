@@ -266,7 +266,7 @@ test('valid: describe.concurrent should be ignored', async () => {
           test('should work', () => {
             expect(true).toBe(true)
           })
-          
+
           test('should also work', () => {
             expect(false).toBe(false)
           })

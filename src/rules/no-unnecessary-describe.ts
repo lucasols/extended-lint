@@ -21,7 +21,7 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
     },
     messages: {
       unnecessaryDescribe:
-        'Unnecessary describe block. The file itself should be enough to group tests.',
+        'Unnecessary describe block. The file itself should be enough to group tests. Remove the describe block.',
     },
     fixable: 'code',
     schema: [getJsonSchemaFromZod(optionsSchema)],
@@ -29,8 +29,13 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
   defaultOptions: [{}],
   create(context, [options]) {
     const filename = context.filename || context.getFilename()
-    
-    if (!filename.includes('.tests.')) return {}
+
+    const isTestFile =
+      filename.includes('.tests.') ||
+      filename.includes('.test.') ||
+      filename.includes('.spec.')
+
+    if (!isTestFile) return {}
 
     const sourceCode = context.getSourceCode()
     const program = sourceCode.ast
@@ -43,7 +48,9 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
       )
     }
 
-    function getDescribeDescription(node: TSESTree.CallExpression): string | null {
+    function getDescribeDescription(
+      node: TSESTree.CallExpression,
+    ): string | null {
       const firstArg = node.arguments[0]
       if (
         firstArg &&
@@ -64,7 +71,7 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
     }
 
     function hasOnlyWrappedTests(
-      topLevelDescribes: TSESTree.CallExpression[]
+      topLevelDescribes: TSESTree.CallExpression[],
     ): boolean {
       if (topLevelDescribes.length !== 1) return false
 
@@ -72,11 +79,20 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
       const topLevelTestStatements = program.body.filter((node) => {
         if (node.type === AST_NODE_TYPES.ExpressionStatement) {
           const expr = node.expression
-          if (expr.type === AST_NODE_TYPES.CallExpression &&
-              expr.callee.type === AST_NODE_TYPES.Identifier) {
+          if (
+            expr.type === AST_NODE_TYPES.CallExpression &&
+            expr.callee.type === AST_NODE_TYPES.Identifier
+          ) {
             const calleeName = expr.callee.name
             // Include test functions and lifecycle hooks, but exclude describe
-            return ['test', 'it', 'beforeEach', 'afterEach', 'beforeAll', 'afterAll'].includes(calleeName)
+            return [
+              'test',
+              'it',
+              'beforeEach',
+              'afterEach',
+              'beforeAll',
+              'afterAll',
+            ].includes(calleeName)
           }
         }
         return false
@@ -92,8 +108,8 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
             node.type === AST_NODE_TYPES.TSTypeAliasDeclaration ||
             node.type === AST_NODE_TYPES.TSInterfaceDeclaration ||
             node.type === AST_NODE_TYPES.ExportNamedDeclaration ||
-            (node.type === AST_NODE_TYPES.ExpressionStatement && 
-             isDescribeCall(node.expression))
+            (node.type === AST_NODE_TYPES.ExpressionStatement &&
+              isDescribeCall(node.expression))
           )
         })
 
@@ -110,18 +126,21 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
       if (
         secondArg &&
         (secondArg.type === AST_NODE_TYPES.FunctionExpression ||
-         secondArg.type === AST_NODE_TYPES.ArrowFunctionExpression) &&
+          secondArg.type === AST_NODE_TYPES.ArrowFunctionExpression) &&
         secondArg.body.type === AST_NODE_TYPES.BlockStatement
       ) {
         const statements = secondArg.body.body
         if (statements.length === 0) return ''
-        
+
         // Extract each statement and normalize indentation
-        const extractedStatements = statements.map(statement => {
-          const statementText = sourceCode.text.slice(statement.range[0], statement.range[1])
+        const extractedStatements = statements.map((statement) => {
+          const statementText = sourceCode.text.slice(
+            statement.range[0],
+            statement.range[1],
+          )
           return statementText
         })
-        
+
         return extractedStatements.join('\n\n')
       }
       return ''
@@ -137,7 +156,7 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
             statement.expression.type === AST_NODE_TYPES.CallExpression &&
             statement.expression.callee.type === AST_NODE_TYPES.Identifier &&
             statement.expression.callee.name === 'describe' &&
-            statement.expression.arguments.length === 2  // Only simple describe('text', callback)
+            statement.expression.arguments.length === 2 // Only simple describe('text', callback)
           ) {
             topLevelDescribes.push(statement.expression)
           }
@@ -155,10 +174,14 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
         const describeStatement = program.body.find(
           (node) =>
             node.type === AST_NODE_TYPES.ExpressionStatement &&
-            node.expression === describeNode
+            node.expression === describeNode,
         )
 
-        if (!describeStatement || describeStatement.type !== AST_NODE_TYPES.ExpressionStatement) return
+        if (
+          !describeStatement ||
+          describeStatement.type !== AST_NODE_TYPES.ExpressionStatement
+        )
+          return
 
         context.report({
           node: describeNode,
