@@ -251,10 +251,9 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
         functions.set(node, functionInfo)
         
         // Track functions by name for call resolution
-        if (!functionsByName.has(name)) {
-          functionsByName.set(name, [])
-        }
-        functionsByName.get(name).push(node)
+        const existingFunctions = functionsByName.get(name) || []
+        existingFunctions.push(node)
+        functionsByName.set(name, existingFunctions)
       },
       
       VariableDeclarator(node) {
@@ -322,10 +321,9 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
         functions.set(functionNode, functionInfo)
         
         // Track functions by name for call resolution
-        if (!functionsByName.has(name)) {
-          functionsByName.set(name, [])
-        }
-        functionsByName.get(name).push(functionNode)
+        const existingFunctions = functionsByName.get(name) || []
+        existingFunctions.push(functionNode)
+        functionsByName.set(name, existingFunctions)
       },
       
       // Track function calls
@@ -341,7 +339,7 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
                   functionInfo.isPassedAsArgument = true
                 }
               }
-            } else {
+            } else if (functionNodes[0]) {
               const functionInfo = functions.get(functionNodes[0])
               if (functionInfo) {
                 analyzeCallExpression(node, functionInfo)
@@ -364,7 +362,7 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
                   functionInfo.isPassedAsArgument = true
                 }
               }
-            } else {
+            } else if (functionNodes[0]) {
               const functionInfo = functions.get(functionNodes[0])
               if (functionInfo) {
                 functionInfo.isUsedInJSX = true

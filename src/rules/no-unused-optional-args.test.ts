@@ -332,3 +332,64 @@ test('return function as object property with different name (skip)', async () =
   )
 })
 
+test('functions with same name in different scopes (skip analysis)', async () => {
+  await valid(
+    dedent`
+      function handler(a?: string) { 
+        return a || 'default'
+      }
+      handler('test')  // This call exists
+      
+      function createHandler() {
+        function handler(b?: number) {  // Same name, different scope
+          return b || 0
+        }
+        // No calls to inner handler - normally would report error
+        // But we skip analysis when names conflict to be safe
+        return handler
+      }
+    `,
+  )
+})
+
+test('functions with same name - both get calls (skip analysis)', async () => {
+  await valid(
+    dedent`
+      function process(data?: string) {
+        return data
+      }
+      process('outer')
+      
+      function wrapper() {
+        function process(value?: number) {  // Same name
+          return value
+        }
+        process(42)  // Inner call
+        return process
+      }
+    `,
+  )
+})
+
+test('unique function names still report errors correctly', async () => {
+  const { result } = await invalid(
+    dedent`
+      function uniqueHandler(a?: string, b?: string) {
+        return a + b
+      }
+      uniqueHandler('test')  // Only first param used
+      
+      function anotherUnique(x?: number) {
+        return x || 0
+      }
+      anotherUnique()  // No params used
+    `,
+  )
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unusedOptionalArg', line: 1 }
+    - { messageId: 'unusedOptionalArg', line: 6 }
+    "
+  `)
+})
+
