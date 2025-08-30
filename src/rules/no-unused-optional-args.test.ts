@@ -275,3 +275,60 @@ test('pass function as JSX prop (skip)', async () => {
     `,
   )
 })
+
+test('return function from another function (skip)', async () => {
+  await valid(
+    dedent`
+      function createHandler(a?: string, b?: string) { return '' + a + b }
+      
+      function getHandler() {
+        return createHandler
+      }
+    `,
+  )
+})
+
+test('return arrow function (skip)', async () => {
+  await valid(
+    dedent`
+      const handler = (a?: string, b?: string) => a + b
+      
+      const getHandler = () => handler
+    `,
+  )
+})
+
+test('return function as object property (skip)', async () => {
+  await valid(
+    dedent`
+      function load(options?: { delay?: number }) {
+        return options?.delay || 0
+      }
+      
+      function createApi() {
+        return {
+          load,
+          other: 'value'
+        }
+      }
+    `,
+  )
+})
+
+test('return function as object property with different name (skip)', async () => {
+  await valid(
+    dedent`
+      function load(options?: { delay?: number }) {
+        return options?.delay || 0
+      }
+      
+      function createApi() {
+        return {
+          handler: load,
+          other: 'value'
+        }
+      }
+    `,
+  )
+})
+

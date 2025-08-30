@@ -170,3 +170,23 @@ The rules will be used in large codebases, so performance should be a priority.
 # Code maintainability and readability
 
 Extract and reuse common utility functions in @src/astUtils.ts
+
+# Fixing @typescript-eslint/no-unnecessary-condition
+
+Common when working with AST nodes. **Fix strategy: Remove unnecessary checks - trust TypeScript and eslint.** If TypeScript doesn't error, the check is unnecessary
+
+## Quick Fixes
+
+```typescript
+// ❌ Remove unnecessary optional chaining
+node.parent?.type → node.parent.type
+
+// ❌ Remove unnecessary conditionals
+if (alwaysTrue && node.parent.type) { ... }
+should be:
+if (node.parent.type) { ... }
+
+// ❌ Double check impossible conditions
+if (alwaysFalse && node.parent.type) { ... }
+// in this case check if the condition is really necessary or the code has a bug
+```
