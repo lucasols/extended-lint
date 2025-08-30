@@ -16,6 +16,7 @@ import { noStaticStyleProp } from './no-static-style-prop'
 import { noTypeGuards } from './no-type-guards'
 import { noUnnecessaryAsyncOnJsxProps } from './no-unnecessary-async-on-jsx-props'
 import { noUnnecessaryCasting } from './no-unnecessary-casting'
+import { noUnnecessaryDescribe } from './no-unnecessary-describe'
 import { noUnnecessaryTyping } from './no-unnecessary-typing'
 import { noUnusedObjProps } from './no-unused-obj-props'
 import { noUnusedOptionalArgs } from './no-unused-optional-args'
@@ -60,6 +61,7 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [reactOptimizedCollections.name]: reactOptimizedCollections.rule,
   [improvedNoUnnecessaryCondition.name]: improvedNoUnnecessaryCondition.rule,
   [noUnnecessaryCasting.name]: noUnnecessaryCasting.rule,
+  [noUnnecessaryDescribe.name]: noUnnecessaryDescribe.rule,
   [noUnnecessaryTyping.name]: noUnnecessaryTyping.rule,
   [noUnusedSelectedValues.name]: noUnusedSelectedValues.rule,
   [noUnusedTStateField.name]: noUnusedTStateField.rule,
