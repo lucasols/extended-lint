@@ -18,6 +18,7 @@ import { noUnnecessaryAsyncOnJsxProps } from './no-unnecessary-async-on-jsx-prop
 import { noUnnecessaryCasting } from './no-unnecessary-casting'
 import { noUnnecessaryTyping } from './no-unnecessary-typing'
 import { noUnusedObjProps } from './no-unused-obj-props'
+import { noUnusedOptionalArgs } from './no-unused-optional-args'
 import { noUnusedSelectedValues } from './no-unused-selected-values'
 import { noUnusedTStateField } from './no-unused-t-state-field'
 import { noUnusedObjectTypeProperties } from './no-unused-type-props-in-args'
@@ -63,6 +64,7 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedSelectedValues.name]: noUnusedSelectedValues.rule,
   [noUnusedTStateField.name]: noUnusedTStateField.rule,
   [noUnusedObjProps.name]: noUnusedObjProps.rule,
+  [noUnusedOptionalArgs.name]: noUnusedOptionalArgs.rule,
   [preferReactHookAlternative.name]: preferReactHookAlternative.rule,
   [noUnnecessaryAsyncOnJsxProps.name]: noUnnecessaryAsyncOnJsxProps.rule,
   [noTypeGuards.name]: noTypeGuards.rule,

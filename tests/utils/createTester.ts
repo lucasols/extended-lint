@@ -38,13 +38,21 @@ const ruleTester = new RuleTester({
 
 export function getErrorsFromResult(
   result: TestExecutionResult,
-  includeData = false,
+  include: {
+    msg?: boolean
+    column?: boolean
+    endLine?: boolean
+    endColumn?: boolean
+  } = {},
 ) {
   return compactSnapshot(
     result.messages.map((m) => ({
       messageId: m.messageId,
-      data: includeData ? m.message : undefined,
+      data: include.msg ? m.message : undefined,
       line: m.line,
+      column: include.column ? m.column : undefined,
+      endLine: include.endLine ? m.endLine : undefined,
+      endColumn: include.endColumn ? m.endColumn : undefined,
     })),
   )
 }
