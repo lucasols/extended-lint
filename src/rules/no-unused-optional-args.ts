@@ -52,7 +52,9 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
     }
 
     function isExportedFunction(declarationNode: TSESTree.Node): boolean {
-      return declarationNode.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration || 
+      return declarationNode.type === AST_NODE_TYPES.ExportNamedDeclaration ||
+             declarationNode.type === AST_NODE_TYPES.ExportDefaultDeclaration ||
+             declarationNode.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration || 
              declarationNode.parent?.type === AST_NODE_TYPES.ExportDefaultDeclaration
     }
 

@@ -392,3 +392,31 @@ test('unique function names still report errors correctly', async () => {
   `)
 })
 
+test('exported FC component with unused optional props should be ignored', async () => {
+  await valid(
+    dedent`
+      export const FieldAndAppOriginsForm: FC<{
+        tabsMock: UseMockAllTabs;
+        creationTestsOnly?: boolean;
+      }> = ({ tabsMock, creationTestsOnly }) => {
+        return null
+      }
+    `,
+  )
+})
+
+test('reproduce false positive: exported FC component should not report unused optional props', async () => {
+  await valid(
+    dedent`
+      export const Component: FC<{
+        required: string;
+        optional?: boolean;
+      }> = ({ required, optional }) => {
+        return <div>{required}</div>
+      }
+      
+      const App = () => <Component required="test" />
+    `,
+  )
+})
+
