@@ -10,7 +10,7 @@ type Options = z.infer<typeof optionsSchema>
 
 export const noUnnecessaryDescribe = createExtendedLintRule<
   [Options],
-  'unnecessaryDescribe'
+  'unnecessaryDescribe' | 'removeDescribe'
 >({
   name: 'no-unnecessary-describe',
   meta: {
@@ -21,23 +21,16 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
     },
     messages: {
       unnecessaryDescribe:
-        'Unnecessary describe block. The file itself should be enough to group tests. Remove the describe block.',
+        'Describe blocks that solely wrap all tests in the file are unnecessary, they just add unnecessary nesting to the code. The file itself should be enough to group tests. Remove it.',
+      removeDescribe: 'Remove the describe block',
     },
-    fixable: 'code',
+    hasSuggestions: true,
     schema: [getJsonSchemaFromZod(optionsSchema)],
   },
   defaultOptions: [{}],
   create(context, [options]) {
     const sourceCode = context.getSourceCode()
     const program = sourceCode.ast
-
-    function isDescribeCall(node: TSESTree.Node) {
-      return (
-        node.type === AST_NODE_TYPES.CallExpression &&
-        node.callee.type === AST_NODE_TYPES.Identifier &&
-        node.callee.name === 'describe'
-      )
-    }
 
     function getDescribeDescription(
       node: TSESTree.CallExpression,
@@ -89,27 +82,8 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
         return false
       })
 
-      // If there are no top-level test statements, check if the describe is unnecessary
-      if (topLevelTestStatements.length === 0) {
-        // Count meaningful content outside of the describe
-        const meaningfulNodes = program.body.filter((node) => {
-          // Ignore imports, type definitions, and the describe itself
-          return !(
-            node.type === AST_NODE_TYPES.ImportDeclaration ||
-            node.type === AST_NODE_TYPES.TSTypeAliasDeclaration ||
-            node.type === AST_NODE_TYPES.TSInterfaceDeclaration ||
-            node.type === AST_NODE_TYPES.ExportNamedDeclaration ||
-            (node.type === AST_NODE_TYPES.ExpressionStatement &&
-              isDescribeCall(node.expression))
-          )
-        })
-
-        // If there's only the describe and no other meaningful content,
-        // then the describe is unnecessary
-        return meaningfulNodes.length === 0
-      }
-
-      return false
+      // If there are no top-level test statements, the single describe is unnecessary
+      return topLevelTestStatements.length === 0
     }
 
     function getDescribeBlockContents(node: TSESTree.CallExpression): string {
@@ -177,12 +151,17 @@ export const noUnnecessaryDescribe = createExtendedLintRule<
         context.report({
           node: describeNode,
           messageId: 'unnecessaryDescribe',
-          fix(fixer) {
-            const blockContents = getDescribeBlockContents(describeNode)
-            if (!blockContents) return null
+          suggest: [
+            {
+              messageId: 'removeDescribe',
+              fix(fixer) {
+                const blockContents = getDescribeBlockContents(describeNode)
+                if (!blockContents) return null
 
-            return fixer.replaceText(describeStatement, blockContents)
-          },
+                return fixer.replaceText(describeStatement, blockContents)
+              },
+            },
+          ],
         })
       },
     }

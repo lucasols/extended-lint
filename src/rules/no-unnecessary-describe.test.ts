@@ -3,6 +3,7 @@ import { expect, test } from 'vitest'
 import {
   createNewTester,
   getErrorsFromResult,
+  getSuggestionOutput,
 } from '../../tests/utils/createTester'
 import { noUnnecessaryDescribe } from './no-unnecessary-describe'
 
@@ -20,6 +21,21 @@ test('valid: test file without describe blocks', async () => {
       })
     `,
     filename: 'example.tests.ts',
+  })
+})
+
+test('valid: .test.ts file without describe blocks', async () => {
+  await valid({
+    code: dedent`
+      test('should work correctly', () => {
+        expect(true).toBe(true)
+      })
+
+      test('should handle edge case', () => {
+        expect(false).toBe(false)
+      })
+    `,
+    filename: 'example.test.ts',
   })
 })
 
@@ -96,7 +112,7 @@ test('invalid: single describe wrapping all tests', async () => {
     "
   `)
 
-  expect(result.output).toMatchInlineSnapshot(`
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
     "test('should work', () => {
         expect(true).toBe(true)
       })
@@ -137,7 +153,7 @@ test('invalid: single describe with nested structure', async () => {
     "
   `)
 
-  expect(result.output).toMatchInlineSnapshot(`
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
     "beforeEach(() => {
         setup()
       })
@@ -175,15 +191,15 @@ test('invalid: should not ignore when description does not match pattern', async
     "
   `)
 
-  expect(result.output).toMatchInlineSnapshot(`
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
     "test('should work', () => {
         expect(true).toBe(true)
       })"
   `)
 })
 
-test('valid: mixed content with single describe', async () => {
-  await valid({
+test('invalid: mixed content with single describe', async () => {
+  const { result } = await invalid({
     code: dedent`
       const helper = () => 'helper'
 
@@ -197,6 +213,22 @@ test('valid: mixed content with single describe', async () => {
     `,
     filename: 'mixed.tests.ts',
   })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryDescribe', line: 3 }
+    "
+  `)
+
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
+    "const helper = () => 'helper'
+
+    test('should work', () => {
+        expect(helper()).toBe('helper')
+      })
+
+    const anotherHelper = () => 'another'"
+  `)
 })
 
 test('valid: single describe with top-level test', async () => {
@@ -284,3 +316,45 @@ test('valid: describe with additional options should be ignored', async () => {
     filename: 'example.tests.ts',
   })
 })
+
+test('invalid: single describe with helper functions inside', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      describe('conditionals', () => {
+        function matches(value: number[], filter: any) {
+          return value.includes(filter.value)
+        }
+
+        test('logged_user', () => {
+          expect(matches([1, 2], { value: 1 })).toBe(true)
+        })
+
+        test('list / contains-any', () => {
+          expect(matches([1, 2], { value: 3 })).toBe(false)
+        })
+      })
+    `,
+    filename: 'example.tests.ts',
+  })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryDescribe', line: 1 }
+    "
+  `)
+
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
+    "function matches(value: number[], filter: any) {
+        return value.includes(filter.value)
+      }
+
+    test('logged_user', () => {
+        expect(matches([1, 2], { value: 1 })).toBe(true)
+      })
+
+    test('list / contains-any', () => {
+        expect(matches([1, 2], { value: 3 })).toBe(false)
+      })"
+  `)
+})
+
