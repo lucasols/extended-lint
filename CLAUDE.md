@@ -190,3 +190,7 @@ if (node.parent.type) { ... }
 if (alwaysFalse && node.parent.type) { ... }
 // in this case check if the condition is really necessary or the code has a bug
 ```
+
+# Best Practices
+
+- For analyzing code usage/references use eslint scope analysis utilities

@@ -33,8 +33,7 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
         | TSESTree.FunctionDeclaration
         | TSESTree.ArrowFunctionExpression
         | TSESTree.FunctionExpression
-      name: string
-      isExported: boolean
+      declarationNode: TSESTree.Node  // The node that declares the function (FunctionDeclaration or VariableDeclarator)
       optionalParams: Array<{
         param: TSESTree.Parameter
         index: number
@@ -42,18 +41,9 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
         isObjectParam: boolean
         objectProps?: Array<{ name: string; optional: boolean }>
       }>
-      calls: Array<{
-        node: TSESTree.CallExpression | TSESTree.JSXOpeningElement
-        argCount: number
-        hasSpread: boolean
-        objectArgs?: Array<{ [key: string]: boolean }> // maps prop name to whether it was provided
-      }>
-      isPassedAsArgument: boolean
-      isUsedInJSX: boolean
     }
 
-    const functions = new Map<TSESTree.Node, FunctionInfo>()
-    const functionsByName = new Map<string, TSESTree.Node[]>()
+    const trackedFunctions: FunctionInfo[] = []
     
     function shouldIgnoreParam(paramName: string): boolean {
       if (!options.ignoreArgsMatching) return false
@@ -61,29 +51,9 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
       return regex.test(paramName)
     }
 
-    function isExportedFunction(node: TSESTree.Node): boolean {
-      if (node.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration || node.parent?.type === AST_NODE_TYPES.ExportDefaultDeclaration) {
-        return true
-      }
-      return false
-    }
-
-    function getFunctionName(
-      node:
-        | TSESTree.FunctionDeclaration
-        | TSESTree.ArrowFunctionExpression  
-        | TSESTree.FunctionExpression
-    ): string | null {
-      if (node.type === AST_NODE_TYPES.FunctionDeclaration) {
-        return node.id?.name || null
-      }
-      
-      // For arrow functions and function expressions, check if they're assigned to a variable
-      if (node.parent.type === AST_NODE_TYPES.VariableDeclarator && node.parent.id.type === AST_NODE_TYPES.Identifier) {
-        return node.parent.id.name
-      }
-      
-      return null
+    function isExportedFunction(declarationNode: TSESTree.Node): boolean {
+      return declarationNode.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration || 
+             declarationNode.parent?.type === AST_NODE_TYPES.ExportDefaultDeclaration
     }
 
     function getOptionalParams(params: TSESTree.Parameter[]): FunctionInfo['optionalParams'] {
@@ -166,109 +136,31 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
       return result
     }
 
-    function analyzeCallExpression(call: TSESTree.CallExpression, functionInfo: FunctionInfo) {
-      const argCount = call.arguments.length
-      const hasSpread = call.arguments.some(arg => arg.type === AST_NODE_TYPES.SpreadElement)
-      
-      const callInfo: FunctionInfo['calls'][0] = {
-        node: call,
-        argCount,
-        hasSpread,
-      }
-      
-      // Analyze object arguments for object parameters
-      for (const optionalParam of functionInfo.optionalParams) {
-        if (optionalParam.isObjectParam && optionalParam.index < argCount) {
-          const arg = call.arguments[optionalParam.index]
-          if (arg?.type === AST_NODE_TYPES.ObjectExpression) {
-            const objectArg: { [key: string]: boolean } = {}
-            for (const prop of arg.properties) {
-              if (prop.type === AST_NODE_TYPES.Property && prop.key.type === AST_NODE_TYPES.Identifier) {
-                objectArg[prop.key.name] = true
-              }
-            }
-            if (!callInfo.objectArgs) callInfo.objectArgs = []
-            callInfo.objectArgs[optionalParam.index] = objectArg
-          } else if (arg) {
-            // Non-object argument passed to object parameter - can't analyze
-            functionInfo.isPassedAsArgument = true
-            return
-          }
-        }
-      }
-      
-      functionInfo.calls.push(callInfo)
-    }
-
-    function analyzeJSXElement(jsx: TSESTree.JSXOpeningElement, functionInfo: FunctionInfo) {
-      const hasSpread = jsx.attributes.some(attr => attr.type === AST_NODE_TYPES.JSXSpreadAttribute)
-      
-      const callInfo: FunctionInfo['calls'][0] = {
-        node: jsx,
-        argCount: 1, // JSX always passes props as first argument
-        hasSpread,
-      }
-      
-      // Analyze JSX attributes for object parameters
-      for (const optionalParam of functionInfo.optionalParams) {
-        if (optionalParam.isObjectParam && optionalParam.index === 0) {
-          const objectArg: { [key: string]: boolean } = {}
-          for (const attr of jsx.attributes) {
-            if (attr.type === AST_NODE_TYPES.JSXAttribute && attr.name.type === AST_NODE_TYPES.JSXIdentifier) {
-              objectArg[attr.name.name] = true
-            }
-          }
-          if (!callInfo.objectArgs) callInfo.objectArgs = []
-          callInfo.objectArgs[0] = objectArg
-        }
-      }
-      
-      functionInfo.calls.push(callInfo)
-    }
 
     return {
-      // Track function definitions
       FunctionDeclaration(node) {
-        const name = getFunctionName(node)
-        if (!name) return
-        
-        const isExported = isExportedFunction(node)
-        if (isExported) return
+        if (isExportedFunction(node)) return
         
         const optionalParams = getOptionalParams(node.params)
         if (optionalParams.length === 0) return
         
-        const functionInfo: FunctionInfo = {
+        trackedFunctions.push({
           node,
-          name,
-          isExported,
+          declarationNode: node,
           optionalParams,
-          calls: [],
-          isPassedAsArgument: false,
-          isUsedInJSX: false,
-        }
-        
-        functions.set(node, functionInfo)
-        
-        // Track functions by name for call resolution
-        const existingFunctions = functionsByName.get(name) || []
-        existingFunctions.push(node)
-        functionsByName.set(name, existingFunctions)
+        })
       },
       
       VariableDeclarator(node) {
         if (node.id.type !== AST_NODE_TYPES.Identifier) return
         if (!node.init) return
-        if (node.init.type !== AST_NODE_TYPES.ArrowFunctionExpression && node.init.type !== AST_NODE_TYPES.FunctionExpression) return
-        
-        const name = node.id.name
-        const functionNode = node.init
+        if (node.init.type !== AST_NODE_TYPES.ArrowFunctionExpression && 
+            node.init.type !== AST_NODE_TYPES.FunctionExpression) return
         
         // Check if this is exported
-        const isExported = isExportedFunction(node.parent.parent)
-        if (isExported) return
+        if (isExportedFunction(node.parent.parent)) return
         
-        const baseOptionalParams = getOptionalParams(functionNode.params)
+        const baseOptionalParams = getOptionalParams(node.init.params)
         const optionalParams = [...baseOptionalParams]
         
         // Check if this has FC type annotation for React components
@@ -308,137 +200,137 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
         
         if (optionalParams.length === 0) return
         
-        const functionInfo: FunctionInfo = {
-          node: functionNode,
-          name,
-          isExported,
+        trackedFunctions.push({
+          node: node.init,
+          declarationNode: node,
           optionalParams,
-          calls: [],
-          isPassedAsArgument: false,
-          isUsedInJSX: false,
-        }
-        
-        functions.set(functionNode, functionInfo)
-        
-        // Track functions by name for call resolution
-        const existingFunctions = functionsByName.get(name) || []
-        existingFunctions.push(functionNode)
-        functionsByName.set(name, existingFunctions)
-      },
-      
-      // Track function calls
-      CallExpression(node) {
-        if (node.callee.type === AST_NODE_TYPES.Identifier) {
-          const functionNodes = functionsByName.get(node.callee.name)
-          if (functionNodes) {
-            // If there are multiple functions with the same name, skip analysis to be safe
-            if (functionNodes.length > 1) {
-              for (const functionNode of functionNodes) {
-                const functionInfo = functions.get(functionNode)
-                if (functionInfo) {
-                  functionInfo.isPassedAsArgument = true
-                }
-              }
-            } else if (functionNodes[0]) {
-              const functionInfo = functions.get(functionNodes[0])
-              if (functionInfo) {
-                analyzeCallExpression(node, functionInfo)
-              }
-            }
-          }
-        }
-      },
-      
-      // Track JSX element usage
-      JSXOpeningElement(node) {
-        if (node.name.type === AST_NODE_TYPES.JSXIdentifier) {
-          const functionNodes = functionsByName.get(node.name.name)
-          if (functionNodes) {
-            // If there are multiple functions with the same name, skip analysis to be safe
-            if (functionNodes.length > 1) {
-              for (const functionNode of functionNodes) {
-                const functionInfo = functions.get(functionNode)
-                if (functionInfo) {
-                  functionInfo.isPassedAsArgument = true
-                }
-              }
-            } else if (functionNodes[0]) {
-              const functionInfo = functions.get(functionNodes[0])
-              if (functionInfo) {
-                functionInfo.isUsedInJSX = true
-                analyzeJSXElement(node, functionInfo)
-              }
-            }
-          }
-        }
-      },
-      
-      // Track when function is passed as argument
-      'CallExpression > Identifier'(node: TSESTree.Identifier) {
-        const functionNodes = functionsByName.get(node.name)
-        if (functionNodes) {
-          const parent = node.parent
-          if (parent.type === AST_NODE_TYPES.CallExpression && parent.arguments.includes(node)) {
-            // Mark all functions with this name as passed as argument
-            for (const functionNode of functionNodes) {
-              const functionInfo = functions.get(functionNode)
-              if (functionInfo) {
-                functionInfo.isPassedAsArgument = true
-              }
-            }
-          }
-        }
-      },
-      
-      // Track when function is used as JSX prop
-      'JSXExpressionContainer > Identifier'(node: TSESTree.Identifier) {
-        const functionNodes = functionsByName.get(node.name)
-        if (functionNodes) {
-          for (const functionNode of functionNodes) {
-            const functionInfo = functions.get(functionNode)
-            if (functionInfo) {
-              functionInfo.isPassedAsArgument = true
-            }
-          }
-        }
-      },
-      
-      // Track when function is returned
-      'ReturnStatement > Identifier'(node: TSESTree.Identifier) {
-        const functionNodes = functionsByName.get(node.name)
-        if (functionNodes) {
-          for (const functionNode of functionNodes) {
-            const functionInfo = functions.get(functionNode)
-            if (functionInfo) {
-              functionInfo.isPassedAsArgument = true
-            }
-          }
-        }
-      },
-      
-      // Track when function is returned as object property
-      'ReturnStatement > ObjectExpression > Property > Identifier'(node: TSESTree.Identifier) {
-        const functionNodes = functionsByName.get(node.name)
-        if (functionNodes) {
-          for (const functionNode of functionNodes) {
-            const functionInfo = functions.get(functionNode)
-            if (functionInfo) {
-              functionInfo.isPassedAsArgument = true
-            }
-          }
-        }
+        })
       },
       
       'Program:exit'() {
-        for (const functionInfo of functions.values()) {
-          // Skip if function is passed as argument or used in complex ways
-          if (functionInfo.isPassedAsArgument) continue
+        for (const functionInfo of trackedFunctions) {
+          const variables = context.sourceCode.getDeclaredVariables(functionInfo.declarationNode)
+          const functionVariable = variables[0]
+          if (!functionVariable) continue
           
-          // Skip if any call uses spread args
-          if (functionInfo.calls.some(call => call.hasSpread)) continue
+          const references = functionVariable.references.filter(ref => ref.identifier !== functionVariable.identifiers[0])
           
-          // Skip if no calls found
-          if (functionInfo.calls.length === 0) continue
+          if (references.length === 0) continue
+          
+          // Check if function is passed as argument, returned, or used in complex ways
+          let skipAnalysis = false
+          for (const ref of references) {
+            const parent = ref.identifier.parent
+            
+            // Function passed as argument
+            if (parent.type === AST_NODE_TYPES.CallExpression && 
+                ref.identifier.type === AST_NODE_TYPES.Identifier && 
+                parent.arguments.includes(ref.identifier)) {
+              skipAnalysis = true
+              break
+            }
+            
+            // Function returned
+            if (parent.type === AST_NODE_TYPES.ReturnStatement) {
+              skipAnalysis = true
+              break
+            }
+            
+            // Function returned as object property
+            if (parent.type === AST_NODE_TYPES.Property && 
+                parent.parent.type === AST_NODE_TYPES.ObjectExpression &&
+                parent.parent.parent.type === AST_NODE_TYPES.ReturnStatement) {
+              skipAnalysis = true
+              break
+            }
+            
+            // Function used as JSX prop
+            if (parent.type === AST_NODE_TYPES.JSXExpressionContainer) {
+              skipAnalysis = true
+              break
+            }
+          }
+          
+          if (skipAnalysis) continue
+          
+          // Analyze calls and JSX usage
+          const calls: Array<{ argCount: number; hasSpread: boolean; objectArgs?: Array<{ [key: string]: boolean }> }> = []
+          
+          for (const ref of references) {
+            const parent = ref.identifier.parent
+            
+            // Regular function call
+            if (parent.type === AST_NODE_TYPES.CallExpression && parent.callee === ref.identifier) {
+              const argCount = parent.arguments.length
+              const hasSpread = parent.arguments.some(arg => arg.type === AST_NODE_TYPES.SpreadElement)
+              
+              if (hasSpread) {
+                skipAnalysis = true
+                break
+              }
+              
+              const callInfo: { argCount: number; hasSpread: boolean; objectArgs?: Array<{ [key: string]: boolean }> } = {
+                argCount,
+                hasSpread,
+              }
+              
+              // Analyze object arguments
+              for (const optionalParam of functionInfo.optionalParams) {
+                if (optionalParam.isObjectParam && optionalParam.index < argCount) {
+                  const arg = parent.arguments[optionalParam.index]
+                  if (arg?.type === AST_NODE_TYPES.ObjectExpression) {
+                    const objectArg: { [key: string]: boolean } = {}
+                    for (const prop of arg.properties) {
+                      if (prop.type === AST_NODE_TYPES.Property && prop.key.type === AST_NODE_TYPES.Identifier) {
+                        objectArg[prop.key.name] = true
+                      }
+                    }
+                    if (!callInfo.objectArgs) callInfo.objectArgs = []
+                    callInfo.objectArgs[optionalParam.index] = objectArg
+                  } else if (arg) {
+                    // Non-object argument - can't analyze
+                    skipAnalysis = true
+                    break
+                  }
+                }
+              }
+              
+              calls.push(callInfo)
+            }
+            
+            // JSX usage
+            else if (parent.type === AST_NODE_TYPES.JSXOpeningElement && parent.name === ref.identifier) {
+              const hasSpread = parent.attributes.some(attr => attr.type === AST_NODE_TYPES.JSXSpreadAttribute)
+              
+              if (hasSpread) {
+                skipAnalysis = true
+                break
+              }
+              
+              const callInfo: { argCount: number; hasSpread: boolean; objectArgs?: Array<{ [key: string]: boolean }> } = {
+                argCount: 1,
+                hasSpread,
+              }
+              
+              // Analyze JSX attributes for object parameters
+              for (const optionalParam of functionInfo.optionalParams) {
+                if (optionalParam.isObjectParam && optionalParam.index === 0) {
+                  const objectArg: { [key: string]: boolean } = {}
+                  for (const attr of parent.attributes) {
+                    if (attr.type === AST_NODE_TYPES.JSXAttribute && attr.name.type === AST_NODE_TYPES.JSXIdentifier) {
+                      objectArg[attr.name.name] = true
+                    }
+                  }
+                  if (!callInfo.objectArgs) callInfo.objectArgs = []
+                  callInfo.objectArgs[0] = objectArg
+                }
+              }
+              
+              calls.push(callInfo)
+            }
+          }
+          
+          if (skipAnalysis || calls.length === 0) continue
           
           // Check each optional parameter
           for (const optionalParam of functionInfo.optionalParams) {
@@ -449,7 +341,7 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
                 
                 let isPropertyUsed = false
                 
-                for (const call of functionInfo.calls) {
+                for (const call of calls) {
                   if (call.objectArgs && call.objectArgs[optionalParam.index]) {
                     const objectArg = call.objectArgs[optionalParam.index]
                     if (objectArg && objectArg[objectProp.name]) {
@@ -471,7 +363,7 @@ export const noUnusedOptionalArgs = createExtendedLintRule<
               // Check regular optional parameter
               let isParameterUsed = false
               
-              for (const call of functionInfo.calls) {
+              for (const call of calls) {
                 if (call.argCount > optionalParam.index) {
                   isParameterUsed = true
                   break
