@@ -332,7 +332,7 @@ test('return function as object property with different name (skip)', async () =
   )
 })
 
-test('functions with same name in different scopes (skip analysis)', async () => {
+test('functions with same name in different scopes - inner function returned (still skipped)', async () => {
   await valid(
     dedent`
       function handler(a?: string) { 
@@ -344,8 +344,7 @@ test('functions with same name in different scopes (skip analysis)', async () =>
         function handler(b?: number) {  // Same name, different scope
           return b || 0
         }
-        // No calls to inner handler - normally would report error
-        // But we skip analysis when names conflict to be safe
+        // No calls to inner handler - would report error but skipped because returned
         return handler
       }
     `,
