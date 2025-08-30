@@ -352,7 +352,7 @@ test('functions with same name in different scopes (skip analysis)', async () =>
   )
 })
 
-test('functions with same name - both get calls (skip analysis)', async () => {
+test('functions with same name in different scopes - both analyzed independently', async () => {
   await valid(
     dedent`
       function process(data?: string) {
