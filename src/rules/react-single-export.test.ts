@@ -808,7 +808,7 @@ test('invalid: component with hook exports', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'multipleExports', line: 9 }
+    - { messageId: 'multipleExports', line: 3 }
     "
   `)
 })
