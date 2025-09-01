@@ -81,6 +81,7 @@ export function createNewTester<
     projectService: {
       allowDefaultProject: ['*.ts*'],
       defaultProject: './tsconfig.json',
+      maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 10000,
     },
   }
   return createRuleTester<O, M>({

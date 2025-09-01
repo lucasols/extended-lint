@@ -22,7 +22,6 @@ This is an **ESLint plugin** (`extended-lint`) that provides custom linting rule
 - Tests: `src/rules/*.test.ts`
 - Always use `createNewTester` from `@tests/utils/createTester.ts`
 - Write tests BEFORE implementing rules
-- Use `_dev_simulateFileName` for file-path dependent rules
 - Use describe only for grouping tests
 - Trailing or leading empty lines in output are not a issue as the code will be formatted by the user, so don't worry about it. Handling it in the rule will make the rule code more complex, so don't do it.
 
@@ -65,8 +64,7 @@ test('invalid case description', async () => {
   // use getErrorsWithMsgFromResult(result) to include final message in the snapshot when there is dynamic data in the message
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
 
@@ -87,6 +85,7 @@ test('valid example with options', async () => {
       const config: Config = { debug: true }
     `,
     options: [{ checkOnly: ['FC'] }],
+    filename: 'config.ts', // use only if needed
   })
 })
 
@@ -96,6 +95,7 @@ test('invalid example with options', async () => {
       const config: Config = { debug: true }
     `,
     options: [{ checkOnly: ['FC'] }],
+    filename: 'config.ts', // use only if needed
   })
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(/* ... */)
@@ -170,3 +170,27 @@ The rules will be used in large codebases, so performance should be a priority.
 # Code maintainability and readability
 
 Extract and reuse common utility functions in @src/astUtils.ts
+
+# Fixing @typescript-eslint/no-unnecessary-condition
+
+Common when working with AST nodes. **Fix strategy: Remove unnecessary checks - trust TypeScript and eslint.** If TypeScript doesn't error, the check is unnecessary
+
+## Quick Fixes
+
+```typescript
+// ❌ Remove unnecessary optional chaining
+node.parent?.type → node.parent.type
+
+// ❌ Remove unnecessary conditionals
+if (alwaysTrue && node.parent.type) { ... }
+should be:
+if (node.parent.type) { ... }
+
+// ❌ Double check impossible conditions
+if (alwaysFalse && node.parent.type) { ... }
+// in this case check if the condition is really necessary or the code has a bug
+```
+
+# Best Practices
+
+- For analyzing code usage/references use eslint scope analysis utilities

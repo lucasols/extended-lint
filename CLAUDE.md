@@ -22,7 +22,6 @@ This is an **ESLint plugin** (`extended-lint`) that provides custom linting rule
 - Tests: `src/rules/*.test.ts`
 - Always use `createNewTester` from `@tests/utils/createTester.ts`
 - Write tests BEFORE implementing rules
-- Use `_dev_simulateFileName` for file-path dependent rules
 - Use describe only for grouping tests
 - Trailing or leading empty lines in output are not a issue as the code will be formatted by the user, so don't worry about it. Handling it in the rule will make the rule code more complex, so don't do it.
 
@@ -86,6 +85,7 @@ test('valid example with options', async () => {
       const config: Config = { debug: true }
     `,
     options: [{ checkOnly: ['FC'] }],
+    filename: 'config.ts', // use only if needed
   })
 })
 
@@ -95,6 +95,7 @@ test('invalid example with options', async () => {
       const config: Config = { debug: true }
     `,
     options: [{ checkOnly: ['FC'] }],
+    filename: 'config.ts', // use only if needed
   })
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(/* ... */)
