@@ -23,7 +23,7 @@ export const reactSingleExport = createExtendedLintRule<
     },
     messages: {
       multipleExports:
-        'React component files should have only one export to support fast refresh.',
+        'React component files should have only one export to support fast refresh. Type-only exports are allowed.',
     },
     schema: [getJsonSchemaFromZod(optionsSchema)],
   },
