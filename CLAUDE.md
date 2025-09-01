@@ -65,8 +65,7 @@ test('invalid case description', async () => {
   // use getErrorsWithMsgFromResult(result) to include final message in the snapshot when there is dynamic data in the message
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - messageId: 'moveTypeAboveUsage'
-      line: 5
+    - { messageId: 'moveTypeAboveUsage', line: 5 }
     "
   `)
 
