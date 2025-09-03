@@ -103,6 +103,9 @@ test('invalid example with options', async () => {
 })
 ```
 
+- Dont use `expect(result.output).toMatchInlineSnapshot(...)` if the test do not have auto fixable code.
+- For code with fix suggestions, use `expect(getSuggestionOutput(result)).toMatchInlineSnapshot(...)` to check the fix.
+
 # Architecture
 
 - **Entry point**: `src/extended-lint.ts`

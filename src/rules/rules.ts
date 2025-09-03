@@ -37,6 +37,7 @@ import { templateIndent } from './template-indent'
 import { useTopLevelRegex } from './use-top-level-regex'
 import { useTypesDirectlyAboveUsage } from './use-types-directly-above-usage'
 import { reactSingleExport } from './react-single-export'
+import { useStateSetterNaming } from './use-state-setter-naming'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -77,5 +78,6 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [templateIndent.name]: templateIndent.rule,
   [useTypesDirectlyAboveUsage.name]: useTypesDirectlyAboveUsage.rule,
   [reactSingleExport.name]: reactSingleExport.rule,
+  [useStateSetterNaming.name]: useStateSetterNaming.rule,
   [noReexport.name]: noReexport.rule,
 }
