@@ -385,8 +385,8 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       'Program:exit'() {
         const typeUsagesMap = new Map<string, TSESTree.Statement[]>()
 
-        // Filter type references based on checkOnly option
-        const filteredReferences = allTypeReferences.filter((typeRef) => {
+        // Helper function to check if a type reference matches checkOnly criteria
+        function matchesCheckOnlyContext(typeRef: typeof allTypeReferences[0]): boolean {
           // If no checkOnly option, include all references
           if (!options.checkOnly || options.checkOnly.length === 0) {
             return true
@@ -409,10 +409,10 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           }
 
           return false
-        })
+        }
 
-        // Process filtered type references
-        for (const typeRef of filteredReferences) {
+        // Process ALL type references to determine actual first usage
+        for (const typeRef of allTypeReferences) {
           const { typeName, node } = typeRef
 
           if (typeDefinitions.has(typeName)) {
@@ -443,6 +443,15 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
         for (const [typeName, usageStatements] of typeUsagesMap) {
           if (usageStatements.length > 0) {
+            // Check if this type has any usages in checkOnly contexts
+            const hasMatchingUsages = allTypeReferences.some(
+              (typeRef) => 
+                typeRef.typeName === typeName && matchesCheckOnlyContext(typeRef)
+            )
+            
+            // Only process types that either have no checkOnly filter or have matching usages
+            if (!hasMatchingUsages) continue
+
             let firstUsage = usageStatements[0]
             if (!firstUsage) continue
             let firstUsagePosition = Number.MAX_SAFE_INTEGER
@@ -455,7 +464,8 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
               }
             }
 
-            for (const typeRef of filteredReferences) {
+            // Use ALL type references to find the actual first usage position
+            for (const typeRef of allTypeReferences) {
               if (typeRef.typeName === typeName) {
                 const statement = findStatementContaining(typeRef.node)
                 if (
