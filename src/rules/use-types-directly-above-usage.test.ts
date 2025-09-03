@@ -2196,3 +2196,20 @@ test('reproduce bug with all options', async () => {
     });"
   `)
 })
+
+test('reproduce bug when using type inside function', async () => {
+  await valid({
+    code: dedent`
+      type User = { name: string }
+      
+      const Component: FC = () => {
+        const user: User[] = [{ name: 'John' }] // user is declared here so there is no error
+      }
+
+      const Component2: FC<{ user: User }> = ({ user }) => {
+        return user.name
+      }
+    `,
+    options: [{ checkOnly: ['function-args', 'FC'] }],
+  })
+})
