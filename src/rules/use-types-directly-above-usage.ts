@@ -310,6 +310,26 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       }
     }
 
+    function isTypeOrInterfaceDeclarationStatement(
+      stmt: TSESTree.Statement,
+    ): boolean {
+      if (
+        stmt.type === AST_NODE_TYPES.TSTypeAliasDeclaration ||
+        stmt.type === AST_NODE_TYPES.TSInterfaceDeclaration
+      ) {
+        return true
+      }
+      if (stmt.type === AST_NODE_TYPES.ExportNamedDeclaration) {
+        const decl = stmt.declaration
+        if (!decl) return false
+        return (
+          decl.type === AST_NODE_TYPES.TSTypeAliasDeclaration ||
+          decl.type === AST_NODE_TYPES.TSInterfaceDeclaration
+        )
+      }
+      return false
+    }
+
     return {
       Program(node) {
         programStatements.push(...node.body)
@@ -415,21 +435,31 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         for (const typeRef of allTypeReferences) {
           const { typeName, node } = typeRef
 
-          if (typeDefinitions.has(typeName)) {
-            const statement = findStatementContaining(node)
-            const def = typeDefinitions.get(typeName)
+          if (!typeDefinitions.has(typeName)) continue
 
-            if (statement && def && statement !== def.statement) {
-              if (!typeUsagesMap.has(typeName)) {
-                typeUsagesMap.set(typeName, [])
-              }
+          const statement = findStatementContaining(node)
+          const def = typeDefinitions.get(typeName)
+          if (!statement || !def) continue
 
-              const usages = typeUsagesMap.get(typeName)
-              if (!usages) return
-              if (!usages.includes(statement)) {
-                usages.push(statement)
-              }
-            }
+          // When checkOnly is provided, ignore usages inside type/interface declarations
+          if (
+            options.checkOnly &&
+            options.checkOnly.length > 0 &&
+            isTypeOrInterfaceDeclarationStatement(statement)
+          ) {
+            continue
+          }
+
+          if (statement === def.statement) continue
+
+          if (!typeUsagesMap.has(typeName)) {
+            typeUsagesMap.set(typeName, [])
+          }
+
+          const usages = typeUsagesMap.get(typeName)
+          if (!usages) return
+          if (!usages.includes(statement)) {
+            usages.push(statement)
           }
         }
 
@@ -445,10 +475,10 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           if (usageStatements.length > 0) {
             // Check if this type has any usages in checkOnly contexts
             const hasMatchingUsages = allTypeReferences.some(
-              (typeRef) => 
-                typeRef.typeName === typeName && matchesCheckOnlyContext(typeRef)
+              (typeRef) =>
+                typeRef.typeName === typeName && matchesCheckOnlyContext(typeRef),
             )
-            
+
             // Only process types that either have no checkOnly filter or have matching usages
             if (!hasMatchingUsages) continue
 
