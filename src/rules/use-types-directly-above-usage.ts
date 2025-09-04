@@ -491,25 +491,54 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
               }
             }
 
-            let earliestNonTypeDeclUsageIndex = Number.MAX_SAFE_INTEGER
-            for (const typeRef of allTypeReferences) {
-              if (typeRef.typeName !== typeName) continue
-              if (isInTypeDeclarationContext(typeRef.node)) continue
-              const stmt = findStatementContaining(typeRef.node)
-              if (!stmt) continue
-              const idx = programStatements.indexOf(stmt)
-              if (idx !== -1 && idx < earliestNonTypeDeclUsageIndex) {
-                earliestNonTypeDeclUsageIndex = idx
-              }
-            }
+            const hasCheckOnly = Boolean(
+              options.checkOnly && options.checkOnly.length > 0,
+            )
 
-            const firstUsageIndex = programStatements.indexOf(firstUsage)
-            if (
-              earliestNonTypeDeclUsageIndex !== Number.MAX_SAFE_INTEGER &&
-              firstUsageIndex !== -1 &&
-              earliestNonTypeDeclUsageIndex < firstUsageIndex
-            ) {
-              continue
+            if (hasCheckOnly) {
+              // If checkOnly is present without generic-args-at-fn-calls, and the type
+              // is used in ANY context before the first valid checkOnly usage, ignore.
+              let earliestAnyUsageIndex = Number.MAX_SAFE_INTEGER
+              for (const ref of allTypeReferences) {
+                if (ref.typeName !== typeName) continue
+                const stmt = findStatementContaining(ref.node)
+                if (!stmt) continue
+                const idx = programStatements.indexOf(stmt)
+                if (idx !== -1 && idx < earliestAnyUsageIndex) {
+                  earliestAnyUsageIndex = idx
+                }
+              }
+
+              const firstUsageIndex = programStatements.indexOf(firstUsage)
+              if (
+                earliestAnyUsageIndex !== Number.MAX_SAFE_INTEGER &&
+                firstUsageIndex !== -1 &&
+                earliestAnyUsageIndex < firstUsageIndex
+              ) {
+                continue
+              }
+            } else {
+              // Otherwise, prevent moving a type below an earlier non-type-declaration usage
+              let earliestNonTypeDeclUsageIndex = Number.MAX_SAFE_INTEGER
+              for (const ref of allTypeReferences) {
+                if (ref.typeName !== typeName) continue
+                if (isInTypeDeclarationContext(ref.node)) continue
+                const stmt = findStatementContaining(ref.node)
+                if (!stmt) continue
+                const idx = programStatements.indexOf(stmt)
+                if (idx !== -1 && idx < earliestNonTypeDeclUsageIndex) {
+                  earliestNonTypeDeclUsageIndex = idx
+                }
+              }
+
+              const firstUsageIndex = programStatements.indexOf(firstUsage)
+              if (
+                earliestNonTypeDeclUsageIndex !== Number.MAX_SAFE_INTEGER &&
+                firstUsageIndex !== -1 &&
+                earliestNonTypeDeclUsageIndex < firstUsageIndex
+              ) {
+                continue
+              }
             }
 
             typesToProcess.push({

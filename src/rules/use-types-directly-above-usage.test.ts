@@ -2215,7 +2215,7 @@ test('reproduce bug when using type inside function', async () => {
 })
 
 test('reproduce infinite autofix loop', async () => {
-  const { result } = await invalid({
+  await valid({
     code: dedent`
       export type TypeA =
         | 'a'
@@ -2341,132 +2341,63 @@ test('reproduce infinite autofix loop', async () => {
       { checkOnly: ['function-args', 'FC', 'generic-args-at-fn-calls'] },
     ],
   })
+})
+
+test('reproduce bug when using type inside another type', async () => {
+  await valid({
+    code: dedent`
+      type User = { name: string }
+
+      type Test2 = { ok: true } & User
+      
+      const Component: FC = () => {
+        console.log('test')
+      }
+
+      const Component2: FC<{ user: User }> = ({ user }) => {
+        return user.name
+      }
+    `,
+    options: [{ checkOnly: ['function-args', 'FC'] }],
+  })
+})
+
+test('type used in contexts other than checkOnly, but after the first checkOnly context', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      type User = { name: string }
+
+      const Component: FC = () => {
+        console.log('test')
+      }
+
+      const Component2: FC<{ user: User }> = ({ user }) => {
+        return user.name
+      }
+
+      type Test2 = { ok: true } & User
+    `,
+    options: [{ checkOnly: ['function-args', 'FC'] }],
+  })
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'moveTypeAboveUsage', line: 1 }
+    "
+  `)
 
   expect(result.output).toMatchInlineSnapshot(`
-    "export type TypeA =
-      | 'a'
-      | 'b'
-      | 'c'
-      | 'd'
-      | 'e'
-      | 'f';
+    "
 
-    const typeASchema: RcType<TypeA> = rc_literals(
-      'a',
-      'b',
-      'c',
-      'd',
-      'e',
-      'f',
-    ).withFallback('a');
+    const Component: FC = () => {
+      console.log('test')
+    }
 
-    export type TypeB =
-      | 'x'
-      | 'y'
-      | 'z'
-      | 'w';
+    type User = { name: string }
 
-    const typeBSchema: RcType<TypeB> = rc_literals(
-      'x',
-      'y',
-      'z',
-      'w',
-    );
+    const Component2: FC<{ user: User }> = ({ user }) => {
+      return user.name
+    }
 
-    export type TypeC = {
-      prop1: string | null;
-      prop2: string | null;
-      prop3: undefined | TypeF;
-      prop4: TypeA;
-      prop5: TypeB;
-    };
-
-    export const typeCSchema =
-      rc_obj_builder<TypeC>()({
-        prop1: rc_string.orNull(),
-      });
-
-    export type TypeD =
-      | 'm'
-      | 'n'
-      | 'o'
-      | 'p'
-      | 'q'
-      | 'r';
-
-    export const typeDSchema: RcType<TypeD> = rc_literals(
-      'm',
-
-    );
-
-
-
-
-
-
-
-    export type TypeE = {
-      propA: string;
-      propB: TypeC | null;
-      propC: TypeG | null;
-    };
-
-    export const typeESchema = rc_obj_builder<TypeE>()({
-      propA: rc_string,
-      propB: rc_string,
-      propC: rc_array(rc_string).orNull(),
-      propD: rc_array(apiFilterSchema).orNull(),
-      propE: ['null_or', { field: rc_string, order: rc_literals('asc', 'desc') }],
-      propF: rc_boolean,
-      propG: rc_boolean,
-      propB: typeCSchema.orNull(),
-      propC: rc_recursive(() => typeGSchema).orNull(),
-    });
-
-    export type TypeH = { arr: TypeE[] };
-
-    const typeHSchema: RcType<TypeH> =
-      rc_obj_builder<TypeH>()({
-        arr: rc_array(typeESchema),
-      });
-
-    export type TypeG = {
-      propX: string | null;
-      propY: string | null;
-      propZ: undefined | TypeF;
-      propW: TypeA;
-      propV: TypeB;
-      propU: boolean | undefined;
-      propT: boolean | undefined;
-      propS: {
-        m: boolean;
-        n: boolean;
-        o: boolean;
-        p: boolean;
-        q: boolean;
-      };
-      propR?: TypeD[];
-      propQ: TypeH | null | undefined;
-    };
-
-    export const typeGSchema =
-      rc_obj_builder<TypeG>()({
-        propX: rc_string.orNull(),
-        propY: rc_string.orNull(),
-        propW: typeASchema,
-        propV: typeBSchema,
-        propZ: typeFSchema.optional(),
-        propU: rc_boolean.optional(),
-        propT: rc_boolean.optional(),
-        propS: {
-          m: rc_boolean,
-          n: rc_boolean,
-          o: rc_boolean,
-          p: rc_boolean,
-          q: rc_boolean,
-        },
-        propR: rc_loose_array(typeDSchema).optional(),
-        propQ: typeHSchema.orNullish(),
-      });"
+    type Test2 = { ok: true } & User"
   `)
 })
