@@ -130,6 +130,20 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       return false
     }
 
+    function isInTypeDeclarationContext(node: TSESTree.Node): boolean {
+      let current: TSESTree.Node | undefined | null = node.parent
+      while (current) {
+        if (
+          current.type === AST_NODE_TYPES.TSTypeAliasDeclaration ||
+          current.type === AST_NODE_TYPES.TSInterfaceDeclaration
+        ) {
+          return true
+        }
+        current = current.parent
+      }
+      return false
+    }
+
     const allTypeReferences: Array<{
       typeName: string
       node: TSESTree.TSTypeReference
@@ -310,26 +324,6 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       }
     }
 
-    function isTypeOrInterfaceDeclarationStatement(
-      stmt: TSESTree.Statement,
-    ): boolean {
-      if (
-        stmt.type === AST_NODE_TYPES.TSTypeAliasDeclaration ||
-        stmt.type === AST_NODE_TYPES.TSInterfaceDeclaration
-      ) {
-        return true
-      }
-      if (stmt.type === AST_NODE_TYPES.ExportNamedDeclaration) {
-        const decl = stmt.declaration
-        if (!decl) return false
-        return (
-          decl.type === AST_NODE_TYPES.TSTypeAliasDeclaration ||
-          decl.type === AST_NODE_TYPES.TSInterfaceDeclaration
-        )
-      }
-      return false
-    }
-
     return {
       Program(node) {
         programStatements.push(...node.body)
@@ -406,7 +400,9 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
         const typeUsagesMap = new Map<string, TSESTree.Statement[]>()
 
         // Helper function to check if a type reference matches checkOnly criteria
-        function matchesCheckOnlyContext(typeRef: typeof allTypeReferences[0]): boolean {
+        function matchesCheckOnlyContext(
+          typeRef: (typeof allTypeReferences)[0],
+        ): boolean {
           // If no checkOnly option, include all references
           if (!options.checkOnly || options.checkOnly.length === 0) {
             return true
@@ -431,24 +427,16 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
           return false
         }
 
-        // Process ALL type references to determine actual first usage
         for (const typeRef of allTypeReferences) {
           const { typeName, node } = typeRef
 
           if (!typeDefinitions.has(typeName)) continue
 
+          if (!matchesCheckOnlyContext(typeRef)) continue
+
           const statement = findStatementContaining(node)
           const def = typeDefinitions.get(typeName)
           if (!statement || !def) continue
-
-          // When checkOnly is provided, ignore usages inside type/interface declarations
-          if (
-            options.checkOnly &&
-            options.checkOnly.length > 0 &&
-            isTypeOrInterfaceDeclarationStatement(statement)
-          ) {
-            continue
-          }
 
           if (statement === def.statement) continue
 
@@ -473,14 +461,9 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
         for (const [typeName, usageStatements] of typeUsagesMap) {
           if (usageStatements.length > 0) {
-            // Check if this type has any usages in checkOnly contexts
-            const hasMatchingUsages = allTypeReferences.some(
-              (typeRef) =>
-                typeRef.typeName === typeName && matchesCheckOnlyContext(typeRef),
-            )
-
-            // Only process types that either have no checkOnly filter or have matching usages
-            if (!hasMatchingUsages) continue
+            // Only process types that have matching usages collected above
+            // If there are no usage statements after filtering by checkOnly, skip
+            if (usageStatements.length === 0) continue
 
             let firstUsage = usageStatements[0]
             if (!firstUsage) continue
@@ -494,8 +477,8 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
               }
             }
 
-            // Use ALL type references to find the actual first usage position
             for (const typeRef of allTypeReferences) {
+              if (!matchesCheckOnlyContext(typeRef)) continue
               if (typeRef.typeName === typeName) {
                 const statement = findStatementContaining(typeRef.node)
                 if (
@@ -506,6 +489,27 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
                   firstUsageInFunctionArgs = typeRef.inFunctionArgs
                 }
               }
+            }
+
+            let earliestNonTypeDeclUsageIndex = Number.MAX_SAFE_INTEGER
+            for (const typeRef of allTypeReferences) {
+              if (typeRef.typeName !== typeName) continue
+              if (isInTypeDeclarationContext(typeRef.node)) continue
+              const stmt = findStatementContaining(typeRef.node)
+              if (!stmt) continue
+              const idx = programStatements.indexOf(stmt)
+              if (idx !== -1 && idx < earliestNonTypeDeclUsageIndex) {
+                earliestNonTypeDeclUsageIndex = idx
+              }
+            }
+
+            const firstUsageIndex = programStatements.indexOf(firstUsage)
+            if (
+              earliestNonTypeDeclUsageIndex !== Number.MAX_SAFE_INTEGER &&
+              firstUsageIndex !== -1 &&
+              earliestNonTypeDeclUsageIndex < firstUsageIndex
+            ) {
+              continue
             }
 
             typesToProcess.push({
