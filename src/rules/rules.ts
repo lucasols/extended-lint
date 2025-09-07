@@ -38,6 +38,7 @@ import { useTopLevelRegex } from './use-top-level-regex'
 import { useTypesDirectlyAboveUsage } from './use-types-directly-above-usage'
 import { reactSingleExport } from './react-single-export'
 import { useStateSetterNaming } from './use-state-setter-naming'
+import { noRedundantFunctionParams } from './no-redundant-function-params'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -79,5 +80,6 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [useTypesDirectlyAboveUsage.name]: useTypesDirectlyAboveUsage.rule,
   [reactSingleExport.name]: reactSingleExport.rule,
   [useStateSetterNaming.name]: useStateSetterNaming.rule,
+  [noRedundantFunctionParams.name]: noRedundantFunctionParams.rule,
   [noReexport.name]: noReexport.rule,
 }
