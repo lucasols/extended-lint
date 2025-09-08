@@ -1,6 +1,6 @@
 {
   "name": "@ls-stack/extended-lint",
-  "version": "0.69.1",
+  "version": "0.69.2",
   "license": "MIT",
   "scripts": {
     "lint": "pnpm tsc && pnpm eslint",
