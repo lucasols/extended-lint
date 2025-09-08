@@ -316,7 +316,7 @@ test('reproduce bug', async () => {
   expect(result.output).toMatchInlineSnapshot(`
     "const Component = styled.div\`
       color: red;
-      \${inline()}
+      \${inline({ justify: 'center' })}
     \`"
   `)
 })
