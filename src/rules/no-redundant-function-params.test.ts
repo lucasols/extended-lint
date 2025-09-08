@@ -320,3 +320,37 @@ test('reproduce bug', async () => {
     \`"
   `)
 })
+
+test('reproduce bug 2', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      const Component = styled.div\`
+        color: red;
+        \${inline({ align: 'center', justify: 'left', gap: 5 })}
+      \`
+    `,
+    options: [
+      {
+        functions: [
+          {
+            name: 'inline',
+            defaults: [{ align: 'center', justify: 'left', gap: 0 }],
+          },
+        ],
+      },
+    ],
+  })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'redundantParam', line: 3 }
+    "
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "const Component = styled.div\`
+      color: red;
+      \${inline({ gap: 5 })}
+    \`"
+  `)
+})
