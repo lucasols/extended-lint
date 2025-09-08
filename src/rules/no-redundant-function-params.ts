@@ -176,6 +176,7 @@ export const noRedundantFunctionParams = createExtendedLintRule<
         let lastNonRedundantIndex = -1
         let hasObjectWithRedundantProps = false
         const objectRedundantProps = new Map<number, Set<string>>()
+        const fullyRedundantObjects = new Set<number>()
         
         for (let i = 0; i < args.length; i++) {
           if (i >= defaults.length) {
@@ -199,17 +200,38 @@ export const noRedundantFunctionParams = createExtendedLintRule<
           
           if (deepEqual(argValue, defaultValue)) continue
           
+          // Check if object is empty and default has properties
+          if (
+            arg.type === AST_NODE_TYPES.ObjectExpression &&
+            arg.properties.length === 0 &&
+            typeof defaultValue === 'object' &&
+            defaultValue !== null &&
+            Object.keys(defaultValue).length > 0
+          ) {
+            fullyRedundantObjects.add(i)
+            continue
+          }
+          
           const redundantProps = getRedundantProperties(argValue, defaultValue)
           if (redundantProps.size > 0) {
-            hasObjectWithRedundantProps = true
-            objectRedundantProps.set(i, redundantProps)
-            lastNonRedundantIndex = i
+            // Check if ALL properties are redundant
+            if (
+              arg.type === AST_NODE_TYPES.ObjectExpression &&
+              arg.properties.length === redundantProps.size
+            ) {
+              fullyRedundantObjects.add(i)
+              continue
+            } else {
+              hasObjectWithRedundantProps = true
+              objectRedundantProps.set(i, redundantProps)
+              lastNonRedundantIndex = i
+            }
           } else {
             lastNonRedundantIndex = i
           }
         }
         
-        if (lastNonRedundantIndex < args.length - 1 || hasObjectWithRedundantProps) {
+        if (lastNonRedundantIndex < args.length - 1 || hasObjectWithRedundantProps || fullyRedundantObjects.size > 0) {
           context.report({
             node,
             messageId: 'redundantParam',
@@ -236,18 +258,24 @@ export const noRedundantFunctionParams = createExtendedLintRule<
                       keepProperties.push(prop)
                     }
                     
-                    if (keepProperties.length === 0) {
-                      fixes.push(fixer.replaceText(arg, '{}'))
-                    } else {
-                      const propertyTexts = keepProperties.map(prop => context.sourceCode.getText(prop))
-                      fixes.push(fixer.replaceText(arg, `{ ${propertyTexts.join(', ')} }`))
-                    }
+                    const propertyTexts = keepProperties.map(prop => context.sourceCode.getText(prop))
+                    fixes.push(fixer.replaceText(arg, `{ ${propertyTexts.join(', ')} }`))
                   }
                 }
               }
               
-              if (lastNonRedundantIndex < args.length - 1) {
-                if (lastNonRedundantIndex === -1) {
+              // Find the rightmost non-redundant argument
+              let rightmostNonRedundant = -1
+              for (let i = args.length - 1; i >= 0; i--) {
+                if (!fullyRedundantObjects.has(i) && i <= lastNonRedundantIndex) {
+                  rightmostNonRedundant = i
+                  break
+                }
+              }
+              
+              // Remove trailing redundant arguments (including fully redundant objects)
+              if (rightmostNonRedundant < args.length - 1) {
+                if (rightmostNonRedundant === -1) {
                   const openParen = context.sourceCode.getTokenAfter(node.callee)
                   const closeParen = context.sourceCode.getLastToken(node)
                   
@@ -258,7 +286,7 @@ export const noRedundantFunctionParams = createExtendedLintRule<
                     ))
                   }
                 } else {
-                  const lastNonRedundantArg = args[lastNonRedundantIndex]
+                  const lastNonRedundantArg = args[rightmostNonRedundant]
                   const closeParen = context.sourceCode.getLastToken(node)
                   
                   if (closeParen && lastNonRedundantArg) {

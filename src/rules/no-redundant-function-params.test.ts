@@ -354,3 +354,71 @@ test('reproduce bug 2', async () => {
     \`"
   `)
 })
+
+test('dont keep empty objects', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      const Component = styled.div\`
+        color: red;
+        \${inline({ align: 'center' })};
+      \`
+    `,
+    options: [
+      {
+        functions: [
+          {
+            name: 'inline',
+            defaults: [{ align: 'center', justify: 'left', gap: 0 }],
+          },
+        ],
+      },
+    ],
+  })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'redundantParam', line: 3 }
+    "
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "const Component = styled.div\`
+      color: red;
+      \${inline()};
+    \`"
+  `)
+})
+
+test('dont allow empty objects', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      const Component = styled.div\`
+        color: red;
+        \${inline({})};
+      \`
+    `,
+    options: [
+      {
+        functions: [
+          {
+            name: 'inline',
+            defaults: [{ align: 'center', justify: 'left', gap: 0 }],
+          },
+        ],
+      },
+    ],
+  })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'redundantParam', line: 3 }
+    "
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "const Component = styled.div\`
+      color: red;
+      \${inline()};
+    \`"
+  `)
+})
