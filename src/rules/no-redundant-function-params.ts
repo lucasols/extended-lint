@@ -50,6 +50,29 @@ function deepEqual(a: unknown, b: unknown): boolean {
   return true
 }
 
+function hasRedundantProperties(argValue: unknown, defaultValue: unknown): boolean {
+  if (deepEqual(argValue, defaultValue)) return true
+  
+  if (typeof argValue !== 'object' || argValue === null || 
+      typeof defaultValue !== 'object' || defaultValue === null) {
+    return false
+  }
+  
+  for (const key in argValue) {
+    if (key in defaultValue) {
+      const argDescriptor = Object.getOwnPropertyDescriptor(argValue, key)
+      const defaultDescriptor = Object.getOwnPropertyDescriptor(defaultValue, key)
+      
+      if (argDescriptor && defaultDescriptor && 
+          deepEqual(argDescriptor.value, defaultDescriptor.value)) {
+        return true
+      }
+    }
+  }
+  
+  return false
+}
+
 
 function getArgumentValue(arg: TSESTree.CallExpressionArgument): unknown {
   if (arg.type === AST_NODE_TYPES.SpreadElement) {
@@ -166,7 +189,7 @@ export const noRedundantFunctionParams = createExtendedLintRule<
           
           const argValue = getArgumentValue(arg)
           
-          if (defaultValue === undefined || !deepEqual(argValue, defaultValue)) {
+          if (defaultValue === undefined || !hasRedundantProperties(argValue, defaultValue)) {
             lastNonRedundantIndex = i
           }
         }

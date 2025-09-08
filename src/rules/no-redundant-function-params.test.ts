@@ -55,7 +55,10 @@ test('allows calls with partial parameters', async () => {
     options: [
       {
         functions: [
-          { name: 'complex', defaults: [undefined, { enabled: true }, 'default'] },
+          {
+            name: 'complex',
+            defaults: [undefined, { enabled: true }, 'default'],
+          },
         ],
       },
     ],
@@ -69,9 +72,7 @@ test('disallows calls with simple default value', async () => {
     `,
     options: [
       {
-        functions: [
-          { name: 'createElement', defaults: [undefined, 'div'] },
-        ],
+        functions: [{ name: 'createElement', defaults: [undefined, 'div'] }],
       },
     ],
   })
@@ -92,9 +93,7 @@ test('disallows calls with object default value', async () => {
     `,
     options: [
       {
-        functions: [
-          { name: 'inline', defaults: [{ align: 'center' }] },
-        ],
+        functions: [{ name: 'inline', defaults: [{ align: 'center' }] }],
       },
     ],
   })
@@ -219,9 +218,7 @@ test('ignores functions not in configuration', async () => {
     `,
     options: [
       {
-        functions: [
-          { name: 'inline', defaults: [{ align: 'center' }] },
-        ],
+        functions: [{ name: 'inline', defaults: [{ align: 'center' }] }],
       },
     ],
   })
@@ -234,9 +231,7 @@ test('works with member expressions', async () => {
     `,
     options: [
       {
-        functions: [
-          { name: 'method', defaults: ['default'] },
-        ],
+        functions: [{ name: 'method', defaults: ['default'] }],
       },
     ],
   })
@@ -257,9 +252,7 @@ test('handles boolean default values', async () => {
     `,
     options: [
       {
-        functions: [
-          { name: 'toggle', defaults: [false] },
-        ],
+        functions: [{ name: 'toggle', defaults: [false] }],
       },
     ],
   })
@@ -280,9 +273,7 @@ test('handles null and undefined default values', async () => {
     `,
     options: [
       {
-        functions: [
-          { name: 'nullable', defaults: [null] },
-        ],
+        functions: [{ name: 'nullable', defaults: [null] }],
       },
     ],
   })
@@ -294,4 +285,38 @@ test('handles null and undefined default values', async () => {
   `)
 
   expect(result.output).toMatchInlineSnapshot(`"nullable()"`)
+})
+
+test('reproduce bug', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      const Component = styled.div\`
+        color: red;
+        \${inline({ align: 'center', justify: 'center' })}
+      \`
+    `,
+    options: [
+      {
+        functions: [
+          {
+            name: 'inline',
+            defaults: [{ align: 'center', justify: 'left', gap: 0 }],
+          },
+        ],
+      },
+    ],
+  })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'redundantParam', line: 3 }
+    "
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "const Component = styled.div\`
+      color: red;
+      \${inline()}
+    \`"
+  `)
 })
