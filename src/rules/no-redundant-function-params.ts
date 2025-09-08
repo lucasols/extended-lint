@@ -220,42 +220,27 @@ export const noRedundantFunctionParams = createExtendedLintRule<
                 for (const [argIndex, redundantProps] of objectRedundantProps) {
                   const arg = args[argIndex]
                   if (arg && arg.type === AST_NODE_TYPES.ObjectExpression) {
-                    const propsToRemove = []
+                    const keepProperties = []
+                    
                     for (const prop of arg.properties) {
-                      if (
-                        prop.type === AST_NODE_TYPES.Property &&
-                        prop.key.type === AST_NODE_TYPES.Identifier &&
-                        !prop.computed &&
-                        redundantProps.has(prop.key.name)
-                      ) {
-                        propsToRemove.push(prop)
+                      if (prop.type === AST_NODE_TYPES.Property) {
+                        if (
+                          prop.key.type === AST_NODE_TYPES.Identifier &&
+                          !prop.computed &&
+                          redundantProps.has(prop.key.name)
+                        ) {
+                          // Skip redundant property
+                          continue
+                        }
                       }
+                      keepProperties.push(prop)
                     }
                     
-                    for (const prop of propsToRemove) {
-                      const propIndex = arg.properties.indexOf(prop)
-                      const isLast = propIndex === arg.properties.length - 1
-                      const isFirst = propIndex === 0
-                      
-                      if (isFirst && isLast) {
-                        fixes.push(fixer.removeRange(prop.range))
-                      } else if (isFirst) {
-                        const commaAfter = context.sourceCode.getTokenAfter(prop)
-                        if (commaAfter && commaAfter.value === ',') {
-                          const nextProp = arg.properties[propIndex + 1]
-                          if (nextProp) {
-                            fixes.push(fixer.removeRange([prop.range[0], nextProp.range[0]]))
-                          }
-                        }
-                      } else {
-                        const prevProp = arg.properties[propIndex - 1]
-                        if (prevProp) {
-                          const commaAfterPrev = context.sourceCode.getTokenAfter(prevProp)
-                          if (commaAfterPrev && commaAfterPrev.value === ',') {
-                            fixes.push(fixer.removeRange([commaAfterPrev.range[0], prop.range[1]]))
-                          }
-                        }
-                      }
+                    if (keepProperties.length === 0) {
+                      fixes.push(fixer.replaceText(arg, '{}'))
+                    } else {
+                      const propertyTexts = keepProperties.map(prop => context.sourceCode.getText(prop))
+                      fixes.push(fixer.replaceText(arg, `{ ${propertyTexts.join(', ')} }`))
                     }
                   }
                 }
