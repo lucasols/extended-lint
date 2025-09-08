@@ -50,27 +50,28 @@ function deepEqual(a: unknown, b: unknown): boolean {
   return true
 }
 
-function hasRedundantProperties(argValue: unknown, defaultValue: unknown): boolean {
-  if (deepEqual(argValue, defaultValue)) return true
+
+function getRedundantProperties(argValue: unknown, defaultValue: unknown): Set<string> {
+  const redundantProps = new Set<string>()
   
   if (typeof argValue !== 'object' || argValue === null || 
       typeof defaultValue !== 'object' || defaultValue === null) {
-    return false
+    return redundantProps
   }
   
   for (const key in argValue) {
-    if (key in defaultValue) {
-      const argDescriptor = Object.getOwnPropertyDescriptor(argValue, key)
-      const defaultDescriptor = Object.getOwnPropertyDescriptor(defaultValue, key)
-      
-      if (argDescriptor && defaultDescriptor && 
-          deepEqual(argDescriptor.value, defaultDescriptor.value)) {
-        return true
-      }
+    if (!(key in defaultValue)) continue
+    
+    const argDescriptor = Object.getOwnPropertyDescriptor(argValue, key)
+    const defaultDescriptor = Object.getOwnPropertyDescriptor(defaultValue, key)
+    
+    if (argDescriptor && defaultDescriptor && 
+        deepEqual(argDescriptor.value, defaultDescriptor.value)) {
+      redundantProps.add(key)
     }
   }
   
-  return false
+  return redundantProps
 }
 
 
@@ -173,6 +174,8 @@ export const noRedundantFunctionParams = createExtendedLintRule<
         if (args.length === 0) return
         
         let lastNonRedundantIndex = -1
+        let hasObjectWithRedundantProps = false
+        const objectRedundantProps = new Map<number, Set<string>>()
         
         for (let i = 0; i < args.length; i++) {
           if (i >= defaults.length) {
@@ -189,39 +192,100 @@ export const noRedundantFunctionParams = createExtendedLintRule<
           
           const argValue = getArgumentValue(arg)
           
-          if (defaultValue === undefined || !hasRedundantProperties(argValue, defaultValue)) {
+          if (defaultValue === undefined) {
+            lastNonRedundantIndex = i
+            continue
+          }
+          
+          if (deepEqual(argValue, defaultValue)) continue
+          
+          const redundantProps = getRedundantProperties(argValue, defaultValue)
+          if (redundantProps.size > 0) {
+            hasObjectWithRedundantProps = true
+            objectRedundantProps.set(i, redundantProps)
+            lastNonRedundantIndex = i
+          } else {
             lastNonRedundantIndex = i
           }
         }
         
-        if (lastNonRedundantIndex < args.length - 1) {
+        if (lastNonRedundantIndex < args.length - 1 || hasObjectWithRedundantProps) {
           context.report({
             node,
             messageId: 'redundantParam',
             fix(fixer) {
-              if (lastNonRedundantIndex === -1) {
-                const openParen = context.sourceCode.getTokenAfter(node.callee)
-                const closeParen = context.sourceCode.getLastToken(node)
-                
-                if (openParen && closeParen) {
-                  return fixer.replaceTextRange(
-                    [openParen.range[1], closeParen.range[0]],
-                    ''
-                  )
-                }
-              } else {
-                const lastNonRedundantArg = args[lastNonRedundantIndex]
-                const closeParen = context.sourceCode.getLastToken(node)
-                
-                if (closeParen && lastNonRedundantArg) {
-                  return fixer.replaceTextRange(
-                    [lastNonRedundantArg.range[1], closeParen.range[0]],
-                    ''
-                  )
+              const fixes = []
+              
+              if (hasObjectWithRedundantProps) {
+                for (const [argIndex, redundantProps] of objectRedundantProps) {
+                  const arg = args[argIndex]
+                  if (arg && arg.type === AST_NODE_TYPES.ObjectExpression) {
+                    const propsToRemove = []
+                    for (const prop of arg.properties) {
+                      if (
+                        prop.type === AST_NODE_TYPES.Property &&
+                        prop.key.type === AST_NODE_TYPES.Identifier &&
+                        !prop.computed &&
+                        redundantProps.has(prop.key.name)
+                      ) {
+                        propsToRemove.push(prop)
+                      }
+                    }
+                    
+                    for (const prop of propsToRemove) {
+                      const propIndex = arg.properties.indexOf(prop)
+                      const isLast = propIndex === arg.properties.length - 1
+                      const isFirst = propIndex === 0
+                      
+                      if (isFirst && isLast) {
+                        fixes.push(fixer.removeRange(prop.range))
+                      } else if (isFirst) {
+                        const commaAfter = context.sourceCode.getTokenAfter(prop)
+                        if (commaAfter && commaAfter.value === ',') {
+                          const nextProp = arg.properties[propIndex + 1]
+                          if (nextProp) {
+                            fixes.push(fixer.removeRange([prop.range[0], nextProp.range[0]]))
+                          }
+                        }
+                      } else {
+                        const prevProp = arg.properties[propIndex - 1]
+                        if (prevProp) {
+                          const commaAfterPrev = context.sourceCode.getTokenAfter(prevProp)
+                          if (commaAfterPrev && commaAfterPrev.value === ',') {
+                            fixes.push(fixer.removeRange([commaAfterPrev.range[0], prop.range[1]]))
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
               
-              return null
+              if (lastNonRedundantIndex < args.length - 1) {
+                if (lastNonRedundantIndex === -1) {
+                  const openParen = context.sourceCode.getTokenAfter(node.callee)
+                  const closeParen = context.sourceCode.getLastToken(node)
+                  
+                  if (openParen && closeParen) {
+                    fixes.push(fixer.replaceTextRange(
+                      [openParen.range[1], closeParen.range[0]],
+                      ''
+                    ))
+                  }
+                } else {
+                  const lastNonRedundantArg = args[lastNonRedundantIndex]
+                  const closeParen = context.sourceCode.getLastToken(node)
+                  
+                  if (closeParen && lastNonRedundantArg) {
+                    fixes.push(fixer.replaceTextRange(
+                      [lastNonRedundantArg.range[1], closeParen.range[0]],
+                      ''
+                    ))
+                  }
+                }
+              }
+              
+              return fixes.length > 0 ? fixes : null
             },
           })
         }
