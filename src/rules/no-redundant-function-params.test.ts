@@ -2,7 +2,7 @@ import { dedent } from '@ls-stack/utils/dedent'
 import { expect, test } from 'vitest'
 import {
   createNewTester,
-  getErrorsFromResult,
+  getErrorsWithMsgFromResult,
 } from '../../tests/utils/createTester'
 import { noRedundantFunctionParams } from './no-redundant-function-params'
 
@@ -77,9 +77,11 @@ test('disallows calls with simple default value', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 1 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 2 with value "div"'
+      line: 1
     "
   `)
 
@@ -98,9 +100,11 @@ test('disallows calls with object default value', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 1 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 1 (object)'
+      line: 1
     "
   `)
 
@@ -132,9 +136,11 @@ test('disallows calls with complex object default value', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 1 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 1 (object)'
+      line: 1
     "
   `)
 
@@ -155,9 +161,11 @@ test('disallows multiple redundant parameters', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 1 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 1 with value true, Param 2 with value "dev", Param 3 (object)'
+      line: 1
     "
   `)
 
@@ -178,9 +186,11 @@ test('removes only trailing redundant parameters', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 1 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 2 with value "default", Param 3 with value true'
+      line: 1
     "
   `)
 
@@ -201,9 +211,11 @@ test('handles mixed redundant and non-redundant parameters', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 1 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 3 with value "default"'
+      line: 1
     "
   `)
 
@@ -236,9 +248,11 @@ test('works with member expressions', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 1 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 1 with value "default"'
+      line: 1
     "
   `)
 
@@ -257,9 +271,11 @@ test('handles boolean default values', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 1 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 1 with value false'
+      line: 1
     "
   `)
 
@@ -278,9 +294,11 @@ test('handles null and undefined default values', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 1 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 1 with value null'
+      line: 1
     "
   `)
 
@@ -307,9 +325,11 @@ test('reproduce bug', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 3 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 1 property "align" with value "center"'
+      line: 3
     "
   `)
 
@@ -341,9 +361,11 @@ test('reproduce bug 2', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 3 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 1 property "align" with value "center", Param 1 property "justify" with value "left"'
+      line: 3
     "
   `)
 
@@ -375,9 +397,11 @@ test('dont keep empty objects', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 3 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 1 property "align" with value "center"'
+      line: 3
     "
   `)
 
@@ -409,9 +433,11 @@ test('dont allow empty objects', async () => {
     ],
   })
 
-  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'redundantParam', line: 3 }
+    - messageId: 'redundantParams'
+      msg: 'Function call has redundant parameters matching its default values and can be removed: Param 1 (object)'
+      line: 3
     "
   `)
 
