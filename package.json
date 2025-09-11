@@ -33,7 +33,7 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "@ls-stack/eslint-cfg": "^0.4.0",
+    "@ls-stack/eslint-cfg": "^0.5.1",
     "@ls-stack/utils": "^3.36.0",
     "@types/eslint": "^9.6.1",
     "@types/node": "^24.3.0",

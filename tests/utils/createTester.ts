@@ -1,3 +1,4 @@
+ 
 import { dedent } from '@ls-stack/utils/dedent'
 import { compactSnapshot } from '@ls-stack/utils/testUtils'
 import typescriptParser from '@typescript-eslint/parser'

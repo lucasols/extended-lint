@@ -5,7 +5,7 @@ const { OFF, ERROR } = cfgFlags
 
 export default lsStackEslintCfg({
   tsconfigRootDir: import.meta.dirname,
-  rules: {
+  globalRules: {
     '@typescript-eslint/no-explicit-any': OFF,
     '@typescript-eslint/no-unsafe-assignment': OFF,
     '@typescript-eslint/no-non-null-assertion': ERROR,

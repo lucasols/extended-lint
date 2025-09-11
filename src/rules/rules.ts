@@ -39,6 +39,7 @@ import { useTypesDirectlyAboveUsage } from './use-types-directly-above-usage'
 import { reactSingleExport } from './react-single-export'
 import { useStateSetterNaming } from './use-state-setter-naming'
 import { noRedundantFunctionParams } from './no-redundant-function-params'
+import { noSyncDynamicImport } from './no-sync-dynamic-import'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -81,5 +82,6 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [reactSingleExport.name]: reactSingleExport.rule,
   [useStateSetterNaming.name]: useStateSetterNaming.rule,
   [noRedundantFunctionParams.name]: noRedundantFunctionParams.rule,
+  [noSyncDynamicImport.name]: noSyncDynamicImport.rule,
   [noReexport.name]: noReexport.rule,
 }
