@@ -2401,3 +2401,20 @@ test('type used in contexts other than checkOnly, but after the first checkOnly 
     type Test2 = { ok: true } & User"
   `)
 })
+
+test('should consider only direct usages, not property access ones', async () => {
+  await valid({
+    code: dedent`
+      const Component2: FC<{ name: Props['name'] }> = ({ name }) => {
+        return name
+      }
+
+      type Props = { name: string }
+
+      const Component: FC<Props> = ({ name }) => {
+        return name
+      }
+    `,
+    options: [{ checkOnly: ['function-args', 'FC'] }],
+  })
+})

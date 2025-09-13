@@ -144,6 +144,14 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
       return false
     }
 
+    function isPartOfIndexedAccess(node: TSESTree.TSTypeReference): boolean {
+      // Check if this type reference is the objectType of a TSIndexedAccessType
+      return (
+        node.parent.type === AST_NODE_TYPES.TSIndexedAccessType &&
+        node.parent.objectType === node
+      )
+    }
+
     const allTypeReferences: Array<{
       typeName: string
       node: TSESTree.TSTypeReference
@@ -381,6 +389,9 @@ export const useTypesDirectlyAboveUsage = createExtendedLintRule<
 
       TSTypeReference(node) {
         if (node.typeName.type === AST_NODE_TYPES.Identifier) {
+          // Skip property access types like Props['name'] - only consider direct usages
+          if (isPartOfIndexedAccess(node)) return
+
           const inFunctionArgs = isInFunctionArgument(node)
           const inFCProps = isInFCProps(node)
           const inGenericArgAtFunctionCall = isInGenericArgAtFunctionCall(node)
