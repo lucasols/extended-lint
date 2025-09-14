@@ -1,5 +1,5 @@
 import { dedent } from '@ls-stack/utils/dedent'
-import { expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import {
   createNewTester,
   getErrorsFromResult,
@@ -433,7 +433,12 @@ test('mainComponentRegex takes precedence over exported components', async () =>
   })
 
   expect(result.output).toMatchInlineSnapshot(`
-    "const Container = styled.div\`
+    "
+
+    function SubComponent() {
+      return <div>Sub</div>
+    }
+    const Container = styled.div\`
       padding: 20px;
     \`
 
@@ -441,9 +446,7 @@ test('mainComponentRegex takes precedence over exported components', async () =>
       return <Container>Main</Container>
     }
 
-    function SubComponent() {
-      return <div>Sub</div>
-    }
+
 
     "
   `)
@@ -538,4 +541,148 @@ test('handles FC typed components', async () => {
       return <Wrapper>Sub</Wrapper>
     }"
   `)
+})
+
+test('Respects references between styled components', async () => {
+  await valid(dedent`
+    const Wrapper = styled.div\`
+      margin: 10px;
+    \`
+
+    const Container = styled.div\`
+      padding: 20px;
+
+      \${Wrapper} {
+        background: red;
+      }
+    \`
+
+    type Props = {
+      title: string
+    }
+
+    export const MainComponent: FC<Props> = ({ title }) => {
+      return <Container>{title}</Container>
+    }
+
+    const SubComponent: FC = () => {
+      return <Wrapper>Sub</Wrapper>
+    }
+  `)
+})
+
+test('does not move derived styled before its base (styled call)', async () => {
+  const { result } = await invalid(dedent`
+    const Base = styled.div\`
+      color: blue;
+    \`
+
+    export const App = () => {
+      return <Derived>Hi</Derived>
+    }
+
+    const Derived = styled(Base)\`
+      font-weight: bold;
+    \`
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "const Base = styled.div\`
+      color: blue;
+    \`
+
+    const Derived = styled(Base)\`
+      font-weight: bold;
+    \`
+
+    export const App = () => {
+      return <Derived>Hi</Derived>
+    }
+
+    "
+  `)
+})
+
+test('respects css mixin dependencies inside styled template', async () => {
+  const { result } = await invalid(dedent`
+    const mixin = css\`
+      display: flex;
+    \`
+
+    export const App = () => {
+      return <Container>Hello</Container>
+    }
+
+    const Container = styled.div\`
+      \${mixin};
+      gap: 8px;
+    \`
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "const mixin = css\`
+      display: flex;
+    \`
+
+    const Container = styled.div\`
+      \${mixin};
+      gap: 8px;
+    \`
+
+    export const App = () => {
+      return <Container>Hello</Container>
+    }
+
+    "
+  `)
+})
+
+describe('components reordering', () => {
+  test('main component is first', async () => {
+    const { result } = await invalid(dedent`
+      const NonMainComponent: FC = () => {
+        return <div>NonMain</div>
+      }
+
+      export const MainComponent: FC = () => {
+        return <div>Main</div>
+      }
+    `)
+
+    expect(result.output).toMatchInlineSnapshot(`
+      "export const MainComponent: FC = () => {
+        return <div>Main</div>
+      }
+      const NonMainComponent: FC = () => {
+        return <div>NonMain</div>
+      }
+
+      "
+    `)
+  })
+
+  test('main component with configured regex takes precedence', async () => {
+    const { result } = await invalid({
+      code: dedent`
+        const NonExportedComponentMain: FC = () => {
+          return <div>NonMain</div>
+        }
+
+        export const Component: FC = () => {
+          return <div>Component</div>
+        }
+      `,
+      options: [{ mainComponentRegex: 'NonExportedComponentMain' }],
+    })
+
+    expect(result.output).toMatchInlineSnapshot(`
+      "const NonExportedComponentMain: FC = () => {
+        return <div>NonMain</div>
+      }
+
+      export const Component: FC = () => {
+        return <div>Component</div>
+      }"
+    `)
+  })
 })

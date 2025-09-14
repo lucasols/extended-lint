@@ -27,7 +27,7 @@ type Options = z.infer<typeof optionsSchema>
 
 export const sortReactComponentsAndStyles = createExtendedLintRule<
   [Options],
-  'stylesShouldBeAboveUsage'
+  'stylesShouldBeAboveUsage' | 'mainComponentShouldBeFirst'
 >({
   name: 'sort-react-components-and-styles',
   meta: {
@@ -41,6 +41,8 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
     messages: {
       stylesShouldBeAboveUsage:
         'Style definitions should be placed above the first component that uses them',
+      mainComponentShouldBeFirst:
+        'Main component should be placed before other components',
     },
   },
   defaultOptions: [{}],
@@ -54,6 +56,49 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
     const aliasOf = new Map<string, string>()
     const components: ComponentEntry[] = []
     const styles: StyleEntry[] = []
+
+    function getInitializerForStyle(entry: StyleEntry): TSESTree.Expression | null {
+      const stmt = entry.node
+      if (stmt.type === AST_NODE_TYPES.VariableDeclaration) {
+        for (const d of stmt.declarations) {
+          if (
+            d.id.type === AST_NODE_TYPES.Identifier &&
+            d.id.name === entry.name &&
+            d.init
+          ) {
+            return d.init
+          }
+        }
+      }
+      if (stmt.type === AST_NODE_TYPES.ExportNamedDeclaration) {
+        const decl = stmt.declaration
+        if (decl && decl.type === AST_NODE_TYPES.VariableDeclaration) {
+          for (const d of decl.declarations) {
+            if (
+              d.id.type === AST_NODE_TYPES.Identifier &&
+              d.id.name === entry.name &&
+              d.init
+            ) {
+              return d.init
+            }
+          }
+        }
+      }
+      return null
+    }
+
+    function collectIdentifierNames(node: TSESTree.Node): Set<string> {
+      const names = new Set<string>()
+      traverseAST(node, (n) => {
+        if (n.type === AST_NODE_TYPES.Identifier) {
+          if (n.name !== 'styled' && n.name !== 'css') {
+            names.add(n.name)
+          }
+        }
+        return false
+      }, sourceCode)
+      return names
+    }
 
     function isPascalCase(name: string): boolean {
       return PASCAL_CASE_RE.test(name)
@@ -376,6 +421,50 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
           collectStyleUsages(component)
         }
 
+        const styleNames = new Set<string>()
+        for (const s of styles) {
+          styleNames.add(s.name)
+        }
+
+        const styleIndexByName = new Map<string, number>()
+        for (let i = 0; i < node.body.length; i += 1) {
+          const stmt = node.body[i]
+          for (const s of styles) {
+            if (s.node === stmt) {
+              styleIndexByName.set(s.name, i)
+            }
+          }
+        }
+
+        const dependsOn = new Map<string, Set<string>>()
+        for (const s of styles) {
+          const init = getInitializerForStyle(s)
+          const deps = new Set<string>()
+          if (init) {
+            const names = collectIdentifierNames(init)
+            for (const name of names) {
+              if (styleNames.has(name) && name !== s.name) {
+                deps.add(name)
+              }
+            }
+          }
+          dependsOn.set(s.name, deps)
+        }
+
+        const referencedByEarliestIndex = new Map<string, number>()
+        for (const s of styles) {
+          const deps = dependsOn.get(s.name)
+          if (!deps) continue
+          const sourceIndex = styleIndexByName.get(s.name)
+          if (sourceIndex === undefined) continue
+          for (const dep of deps) {
+            const prev = referencedByEarliestIndex.get(dep)
+            if (prev === undefined || sourceIndex < prev) {
+              referencedByEarliestIndex.set(dep, sourceIndex)
+            }
+          }
+        }
+
         const stylesToMove: Array<{
           style: StyleEntry
           targetPosition: number
@@ -385,51 +474,106 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
           if (style.firstUsagePosition === undefined) continue
 
           const styledStatementIndex = node.body.indexOf(style.node)
-          let firstUsingComponentIndex = -1
+          let firstUsingIndex = -1
 
           for (const component of components) {
             if (!component.usedStyles.has(style.name)) continue
             const componentIndex = node.body.indexOf(component.node)
-            if (
-              firstUsingComponentIndex === -1 ||
-              componentIndex < firstUsingComponentIndex
-            ) {
-              firstUsingComponentIndex = componentIndex
+            if (firstUsingIndex === -1 || componentIndex < firstUsingIndex) {
+              firstUsingIndex = componentIndex
             }
           }
 
-          if (firstUsingComponentIndex === -1) continue
+          const refIdx = referencedByEarliestIndex.get(style.name)
+          if (refIdx !== undefined) {
+            if (firstUsingIndex === -1 || refIdx < firstUsingIndex) {
+              firstUsingIndex = refIdx
+            }
+          }
+
+          if (firstUsingIndex === -1) continue
 
           let previousComponentIndex = -1
           for (const component of components) {
             const idx = node.body.indexOf(component.node)
-            if (idx < firstUsingComponentIndex && idx > previousComponentIndex) {
+            if (idx < firstUsingIndex && idx > previousComponentIndex) {
               previousComponentIndex = idx
             }
           }
 
-          const isBeforeFirstUsing = styledStatementIndex < firstUsingComponentIndex
+          const isBeforeFirstUsing = styledStatementIndex < firstUsingIndex
           const isAfterPreviousComponent = styledStatementIndex > previousComponentIndex
 
-          const correctlyPlaced = isBeforeFirstUsing && isAfterPreviousComponent
+          let maxDepIndex = -1
+          const deps = dependsOn.get(style.name)
+          if (deps) {
+            for (const d of deps) {
+              const depIdx = styleIndexByName.get(d)
+              if (depIdx !== undefined && depIdx > maxDepIndex) {
+                maxDepIndex = depIdx
+              }
+            }
+          }
+
+          const isAfterDependencies = styledStatementIndex > maxDepIndex
+
+          const correctlyPlaced =
+            isBeforeFirstUsing && isAfterPreviousComponent && isAfterDependencies
 
           if (!correctlyPlaced) {
+            let targetPos = previousComponentIndex + 1
+            if (maxDepIndex + 1 > targetPos) {
+              targetPos = maxDepIndex + 1
+            }
+            if (targetPos > firstUsingIndex) {
+              continue
+            }
             stylesToMove.push({
               style,
-              targetPosition: firstUsingComponentIndex,
+              targetPosition: targetPos,
             })
           }
         }
 
-        if (stylesToMove.length > 0) {
-          const firstStyle = stylesToMove[0]
-          if (firstStyle) {
-            context.report({
-              node: firstStyle.style.node,
-              messageId: 'stylesShouldBeAboveUsage',
-              fix: createCombinedFixer(stylesToMove, node.body),
-            })
+        let componentMove:
+          | {
+              component: ComponentEntry
+              targetBefore: TSESTree.Statement
+            }
+          | null = null
+
+        if (components.length > 1) {
+          const firstComponent = components
+            .map((c) => ({ c, idx: node.body.indexOf(c.node) }))
+            .sort((a, b) => a.idx - b.idx)[0]?.c
+
+          const mainComponent = components.find((c) => c.isMainComponent) || null
+
+          if (
+            firstComponent &&
+            mainComponent &&
+            firstComponent.node !== mainComponent.node
+          ) {
+            componentMove = {
+              component: mainComponent,
+              targetBefore: firstComponent.node,
+            }
           }
+        }
+
+        if (stylesToMove.length > 0 || componentMove) {
+          const reportNode =
+            stylesToMove[0]?.style.node || componentMove?.component.node || node
+
+          const messageId = stylesToMove.length > 0
+            ? 'stylesShouldBeAboveUsage'
+            : 'mainComponentShouldBeFirst'
+
+          context.report({
+            node: reportNode as TSESTree.Node,
+            messageId,
+            fix: createCombinedFixer(stylesToMove, componentMove, node.body),
+          })
         }
       },
     }
@@ -439,6 +583,12 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
         style: StyleEntry
         targetPosition: number
       }>,
+      componentMove:
+        | {
+            component: ComponentEntry
+            targetBefore: TSESTree.Statement
+          }
+        | null,
       programBody: TSESTree.Statement[],
     ) {
       return function* (fixer: TSESLint.RuleFixer) {
@@ -498,6 +648,48 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
           yield fixer.insertTextBeforeRange(
             [insertPosition, insertPosition],
             `${textsToInsert.join('\n\n')}\n\n`,
+          )
+        }
+
+        if (componentMove) {
+          const { component, targetBefore } = componentMove
+
+          const compComments = sourceCode.getCommentsBefore(component.node)
+          let compRangeStart = component.node.range[0]
+          const compRangeEnd = component.node.range[1]
+
+          if (compComments.length > 0 && compComments[0]) {
+            compRangeStart = compComments[0].range[0]
+          }
+
+          if (compRangeStart === component.node.range[0]) {
+            const leadingText = sourceCode.text.slice(0, compRangeStart)
+            if (leadingText.trim().length === 0) {
+              compRangeStart = 0
+            }
+          }
+
+          const targetComments = sourceCode.getCommentsBefore(targetBefore)
+          const insertPos =
+            targetComments.length > 0 && targetComments[0]
+              ? targetComments[0].range[0]
+              : targetBefore.range[0]
+
+          const compTextWithComments = (() => {
+            let text = sourceCode.getText(component.node)
+            if (compComments.length > 0) {
+              const commentsText = compComments
+                .map((c) => sourceCode.getText(c))
+                .join('\n')
+              text = `${commentsText}\n${text}`
+            }
+            return text
+          })()
+
+          yield fixer.removeRange([compRangeStart, compRangeEnd])
+          yield fixer.insertTextBeforeRange(
+            [insertPos, insertPos],
+            `${compTextWithComments}\n`,
           )
         }
       }
