@@ -40,6 +40,7 @@ import { reactSingleExport } from './react-single-export'
 import { useStateSetterNaming } from './use-state-setter-naming'
 import { noRedundantFunctionParams } from './no-redundant-function-params'
 import { noSyncDynamicImport } from './no-sync-dynamic-import'
+import { sortReactComponentsAndStyles } from './sort-react-components-and-styles'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -83,5 +84,6 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [useStateSetterNaming.name]: useStateSetterNaming.rule,
   [noRedundantFunctionParams.name]: noRedundantFunctionParams.rule,
   [noSyncDynamicImport.name]: noSyncDynamicImport.rule,
+  [sortReactComponentsAndStyles.name]: sortReactComponentsAndStyles.rule,
   [noReexport.name]: noReexport.rule,
 }
