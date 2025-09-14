@@ -664,12 +664,13 @@ describe('components reordering', () => {
   test('main component with configured regex takes precedence', async () => {
     const { result } = await invalid({
       code: dedent`
-        const NonExportedComponentMain: FC = () => {
-          return <div>NonMain</div>
-        }
 
         export const Component: FC = () => {
           return <div>Component</div>
+        }
+        
+        const NonExportedComponentMain: FC = () => {
+          return <div>NonMain</div>
         }
       `,
       options: [{ mainComponentRegex: 'NonExportedComponentMain' }],
@@ -679,10 +680,11 @@ describe('components reordering', () => {
       "const NonExportedComponentMain: FC = () => {
         return <div>NonMain</div>
       }
-
       export const Component: FC = () => {
         return <div>Component</div>
-      }"
+      }
+
+      "
     `)
   })
 })
