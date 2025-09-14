@@ -668,12 +668,77 @@ describe('components reordering', () => {
         export const Component: FC = () => {
           return <div>Component</div>
         }
-        
+
         const NonExportedComponentMain: FC = () => {
           return <div>NonMain</div>
         }
       `,
       options: [{ mainComponentRegex: 'NonExportedComponentMain' }],
+    })
+
+    expect(result.output).toMatchInlineSnapshot(`
+      "const NonExportedComponentMain: FC = () => {
+        return <div>NonMain</div>
+      }
+      export const Component: FC = () => {
+        return <div>Component</div>
+      }
+
+      "
+    `)
+  })
+
+  test('main component can be selected via AST selector', async () => {
+    const { result } = await invalid({
+      code: dedent`
+
+        export const Component: FC = () => {
+          return <div>Component</div>
+        }
+
+        const NonExportedComponentMain: FC = () => {
+          return <div>NonMain</div>
+        }
+      `,
+      options: [
+        {
+          mainComponentSelector:
+            "VariableDeclarator[id.name='NonExportedComponentMain']",
+        },
+      ],
+    })
+
+    expect(result.output).toMatchInlineSnapshot(`
+      "const NonExportedComponentMain: FC = () => {
+        return <div>NonMain</div>
+      }
+      export const Component: FC = () => {
+        return <div>Component</div>
+      }
+
+      "
+    `)
+  })
+
+  test('mainComponentSelector takes precedence over mainComponentRegex', async () => {
+    const { result } = await invalid({
+      code: dedent`
+
+        export const Component: FC = () => {
+          return <div>Component</div>
+        }
+
+        const NonExportedComponentMain: FC = () => {
+          return <div>NonMain</div>
+        }
+      `,
+      options: [
+        {
+          mainComponentRegex: 'Component',
+          mainComponentSelector:
+            "VariableDeclarator[id.name='NonExportedComponentMain']",
+        },
+      ],
     })
 
     expect(result.output).toMatchInlineSnapshot(`
