@@ -490,3 +490,52 @@ test('handles arrow function components', async () => {
     "
   `)
 })
+
+test('handles FC typed components', async () => {
+  const { result } = await invalid(dedent`
+
+    const Wrapper = styled.div\`
+      margin: 10px;
+    \`
+
+    const Container = styled.div\`
+      padding: 20px;
+    \`
+
+    type Props = {
+      title: string
+    }
+
+    export const MainComponent: FC<Props> = ({ title }) => {
+      return <Container>{title}</Container>
+    }
+
+    const SubComponent: FC = () => {
+      return <Wrapper>Sub</Wrapper>
+    }
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "
+
+    const Container = styled.div\`
+      padding: 20px;
+    \`
+
+    type Props = {
+      title: string
+    }
+
+    export const MainComponent: FC<Props> = ({ title }) => {
+      return <Container>{title}</Container>
+    }
+
+    const Wrapper = styled.div\`
+      margin: 10px;
+    \`
+
+    const SubComponent: FC = () => {
+      return <Wrapper>Sub</Wrapper>
+    }"
+  `)
+})

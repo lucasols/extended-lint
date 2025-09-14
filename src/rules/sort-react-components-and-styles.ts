@@ -387,18 +387,33 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
           const styledStatementIndex = node.body.indexOf(style.node)
           let firstUsingComponentIndex = -1
 
-          // Find the first component that uses this style
           for (const component of components) {
-            if (component.usedStyles.has(style.name)) {
-              const componentIndex = node.body.indexOf(component.node)
-              if (firstUsingComponentIndex === -1 || componentIndex < firstUsingComponentIndex) {
-                firstUsingComponentIndex = componentIndex
-              }
+            if (!component.usedStyles.has(style.name)) continue
+            const componentIndex = node.body.indexOf(component.node)
+            if (
+              firstUsingComponentIndex === -1 ||
+              componentIndex < firstUsingComponentIndex
+            ) {
+              firstUsingComponentIndex = componentIndex
             }
           }
 
-          // Only move the style if it appears AFTER the first component that uses it
-          if (firstUsingComponentIndex !== -1 && styledStatementIndex > firstUsingComponentIndex) {
+          if (firstUsingComponentIndex === -1) continue
+
+          let previousComponentIndex = -1
+          for (const component of components) {
+            const idx = node.body.indexOf(component.node)
+            if (idx < firstUsingComponentIndex && idx > previousComponentIndex) {
+              previousComponentIndex = idx
+            }
+          }
+
+          const isBeforeFirstUsing = styledStatementIndex < firstUsingComponentIndex
+          const isAfterPreviousComponent = styledStatementIndex > previousComponentIndex
+
+          const correctlyPlaced = isBeforeFirstUsing && isAfterPreviousComponent
+
+          if (!correctlyPlaced) {
             stylesToMove.push({
               style,
               targetPosition: firstUsingComponentIndex,
@@ -437,6 +452,13 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
 
           if (styleComments.length > 0 && styleComments[0]) {
             rangeStart = styleComments[0].range[0]
+          }
+
+          if (rangeStart === style.node.range[0]) {
+            const leadingText = sourceCode.text.slice(0, rangeStart)
+            if (leadingText.trim().length === 0) {
+              rangeStart = 0
+            }
           }
 
           yield fixer.removeRange([rangeStart, rangeEnd])
