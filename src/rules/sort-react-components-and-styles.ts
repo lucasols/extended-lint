@@ -442,6 +442,15 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
     }
 
     listeners['Program:exit'] = (node) => {
+      let firstStatementIndexAfterImports = 0
+      for (const statement of node.body) {
+        if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
+          firstStatementIndexAfterImports += 1
+          continue
+        }
+        break
+      }
+
       for (const statement of node.body) {
         collectTopLevel(statement)
       }
@@ -567,6 +576,9 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
           let targetPos = previousComponentIndex + 1
           if (maxDepIndex + 1 > targetPos) {
             targetPos = maxDepIndex + 1
+          }
+          if (targetPos < firstStatementIndexAfterImports) {
+            targetPos = firstStatementIndexAfterImports
           }
           if (targetPos > firstUsingIndex) continue
           stylesToMove.push({

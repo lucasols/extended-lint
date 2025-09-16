@@ -127,6 +127,8 @@ test('moves styled component above first usage', async () => {
 
 test('moves CSS template above first usage', async () => {
   const { result } = await invalid(dedent`
+    import { css } from '@emotion/react'
+
     export function Button() {
       return <button css={buttonStyles}>Click</button>
     }
@@ -138,12 +140,14 @@ test('moves CSS template above first usage', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'stylesShouldBeAboveUsage', line: 5 }
+    - { messageId: 'stylesShouldBeAboveUsage', line: 7 }
     "
   `)
 
   expect(result.output).toMatchInlineSnapshot(`
-    "const buttonStyles = css\`
+    "import { css } from '@emotion/react'
+
+    const buttonStyles = css\`
       background: blue;
     \`
 
