@@ -15,7 +15,12 @@ const createRule = ESLintUtils.RuleCreator(
 
 const name = 'improved-no-unnecessary-condition'
 
-const optionsSchema = z.object({})
+const optionsSchema = z.object({
+  alternativeForInCondition: z
+    .string()
+    .optional()
+    .describe('Alternative to appear in the error for `in` condition'),
+})
 
 const typeofValues = [
   'string',
@@ -80,14 +85,14 @@ export const improvedNoUnnecessaryCondition = {
         alwaysFalseLengthCondition:
           'This length comparison will always be false.',
         unnecessaryInCondition:
-          'This in check is unnecessary. Property "{{property}}" always exists on type "{{type}}".',
+          'This in check is unnecessary. Property "{{property}}" always exists on type "{{type}}".{{alternative}}',
         alwaysFalseInCondition:
-          'This in check will always be false. Property "{{property}}" does not exist on type "{{type}}".',
+          'This in check will always be false. Property "{{property}}" does not exist on type "{{type}}".{{alternative}}',
       },
       schema: [getJsonSchemaFromZod(optionsSchema)],
     },
     defaultOptions: [{}],
-    create(context) {
+    create(context, [options]) {
       const parserServices = ESLintUtils.getParserServices(context, true)
       const checker = parserServices.program?.getTypeChecker()
 
@@ -625,9 +630,15 @@ export const improvedNoUnnecessaryCondition = {
 
       function hasIndexSignatures(type: ts.ObjectType) {
         if (!checker) return true
-        const stringIndex = checker.getIndexTypeOfType(type, ts.IndexKind.String)
+        const stringIndex = checker.getIndexTypeOfType(
+          type,
+          ts.IndexKind.String,
+        )
         if (stringIndex) return true
-        const numberIndex = checker.getIndexTypeOfType(type, ts.IndexKind.Number)
+        const numberIndex = checker.getIndexTypeOfType(
+          type,
+          ts.IndexKind.Number,
+        )
         return Boolean(numberIndex)
       }
 
@@ -745,6 +756,9 @@ export const improvedNoUnnecessaryCondition = {
             data: {
               property: propertyName,
               type: checker.typeToString(type),
+              alternative: options.alternativeForInCondition
+                ? `If this a valid condition, you can use as alternative: ${options.alternativeForInCondition}`
+                : '',
             },
           })
         } else if (presence === 'absent') {
@@ -754,6 +768,9 @@ export const improvedNoUnnecessaryCondition = {
             data: {
               property: propertyName,
               type: checker.typeToString(type),
+              alternative: options.alternativeForInCondition
+                ? `If this a valid condition, you can use as alternative: ${options.alternativeForInCondition}`
+                : '',
             },
           })
         }
