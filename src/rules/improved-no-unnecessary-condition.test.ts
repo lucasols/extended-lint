@@ -693,6 +693,133 @@ test('always false typeof check with optional chaining', async () => {
   `)
 })
 
+test('always false in check for missing property', async () => {
+  const { result } = await invalid(
+    dedent`
+      const obj: { a: string } = { a: 's' }
+
+      if ('b' in obj) {
+        console.log(obj.a)
+      }
+    `,
+  )
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'alwaysFalseInCondition', line: 3 }
+    "
+  `)
+})
+
+test('unnecessary in check for existing property', async () => {
+  const { result } = await invalid(
+    dedent`
+      const obj: { a: string } = { a: 's' }
+
+      if ('a' in obj) {
+        console.log(obj.a)
+      }
+    `,
+  )
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryInCondition', line: 3 }
+    "
+  `)
+})
+
+test('always false in check for union object', async () => {
+  const { result } = await invalid(
+    dedent`
+      const obj: { a: string } | { b: number } =
+        Math.random() > 0.5 ? { a: 's' } : { b: 1 }
+
+      if ('c' in obj) {
+        console.log(obj)
+      }
+    `,
+  )
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'alwaysFalseInCondition', line: 4 }
+    "
+  `)
+})
+
+test('valid in check for union object property', async () => {
+  await valid(
+    dedent`
+      declare const obj: { a: string } | { b: number }
+
+      if ('a' in obj) {
+        console.log(obj)
+      }
+    `,
+  )
+})
+
+test('unnecessary in check for intersection object', async () => {
+  const { result } = await invalid(
+    dedent`
+      const obj: { a: string } & { b: number } = { a: 's', b: 1 }
+
+      if ('a' in obj) {
+        console.log(obj.a)
+      }
+    `,
+  )
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryInCondition', line: 3 }
+    "
+  `)
+})
+
+test('always false in check for intersection object', async () => {
+  const { result } = await invalid(
+    dedent`
+      const obj: { a: string } & { b: number } = { a: 's', b: 1 }
+
+      if ('c' in obj) {
+        console.log(obj)
+      }
+    `,
+  )
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'alwaysFalseInCondition', line: 3 }
+    "
+  `)
+})
+
+test('valid in check for optional property', async () => {
+  await valid(
+    dedent`
+      const obj: { a?: string } = {}
+
+      if ('a' in obj) {
+        console.log(obj)
+      }
+    `,
+  )
+})
+
+test('valid in check for record type', async () => {
+  await valid(
+    dedent`
+      declare const obj: Record<string, string>
+
+      if ('a' in obj) {
+        console.log(obj)
+      }
+    `,
+  )
+})
+
 // Logical Operators with Typeof
 test('valid logical OR typeof checks on union type', async () => {
   const { result } = await invalid(

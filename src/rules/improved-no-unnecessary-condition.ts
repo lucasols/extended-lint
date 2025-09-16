@@ -49,6 +49,8 @@ export const improvedNoUnnecessaryCondition = {
     | 'alwaysFalseIncludesCondition'
     | 'unnecessaryLengthCondition'
     | 'alwaysFalseLengthCondition'
+    | 'unnecessaryInCondition'
+    | 'alwaysFalseInCondition'
   >({
     name,
     meta: {
@@ -77,6 +79,10 @@ export const improvedNoUnnecessaryCondition = {
           'This length comparison is unnecessary as it always evaluates to true.',
         alwaysFalseLengthCondition:
           'This length comparison will always be false.',
+        unnecessaryInCondition:
+          'This in check is unnecessary. Property "{{property}}" always exists on type "{{type}}".',
+        alwaysFalseInCondition:
+          'This in check will always be false. Property "{{property}}" does not exist on type "{{type}}".',
       },
       schema: [getJsonSchemaFromZod(optionsSchema)],
     },
@@ -589,10 +595,175 @@ export const improvedNoUnnecessaryCondition = {
         }
       }
 
+      function getLiteralKeyFromExpression(
+        expression: TSESTree.Expression,
+      ): string | null {
+        if (
+          expression.type === AST_NODE_TYPES.Literal &&
+          typeof expression.value === 'string'
+        ) {
+          return expression.value
+        }
+
+        const values = getStringLiteralValuesFromExpression(expression)
+        if (!values) return null
+        if (values.length !== 1) return null
+
+        const [value] = values
+        return value ?? null
+      }
+
+      type PropertyPresence = 'required' | 'optional' | 'absent' | 'unknown'
+
+      function isIntersectionType(type: ts.Type) {
+        return (type.flags & ts.TypeFlags.Intersection) !== 0
+      }
+
+      function isObjectType(type: ts.Type) {
+        return (type.flags & ts.TypeFlags.Object) !== 0
+      }
+
+      function hasIndexSignatures(type: ts.ObjectType) {
+        if (!checker) return true
+        const stringIndex = checker.getIndexTypeOfType(type, ts.IndexKind.String)
+        if (stringIndex) return true
+        const numberIndex = checker.getIndexTypeOfType(type, ts.IndexKind.Number)
+        return Boolean(numberIndex)
+      }
+
+      function getPropertyPresenceForObject(
+        type: ts.ObjectType,
+        propertyName: string,
+      ): PropertyPresence {
+        if (!checker) return 'unknown'
+        if (hasIndexSignatures(type)) return 'unknown'
+
+        if (type.getProperties().length === 0) return 'unknown'
+
+        const property = checker.getPropertyOfType(type, propertyName)
+        if (!property) return 'absent'
+
+        if (property.flags & ts.SymbolFlags.Optional) return 'optional'
+
+        return 'required'
+      }
+
+      function getPropertyPresence(
+        type: ts.Type,
+        propertyName: string,
+      ): PropertyPresence {
+        if (
+          type.flags & ts.TypeFlags.Any ||
+          type.flags & ts.TypeFlags.Unknown ||
+          type.flags & ts.TypeFlags.Never ||
+          type.flags & ts.TypeFlags.TypeParameter ||
+          type.flags & ts.TypeFlags.IndexedAccess ||
+          type.flags & ts.TypeFlags.StringLike ||
+          type.flags & ts.TypeFlags.NumberLike ||
+          type.flags & ts.TypeFlags.BigIntLike ||
+          type.flags & ts.TypeFlags.BooleanLike ||
+          type.flags & ts.TypeFlags.EnumLike ||
+          type.flags & ts.TypeFlags.ESSymbolLike ||
+          type.flags & ts.TypeFlags.NonPrimitive
+        ) {
+          return 'unknown'
+        }
+
+        if (type.flags & ts.TypeFlags.Null) return 'unknown'
+        if (type.flags & ts.TypeFlags.Undefined) return 'unknown'
+        if (type.flags & ts.TypeFlags.Void) return 'unknown'
+
+        if (type.isUnion()) {
+          let allRequired = true
+          let allAbsent = true
+
+          for (const unionType of type.types) {
+            const presence = getPropertyPresence(unionType, propertyName)
+            if (presence === 'unknown') return 'unknown'
+            if (presence !== 'required') allRequired = false
+            if (presence !== 'absent') allAbsent = false
+            if (presence === 'optional') return 'unknown'
+          }
+
+          if (allRequired) return 'required'
+          if (allAbsent) return 'absent'
+
+          return 'unknown'
+        }
+
+        if (isIntersectionType(type)) {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe narrowing for intersection types
+          const intersectionType = type as ts.IntersectionType
+          let hasRequired = false
+          let hasOptional = false
+
+          for (const intersectionPart of intersectionType.types) {
+            const presence = getPropertyPresence(intersectionPart, propertyName)
+            if (presence === 'unknown') return 'unknown'
+            if (presence === 'required') {
+              hasRequired = true
+            } else if (presence === 'optional') {
+              hasOptional = true
+            }
+          }
+
+          if (hasRequired) return 'required'
+          if (hasOptional) return 'optional'
+
+          return 'absent'
+        }
+
+        if (!isObjectType(type)) return 'unknown'
+
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- object flag ensures safe cast
+        return getPropertyPresenceForObject(type as ts.ObjectType, propertyName)
+      }
+
+      function checkInCondition(node: TSESTree.BinaryExpression) {
+        if (node.operator !== 'in') return
+
+        if (node.left.type === AST_NODE_TYPES.PrivateIdentifier) return
+
+        const propertyName = getLiteralKeyFromExpression(node.left)
+        if (!propertyName) return
+
+        const right = node.right
+
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- conversion between ESTree and TS nodes
+        const tsRight = parserServices.esTreeNodeToTSNodeMap.get(
+          right,
+        ) as ts.Expression
+
+        if (!checker) return
+        const type = checker.getTypeAtLocation(tsRight)
+        const presence = getPropertyPresence(type, propertyName)
+
+        if (presence === 'required') {
+          context.report({
+            node,
+            messageId: 'unnecessaryInCondition',
+            data: {
+              property: propertyName,
+              type: checker.typeToString(type),
+            },
+          })
+        } else if (presence === 'absent') {
+          context.report({
+            node,
+            messageId: 'alwaysFalseInCondition',
+            data: {
+              property: propertyName,
+              type: checker.typeToString(type),
+            },
+          })
+        }
+      }
+
       return {
         BinaryExpression(node) {
           checkBinaryExpression(node)
           checkStringLengthComparison(node)
+          checkInCondition(node)
         },
         CallExpression: checkStringAssertions,
       }
