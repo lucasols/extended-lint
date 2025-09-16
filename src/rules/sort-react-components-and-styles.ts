@@ -54,6 +54,10 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
       : undefined
     const mainComponentSelector = options.mainComponentSelector
 
+    const isTSX = context.filename.endsWith('.tsx')
+
+    if (!isTSX) return {}
+
     const componentNames = new Set<string>()
     const aliasOf = new Map<string, string>()
     const components: ComponentEntry[] = []

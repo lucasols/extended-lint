@@ -159,6 +159,21 @@ test('moves CSS template above first usage', async () => {
   `)
 })
 
+test('skips non tsx files', async () => {
+  await valid({
+    code: dedent`
+      export const Component: FC = (): JSX.Element => {
+        return null
+      }
+
+      const buttonStyles = css\`
+        background: blue;
+      \`
+    `,
+    filename: 'buttonStyles.ts',
+  })
+})
+
 test('multiple styles with different usages', async () => {
   const { result } = await invalid(dedent`
     export function App() {
