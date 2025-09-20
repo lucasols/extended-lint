@@ -1056,6 +1056,40 @@ describe('string assertions', () => {
     )
   })
 
+  test('unnecessary Array.isArray check on array variable', async () => {
+    const { result } = await invalid(
+      dedent`
+        const list: string[] = []
+        if (Array.isArray(list)) {
+          console.log(list)
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'unnecessaryArrayIsArrayCondition', line: 2 }
+      "
+    `)
+  })
+
+  test('always false Array.isArray check on string literal', async () => {
+    const { result } = await invalid(
+      dedent`
+        const value = 'text'
+        if (Array.isArray(value)) {
+          console.log(value)
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'alwaysFalseArrayIsArrayCondition', line: 2 }
+      "
+    `)
+  })
+
   test('always false length comparison on literal string', async () => {
     const { result } = await invalid(
       dedent`

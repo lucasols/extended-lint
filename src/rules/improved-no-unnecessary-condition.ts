@@ -22,6 +22,11 @@ const optionsSchema = z.object({
     .describe('Alternative to appear in the error for `in` condition'),
 })
 
+const arrayIsArrayMember = {
+  object: 'Array',
+  property: 'isArray',
+} as const
+
 const typeofValues = [
   'string',
   'number',
@@ -52,6 +57,8 @@ export const improvedNoUnnecessaryCondition = {
     | 'alwaysFalseEndsWithCondition'
     | 'unnecessaryIncludesCondition'
     | 'alwaysFalseIncludesCondition'
+    | 'unnecessaryArrayIsArrayCondition'
+    | 'alwaysFalseArrayIsArrayCondition'
     | 'unnecessaryLengthCondition'
     | 'alwaysFalseLengthCondition'
     | 'unnecessaryInCondition'
@@ -80,6 +87,10 @@ export const improvedNoUnnecessaryCondition = {
           'This includes check is unnecessary as it always evaluates to true.',
         alwaysFalseIncludesCondition:
           'This includes check will always be false.',
+        unnecessaryArrayIsArrayCondition:
+          'This Array.isArray check is unnecessary as it always evaluates to true.',
+        alwaysFalseArrayIsArrayCondition:
+          'This Array.isArray check will always be false.',
         unnecessaryLengthCondition:
           'This length comparison is unnecessary as it always evaluates to true.',
         alwaysFalseLengthCondition:
@@ -459,6 +470,137 @@ export const improvedNoUnnecessaryCondition = {
         return found
       }
 
+      function isArraySymbolName(symbolName: string) {
+        if (symbolName === 'Array' || symbolName === 'ReadonlyArray') return true
+        return (
+          symbolName.endsWith('.Array') || symbolName.endsWith('.ReadonlyArray')
+        )
+      }
+
+      function isRuntimeArrayType(type: ts.Type) {
+        if (!checker) return false
+        if (checker.isArrayType(type) || checker.isTupleType(type)) return true
+        const apparent = checker.getApparentType(type)
+        if (
+          apparent !== type &&
+          (checker.isArrayType(apparent) || checker.isTupleType(apparent))
+        ) {
+          return true
+        }
+
+        if (type.aliasSymbol) {
+          const aliasName = checker.getFullyQualifiedName(type.aliasSymbol)
+          if (isArraySymbolName(aliasName)) return true
+        }
+
+        const symbol = type.getSymbol()
+        if (symbol) {
+          const symbolName = checker.getFullyQualifiedName(symbol)
+          if (isArraySymbolName(symbolName)) return true
+        }
+
+        return false
+      }
+
+      function isDefinitelyNotArrayType(type: ts.Type) {
+        if (!checker) return false
+
+        if (
+          type.flags & ts.TypeFlags.StringLike ||
+          type.flags & ts.TypeFlags.NumberLike ||
+          type.flags & ts.TypeFlags.BigIntLike ||
+          type.flags & ts.TypeFlags.BooleanLike ||
+          type.flags & ts.TypeFlags.ESSymbolLike ||
+          type.flags & ts.TypeFlags.EnumLike
+        ) {
+          return true
+        }
+
+        if (type.flags & ts.TypeFlags.Null) return true
+        if (type.flags & ts.TypeFlags.Undefined) return true
+        if (type.flags & ts.TypeFlags.Void) return true
+        if (type.flags & ts.TypeFlags.Never) return true
+
+        const symbol = type.getSymbol()
+        if (symbol) {
+          const symbolName = checker.getFullyQualifiedName(symbol)
+          if (symbolName === '__function') return true
+          if (symbolName === '__object' && !isRuntimeArrayType(type)) {
+            return true
+          }
+        }
+
+        return false
+      }
+
+      function evaluateArrayIsArray(
+        type: ts.Type,
+      ): 'alwaysTrue' | 'alwaysFalse' | 'unknown' {
+        if (
+          type.flags & ts.TypeFlags.Any ||
+          type.flags & ts.TypeFlags.Unknown
+        ) {
+          return 'unknown'
+        }
+
+        if (type.isUnion()) {
+          let allTrue = true
+          let allFalse = true
+
+          for (const unionType of type.types) {
+            const result = evaluateArrayIsArray(unionType)
+            if (result === 'unknown') return 'unknown'
+            if (result !== 'alwaysTrue') allTrue = false
+            if (result !== 'alwaysFalse') allFalse = false
+          }
+
+          if (allTrue) return 'alwaysTrue'
+          if (allFalse) return 'alwaysFalse'
+          return 'unknown'
+        }
+
+        if (isRuntimeArrayType(type)) return 'alwaysTrue'
+        if (isDefinitelyNotArrayType(type)) return 'alwaysFalse'
+        return 'unknown'
+      }
+
+      function isArrayIsArrayCall(callee: TSESTree.MemberExpression) {
+        return (
+          !callee.computed &&
+          callee.object.type === AST_NODE_TYPES.Identifier &&
+          callee.object.name === arrayIsArrayMember.object &&
+          callee.property.type === AST_NODE_TYPES.Identifier &&
+          callee.property.name === arrayIsArrayMember.property
+        )
+      }
+
+      function checkArrayIsArray(node: TSESTree.CallExpression) {
+        if (!checker) return
+        if (node.callee.type !== AST_NODE_TYPES.MemberExpression) return
+        if (!isArrayIsArrayCall(node.callee)) return
+        if (node.arguments.length === 0) return
+        const [firstArg] = node.arguments
+        if (!firstArg) return
+        if (firstArg.type === AST_NODE_TYPES.SpreadElement) return
+
+        const tsExpression = parserServices.esTreeNodeToTSNodeMap.get(firstArg)
+
+        const type = checker.getTypeAtLocation(tsExpression)
+        const evaluation = evaluateArrayIsArray(type)
+
+        if (evaluation === 'alwaysTrue') {
+          context.report({
+            node,
+            messageId: 'unnecessaryArrayIsArrayCondition',
+          })
+        } else if (evaluation === 'alwaysFalse') {
+          context.report({
+            node,
+            messageId: 'alwaysFalseArrayIsArrayCondition',
+          })
+        }
+      }
+
       function checkStringAssertions(node: TSESTree.CallExpression) {
         if (
           node.callee.type !== AST_NODE_TYPES.MemberExpression ||
@@ -782,7 +924,10 @@ export const improvedNoUnnecessaryCondition = {
           checkStringLengthComparison(node)
           checkInCondition(node)
         },
-        CallExpression: checkStringAssertions,
+        CallExpression(node) {
+          checkStringAssertions(node)
+          checkArrayIsArray(node)
+        },
       }
     },
   }),
