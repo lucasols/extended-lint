@@ -16,6 +16,7 @@ type ComponentEntry = {
   name: string
   isMainComponent: boolean
   usedStyles: Set<string>
+  isExported: boolean
 }
 
 type StyleEntry = {
@@ -468,7 +469,20 @@ export const sortReactComponentsAndStyles = createExtendedLintRule<
             name,
             isMainComponent: isMainComp,
             usedStyles: new Set(),
+            isExported: isExportedComponent(statement),
           })
+        }
+      }
+
+      if (
+        !mainComponentSelector &&
+        mainComponentRegex &&
+        !components.some((component) => component.isMainComponent)
+      ) {
+        for (const component of components) {
+          if (component.isExported) {
+            component.isMainComponent = true
+          }
         }
       }
 
