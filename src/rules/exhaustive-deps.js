@@ -42,6 +42,9 @@ export const exhaustiveDepsESLintRule = {
           enableDangerousAutofixThisMayCauseInfiniteLoops: {
             type: 'boolean',
           },
+          reactCompilerIsEnabled: {
+            type: 'boolean',
+          },
         },
       },
     ],

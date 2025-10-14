@@ -136,6 +136,9 @@ export const rulesOfHooksESLintRule = {
           ignoreIfReactCompilerIsEnabled: {
             type: 'boolean',
           },
+          reactCompilerIsEnabled: {
+            type: 'boolean',
+          },
         },
       },
     ],
