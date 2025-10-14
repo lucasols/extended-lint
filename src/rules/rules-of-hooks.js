@@ -141,9 +141,16 @@ export const rulesOfHooksESLintRule = {
     ],
   },
   create(context) {
-    if (context.options[0]?.ignoreIfReactCompilerIsEnabled) {
+    const reactCompilerIsEnabled = !!context.options[0]?.reactCompilerIsEnabled
+    if (
+      context.options[0]?.ignoreIfReactCompilerIsEnabled ||
+      reactCompilerIsEnabled
+    ) {
       for (const comment of context.sourceCode.getAllComments()) {
-        if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
+        if (
+          reactCompilerIsEnabled ||
+          hasEnableCompilerDirectiveRegex.test(comment.value)
+        ) {
           return {
             // Disable usage of useMemo and useCallback
             CallExpression(node) {

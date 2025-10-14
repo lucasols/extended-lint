@@ -1380,9 +1380,18 @@ export const exhaustiveDepsESLintRule = {
       })
     }
 
-    if (context.options[0]?.ignoreIfReactCompilerIsEnabled) {
+    const reactCompilerIsAlwaysEnabled =
+      !!context.options[0]?.reactCompilerIsEnabled
+
+    if (
+      context.options[0]?.ignoreIfReactCompilerIsEnabled ||
+      reactCompilerIsAlwaysEnabled
+    ) {
       for (const comment of context.sourceCode.getAllComments()) {
-        if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
+        if (
+          reactCompilerIsAlwaysEnabled ||
+          hasEnableCompilerDirectiveRegex.test(comment.value)
+        ) {
           reactCompilerIsEnabled = true
           return {
             CallExpression: (node) => visitCallExpression(node, true),
