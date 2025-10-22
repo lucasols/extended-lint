@@ -145,15 +145,35 @@ export const rulesOfHooksESLintRule = {
   },
   create(context) {
     const reactCompilerIsEnabled = !!context.options[0]?.reactCompilerIsEnabled
+
+    if (reactCompilerIsEnabled) {
+      return {
+        // Disable usage of useMemo and useCallback
+        CallExpression(node) {
+          let hookType = null
+
+          if (node.callee.name === 'useMemo') {
+            hookType = 'useMemo'
+          } else if (node.callee.name === 'useCallback') {
+            hookType = 'useCallback'
+          }
+
+          if (hookType) {
+            context.report({
+              node,
+              message: `"${hookType}" is not necessary when using React Compiler.`,
+            })
+          }
+        },
+      }
+    }
+
     if (
       context.options[0]?.ignoreIfReactCompilerIsEnabled ||
       reactCompilerIsEnabled
     ) {
       for (const comment of context.sourceCode.getAllComments()) {
-        if (
-          reactCompilerIsEnabled ||
-          hasEnableCompilerDirectiveRegex.test(comment.value)
-        ) {
+        if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
           return {
             // Disable usage of useMemo and useCallback
             CallExpression(node) {
