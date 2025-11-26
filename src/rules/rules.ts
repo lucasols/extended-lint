@@ -43,6 +43,7 @@ import { noSyncDynamicImport } from './no-sync-dynamic-import'
 import { sortReactComponentsAndStyles } from './sort-react-components-and-styles'
 import { noUnnecessaryVoidOnPromise } from './no-unnecessary-void-on-promise'
 import { requireLazyExecution } from './require-lazy-execution'
+import { noUnnecessaryIife } from './no-unnecessary-iife'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -90,4 +91,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noUnnecessaryVoidOnPromise.name]: noUnnecessaryVoidOnPromise.rule,
   [requireLazyExecution.name]: requireLazyExecution.rule,
   [noReexport.name]: noReexport.rule,
+  [noUnnecessaryIife.name]: noUnnecessaryIife.rule,
 }
