@@ -44,6 +44,7 @@ import { sortReactComponentsAndStyles } from './sort-react-components-and-styles
 import { noUnnecessaryVoidOnPromise } from './no-unnecessary-void-on-promise'
 import { requireLazyExecution } from './require-lazy-execution'
 import { noUnnecessaryIife } from './no-unnecessary-iife'
+import { noRestrictedComments } from './no-restricted-comments'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -92,4 +93,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [requireLazyExecution.name]: requireLazyExecution.rule,
   [noReexport.name]: noReexport.rule,
   [noUnnecessaryIife.name]: noUnnecessaryIife.rule,
+  [noRestrictedComments.name]: noRestrictedComments.rule,
 }
