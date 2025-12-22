@@ -26,6 +26,7 @@ const optionsSchema = z.object({
       }),
     )
     .optional(),
+  runOnlyWithEnableCompilerDirective: z.boolean(),
 })
 
 const hasEnableCompilerDirectiveRegex =
@@ -74,14 +75,24 @@ const rule = createRule<
     hasSuggestions: true,
     schema: [getJsonSchemaFromZod(optionsSchema)],
   },
-  defaultOptions: [{ disallowHooks: [], disallowMethods: [] }],
+  defaultOptions: [
+    {
+      disallowHooks: [],
+      disallowMethods: [],
+      runOnlyWithEnableCompilerDirective: false,
+    },
+  ],
   create(context, [options]) {
-    let isEnabled = false
+    let isEnabled = true
 
-    for (const comment of context.sourceCode.getAllComments()) {
-      if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
-        isEnabled = true
-        break
+    if (options.runOnlyWithEnableCompilerDirective) {
+      isEnabled = false
+
+      for (const comment of context.sourceCode.getAllComments()) {
+        if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
+          isEnabled = true
+          break
+        }
       }
     }
 
