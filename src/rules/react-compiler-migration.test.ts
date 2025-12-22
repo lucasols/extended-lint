@@ -11,7 +11,10 @@ tests.addValid(
       return null
     }
   `,
-  { disallowHooks: [{ name: 'useUnsafeHook', replacement: 'useSafeHook' }] },
+  {
+    disallowHooks: [{ name: 'useUnsafeHook', replacement: 'useSafeHook' }],
+    runOnlyWithEnableCompilerDirective: true,
+  },
 )
 
 tests.addValid(
@@ -23,7 +26,47 @@ tests.addValid(
       return null
     }
   `,
-  { disallowHooks: [{ name: 'useUnsafeHook', replacement: 'useSafeHook' }] },
+  {
+    disallowHooks: [{ name: 'useUnsafeHook', replacement: 'useSafeHook' }],
+    runOnlyWithEnableCompilerDirective: true,
+  },
+)
+
+tests.addInvalidWithOptions(
+  'Using disallowed hook without enable directive when runOnlyWithEnableCompilerDirective is false',
+  `
+    function Component() {
+      useUnsafeHook()
+      return null
+    }
+  `,
+  {
+    disallowHooks: [{ name: 'useUnsafeHook', replacement: 'useSafeHook' }],
+    runOnlyWithEnableCompilerDirective: false,
+  },
+  [
+    {
+      messageId: 'disallowedFunctionOrMethod',
+      data: {
+        functionOrMethod: 'useUnsafeHook',
+        replacement: 'useSafeHook',
+      },
+      suggestions: [
+        {
+          messageId: 'replace',
+          data: {
+            replacement: 'useSafeHook',
+          },
+          output: `
+            function Component() {
+              useSafeHook()
+              return null
+            }
+          `,
+        },
+      ],
+    },
+  ],
 )
 
 tests.addInvalidWithOptions(
@@ -36,7 +79,10 @@ tests.addInvalidWithOptions(
       return null
     }
   `,
-  { disallowHooks: [{ name: 'useUnsafeHook', replacement: 'useSafeHook' }] },
+  {
+    disallowHooks: [{ name: 'useUnsafeHook', replacement: 'useSafeHook' }],
+    runOnlyWithEnableCompilerDirective: true,
+  },
   [
     {
       messageId: 'disallowedFunctionOrMethod',
@@ -74,7 +120,10 @@ tests.addInvalidWithOptions(
       return null
     }
   `,
-  { disallowHooks: [{ name: 'useUnsafeHook', replacement: 'useSafeHook' }] },
+  {
+    disallowHooks: [{ name: 'useUnsafeHook', replacement: 'useSafeHook' }],
+    runOnlyWithEnableCompilerDirective: true,
+  },
   [
     {
       messageId: 'disallowedFunctionOrMethod',
@@ -116,7 +165,10 @@ tests.addInvalidWithOptions(
       return null
     }
   `,
-  { disallowMethods: [{ name: 'unsafeMethod', replacement: 'safeMethod' }] },
+  {
+    disallowMethods: [{ name: 'unsafeMethod', replacement: 'safeMethod' }],
+    runOnlyWithEnableCompilerDirective: true,
+  },
   [
     {
       messageId: 'disallowedFunctionOrMethod',
@@ -162,7 +214,10 @@ tests.addInvalidWithOptions(
       return null
     }
   `,
-  { disallowMethods: [{ name: 'unsafeMethod', replacement: 'safeMethod' }] },
+  {
+    disallowMethods: [{ name: 'unsafeMethod', replacement: 'safeMethod' }],
+    runOnlyWithEnableCompilerDirective: true,
+  },
   [
     {
       messageId: 'disallowedFunctionOrMethod',
@@ -208,7 +263,10 @@ tests.addInvalidWithOptions(
       return null
     }
   `,
-  { disallowMethods: [{ name: 'unsafeMethod', replacement: 'safeMethod' }] },
+  {
+    disallowMethods: [{ name: 'unsafeMethod', replacement: 'safeMethod' }],
+    runOnlyWithEnableCompilerDirective: true,
+  },
   [
     {
       messageId: 'disallowedFunctionOrMethod',
@@ -261,6 +319,7 @@ tests.describe('disallowMethod with requireTrueProp', () => {
           requireTrueProp: 'isSafe',
         },
       ],
+      runOnlyWithEnableCompilerDirective: true,
     },
   )
 
@@ -284,6 +343,7 @@ tests.describe('disallowMethod with requireTrueProp', () => {
           requireTrueProp: 'isSafe',
         },
       ],
+      runOnlyWithEnableCompilerDirective: true,
     },
     [
       {
@@ -315,6 +375,7 @@ tests.describe('disallowMethod with requireTrueProp', () => {
           requireTrueProp: 'isSafe',
         },
       ],
+      runOnlyWithEnableCompilerDirective: true,
     },
     [
       {
@@ -354,6 +415,7 @@ tests.describe('disallowMethod with requireTrueProp', () => {
           requireTrueProp: 'isSafe',
         },
       ],
+      runOnlyWithEnableCompilerDirective: true,
     },
     [
       {
