@@ -14,6 +14,18 @@ const __EXPERIMENTAL__ = false
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
 
+function hasUseNoMemoDirective(sourceCode) {
+  const firstStatement = sourceCode.ast.body[0]
+  if (
+    firstStatement?.type === 'ExpressionStatement' &&
+    firstStatement.expression.type === 'Literal' &&
+    firstStatement.expression.value === 'use no memo'
+  ) {
+    return true
+  }
+  return false
+}
+
 /** @type {import('@typescript-eslint/utils').TSESLint.RuleModule<string, any[]>} */
 export const exhaustiveDepsESLintRule = {
   meta: {
@@ -50,6 +62,7 @@ export const exhaustiveDepsESLintRule = {
     ],
   },
   create(context) {
+    const hasNoMemoDirective = hasUseNoMemoDirective(context.sourceCode)
     let reactCompilerIsEnabled = false
     /**
      * SourceCode#getText that also works down to ESLint 3.0.0
@@ -1384,11 +1397,12 @@ export const exhaustiveDepsESLintRule = {
     }
 
     const reactCompilerIsAlwaysEnabled =
-      !!context.options[0]?.reactCompilerIsEnabled
+      !hasNoMemoDirective && !!context.options[0]?.reactCompilerIsEnabled
 
     if (
-      context.options[0]?.ignoreIfReactCompilerIsEnabled ||
-      reactCompilerIsAlwaysEnabled
+      !hasNoMemoDirective &&
+      (context.options[0]?.ignoreIfReactCompilerIsEnabled ||
+        reactCompilerIsAlwaysEnabled)
     ) {
       for (const comment of context.sourceCode.getAllComments()) {
         if (

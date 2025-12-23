@@ -119,6 +119,18 @@ function isUseIdentifier(node) {
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
 
+function hasUseNoMemoDirective(sourceCode) {
+  const firstStatement = sourceCode.ast.body[0]
+  if (
+    firstStatement?.type === 'ExpressionStatement' &&
+    firstStatement.expression.type === 'Literal' &&
+    firstStatement.expression.value === 'use no memo'
+  ) {
+    return true
+  }
+  return false
+}
+
 /** @type {import('eslint').Rule.RuleModule} */
 export const rulesOfHooksESLintRule = {
   meta: {
@@ -144,7 +156,9 @@ export const rulesOfHooksESLintRule = {
     ],
   },
   create(context) {
-    const reactCompilerIsEnabled = !!context.options[0]?.reactCompilerIsEnabled
+    const hasNoMemoDirective = hasUseNoMemoDirective(context.sourceCode)
+    const reactCompilerIsEnabled =
+      !hasNoMemoDirective && !!context.options[0]?.reactCompilerIsEnabled
 
     if (reactCompilerIsEnabled) {
       return {
@@ -169,8 +183,9 @@ export const rulesOfHooksESLintRule = {
     }
 
     if (
-      context.options[0]?.ignoreIfReactCompilerIsEnabled ||
-      reactCompilerIsEnabled
+      !hasNoMemoDirective &&
+      (context.options[0]?.ignoreIfReactCompilerIsEnabled ||
+        reactCompilerIsEnabled)
     ) {
       for (const comment of context.sourceCode.getAllComments()) {
         if (hasEnableCompilerDirectiveRegex.test(comment.value)) {

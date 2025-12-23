@@ -1,4 +1,9 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
+import {
+  AST_NODE_TYPES,
+  ESLintUtils,
+  TSESLint,
+  TSESTree,
+} from '@typescript-eslint/utils'
 import { z } from 'zod/v4'
 import { getJsonSchemaFromZod } from '../createRule'
 
@@ -31,6 +36,18 @@ const optionsSchema = z.object({
 
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
+
+function hasUseNoMemoDirective(sourceCode: TSESLint.SourceCode): boolean {
+  const firstStatement = sourceCode.ast.body[0]
+  if (
+    firstStatement?.type === AST_NODE_TYPES.ExpressionStatement &&
+    firstStatement.expression.type === AST_NODE_TYPES.Literal &&
+    firstStatement.expression.value === 'use no memo'
+  ) {
+    return true
+  }
+  return false
+}
 
 /**
  * Checks if a callee is a hook (starts with "use")
@@ -83,6 +100,10 @@ const rule = createRule<
     },
   ],
   create(context, [options]) {
+    if (hasUseNoMemoDirective(context.sourceCode)) {
+      return {}
+    }
+
     let isEnabled = true
 
     if (options.runOnlyWithEnableCompilerDirective) {
