@@ -968,3 +968,74 @@ describe('Use memo directive naming validation', () => {
     )
   })
 })
+
+describe('use no memo directive', () => {
+  test('rule is disabled when file has use no memo directive', async () => {
+    await valid(
+      dedent`
+        'use no memo';
+
+        const result = useState({
+          method() {
+            return 42
+          }
+        });
+      `,
+    )
+  })
+
+  test('rule is disabled with use no memo even with compiler directive comment', async () => {
+    await valid({
+      code: dedent`
+        'use no memo';
+        // eslint react-compiler/react-compiler: ["error"]
+
+        const result = useState({
+          method() {
+            return 42
+          }
+        });
+      `,
+      options: [{ runOnlyWithEnableCompilerDirective: true }],
+    })
+  })
+
+  test('rule is disabled for FC component checks with use no memo', async () => {
+    await valid(
+      dedent`
+        'use no memo';
+        import { FC } from 'react'
+
+        const Component: FC = () => {
+          return 'Hello World'
+        }
+      `,
+    )
+  })
+
+  test('rule is disabled for hook naming validation with use no memo', async () => {
+    await valid(
+      dedent`
+        'use no memo';
+
+        function useData() {
+          return { data: 'some data' }
+        }
+      `,
+    )
+  })
+
+  test('rule is disabled for functions calling hooks validation with use no memo', async () => {
+    await valid(
+      dedent`
+        'use no memo';
+        import { useState } from 'react'
+
+        function regularFunction() {
+          const [count] = useState(0)
+          return count
+        }
+      `,
+    )
+  })
+})
