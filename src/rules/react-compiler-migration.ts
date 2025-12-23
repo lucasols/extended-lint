@@ -1,9 +1,4 @@
-import {
-  AST_NODE_TYPES,
-  ESLintUtils,
-  TSESLint,
-  TSESTree,
-} from '@typescript-eslint/utils'
+import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
 import { z } from 'zod/v4'
 import { getJsonSchemaFromZod } from '../createRule'
 
@@ -100,10 +95,6 @@ const rule = createRule<
     },
   ],
   create(context, [options]) {
-    if (hasUseNoMemoDirective(context.sourceCode)) {
-      return {}
-    }
-
     let isEnabled = true
 
     if (options.runOnlyWithEnableCompilerDirective) {

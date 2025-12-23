@@ -461,10 +461,6 @@ const rule = createRule<
   },
   defaultOptions: [{}],
   create(context, [options]) {
-    if (hasUseNoMemoDirective(context.sourceCode)) {
-      return {}
-    }
-
     let isEnabled = false
 
     if (options.runOnlyWithEnableCompilerDirective) {

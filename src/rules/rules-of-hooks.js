@@ -156,9 +156,7 @@ export const rulesOfHooksESLintRule = {
     ],
   },
   create(context) {
-    const hasNoMemoDirective = hasUseNoMemoDirective(context.sourceCode)
-    const reactCompilerIsEnabled =
-      !hasNoMemoDirective && !!context.options[0]?.reactCompilerIsEnabled
+    const reactCompilerIsEnabled = !!context.options[0]?.reactCompilerIsEnabled
 
     if (reactCompilerIsEnabled) {
       return {
@@ -183,9 +181,8 @@ export const rulesOfHooksESLintRule = {
     }
 
     if (
-      !hasNoMemoDirective &&
-      (context.options[0]?.ignoreIfReactCompilerIsEnabled ||
-        reactCompilerIsEnabled)
+      context.options[0]?.ignoreIfReactCompilerIsEnabled ||
+      reactCompilerIsEnabled
     ) {
       for (const comment of context.sourceCode.getAllComments()) {
         if (hasEnableCompilerDirectiveRegex.test(comment.value)) {

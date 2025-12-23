@@ -62,7 +62,6 @@ export const exhaustiveDepsESLintRule = {
     ],
   },
   create(context) {
-    const hasNoMemoDirective = hasUseNoMemoDirective(context.sourceCode)
     let reactCompilerIsEnabled = false
     /**
      * SourceCode#getText that also works down to ESLint 3.0.0
@@ -1397,12 +1396,11 @@ export const exhaustiveDepsESLintRule = {
     }
 
     const reactCompilerIsAlwaysEnabled =
-      !hasNoMemoDirective && !!context.options[0]?.reactCompilerIsEnabled
+      !!context.options[0]?.reactCompilerIsEnabled
 
     if (
-      !hasNoMemoDirective &&
-      (context.options[0]?.ignoreIfReactCompilerIsEnabled ||
-        reactCompilerIsAlwaysEnabled)
+      context.options[0]?.ignoreIfReactCompilerIsEnabled ||
+      reactCompilerIsAlwaysEnabled
     ) {
       for (const comment of context.sourceCode.getAllComments()) {
         if (
