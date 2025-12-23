@@ -26,6 +26,30 @@ function getReturnedExpression(
   return sourceCode.getText(statement.argument)
 }
 
+function isReturnedFromFunction(node: TSESTree.CallExpression): {
+  parentFunction: TSESTree.FunctionDeclaration | TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression
+  returnStatement: TSESTree.ReturnStatement
+} | null {
+  const parent = node.parent
+  if (parent.type !== AST_NODE_TYPES.ReturnStatement) return null
+
+  const grandparent = parent.parent
+  if (grandparent.type !== AST_NODE_TYPES.BlockStatement) return null
+
+  if (grandparent.body.length !== 1) return null
+
+  const greatGrandparent = grandparent.parent
+  if (
+    greatGrandparent.type !== AST_NODE_TYPES.FunctionDeclaration &&
+    greatGrandparent.type !== AST_NODE_TYPES.ArrowFunctionExpression &&
+    greatGrandparent.type !== AST_NODE_TYPES.FunctionExpression
+  ) {
+    return null
+  }
+
+  return { parentFunction: greatGrandparent, returnStatement: parent }
+}
+
 export const noUnnecessaryIife = createExtendedLintRule<[], 'unnecessaryIife'>({
   name: 'no-unnecessary-iife',
   meta: {
@@ -65,7 +89,28 @@ export const noUnnecessaryIife = createExtendedLintRule<[], 'unnecessaryIife'>({
         const { body } = callee
 
         if (body.type === AST_NODE_TYPES.BlockStatement) {
-          if (body.body.length !== 1) return
+          if (body.body.length !== 1) {
+            const returnContext = isReturnedFromFunction(node)
+            if (returnContext) {
+              const hasComments = sourceCode.getCommentsInside(callee).length > 0
+              if (hasComments) return
+
+              const iifeBody = sourceCode.getText(body)
+
+              context.report({
+                node,
+                messageId: 'unnecessaryIife',
+                fix: (fixer) => {
+                  const { parentFunction } = returnContext
+                  if (parentFunction.body.type !== AST_NODE_TYPES.BlockStatement) {
+                    return null
+                  }
+                  return fixer.replaceText(parentFunction.body, iifeBody)
+                },
+              })
+            }
+            return
+          }
 
           const statement = body.body[0]
 
