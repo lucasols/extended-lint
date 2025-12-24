@@ -614,7 +614,7 @@ const rule = createRule<
 
     return {
       CallExpression(node) {
-        if (!isHook(node.callee)) return
+        if (!isHookIncludingMemberExpressions(node.callee)) return
 
         // Check direct arguments that are object expressions
         for (const arg of node.arguments) {

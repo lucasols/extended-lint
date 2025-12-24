@@ -249,6 +249,28 @@ test('hook call with object method with parameters', async () => {
   `)
 })
 
+test('hook call with object method with parameters in namespace hook', async () => {
+  const { result } = await invalid(dedent`
+    const result = namespace.useState({
+      method(a, b, c) {
+        return a + b + c
+      }
+    });
+  `)
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'objectMethodIsNotSupported', line: 2 }
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "const result = namespace.useState({
+      method: (a, b, c) => {
+        return a + b + c
+      }
+    });"
+  `)
+})
+
 test('nested hook call with object method is ok', async () => {
   await valid(
     dedent`
