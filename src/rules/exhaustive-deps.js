@@ -14,18 +14,6 @@ const __EXPERIMENTAL__ = false
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
 
-function hasUseNoMemoDirective(sourceCode) {
-  const firstStatement = sourceCode.ast.body[0]
-  if (
-    firstStatement?.type === 'ExpressionStatement' &&
-    firstStatement.expression.type === 'Literal' &&
-    firstStatement.expression.value === 'use no memo'
-  ) {
-    return true
-  }
-  return false
-}
-
 function functionHasUseNoMemoDirective(node) {
   let body = null
 
@@ -1303,7 +1291,14 @@ export const exhaustiveDepsESLintRule = {
       }
 
       if (reactCompilerIsEnabled && !isEffect) {
-        return
+        const containingFunction = getContainingFunction(reactiveHook)
+        const hasNoMemoDirective =
+          containingFunction &&
+          functionHasUseNoMemoDirective(containingFunction)
+
+        if (!hasNoMemoDirective) {
+          return
+        }
       }
 
       // Check the declared dependencies for this reactive hook. If there is no

@@ -8107,6 +8107,26 @@ const reactCompiler = {
         }
       `,
     },
+    {
+      name: 'useMemo missing dep - no error when react compiler is enabled (without "use no memo")',
+      options: [{ ignoreIfReactCompilerIsEnabled: true, reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function MyComponent({ foo }) {
+          const result = useMemo(() => foo * 2, []);
+          return result;
+        }
+      `,
+    },
+    {
+      name: 'useCallback missing dep - no error when react compiler is enabled (without "use no memo")',
+      options: [{ ignoreIfReactCompilerIsEnabled: true, reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function MyComponent({ foo }) {
+          const callback = useCallback(() => console.log(foo), []);
+          return callback;
+        }
+      `,
+    },
   ],
   invalid: [
     {
@@ -8205,6 +8225,66 @@ const reactCompiler = {
             "The 'local' function makes the dependencies of useEffect Hook " +
             "(at line 7) change on every render. Move it inside the useEffect callback. " +
             "Alternatively, wrap the definition of 'local' in its own useCallback() Hook.",
+        },
+      ],
+    },
+    {
+      name: 'useMemo missing dep - error with "use no memo" directive when react compiler is enabled',
+      options: [{ ignoreIfReactCompilerIsEnabled: true, reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function MyComponent({ foo }) {
+          "use no memo";
+          const result = useMemo(() => foo * 2, []);
+          return result;
+        }
+      `,
+      errors: [
+        {
+          message:
+            "React Hook useMemo has a missing dependency: 'foo'. " +
+            "Either include it or remove the dependency array.",
+          suggestions: [
+            {
+              desc: 'Update the dependencies array to be: [foo]',
+              output: normalizeIndent`
+                function MyComponent({ foo }) {
+                  "use no memo";
+                  const result = useMemo(() => foo * 2, [foo]);
+                  return result;
+                }
+              `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'useCallback missing dep - error with "use no memo" directive when react compiler is enabled',
+      options: [{ ignoreIfReactCompilerIsEnabled: true, reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function MyComponent({ foo }) {
+          "use no memo";
+          const callback = useCallback(() => console.log(foo), []);
+          return callback;
+        }
+      `,
+      errors: [
+        {
+          message:
+            "React Hook useCallback has a missing dependency: 'foo'. " +
+            "Either include it or remove the dependency array.",
+          suggestions: [
+            {
+              desc: 'Update the dependencies array to be: [foo]',
+              output: normalizeIndent`
+                function MyComponent({ foo }) {
+                  "use no memo";
+                  const callback = useCallback(() => console.log(foo), [foo]);
+                  return callback;
+                }
+              `,
+            },
+          ],
         },
       ],
     },
