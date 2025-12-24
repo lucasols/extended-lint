@@ -18,6 +18,38 @@ tests.addValid(
 )
 
 tests.addValid(
+  'Disallowed hook with "use no memo" directive - skipped',
+  `
+    function Component() {
+      "use no memo";
+      useUnsafeHook()
+      return null
+    }
+  `,
+  {
+    disallowHooks: [{ name: 'useUnsafeHook', replacement: 'useSafeHook' }],
+    runOnlyWithEnableCompilerDirective: false,
+  },
+)
+
+tests.addValid(
+  'Disallowed method with "use no memo" directive - skipped',
+  `
+    function Component() {
+      "use no memo";
+      useHook({
+        unsafeMethod() {}
+      })
+      return null
+    }
+  `,
+  {
+    disallowMethods: [{ name: 'unsafeMethod', replacement: 'safeMethod' }],
+    runOnlyWithEnableCompilerDirective: false,
+  },
+)
+
+tests.addValid(
   'Disabled hooks with enable directive but not matching the hooks',
   `
     // eslint react-compiler/react-compiler: ["error"]

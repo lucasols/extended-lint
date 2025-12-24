@@ -21,6 +21,48 @@ const optionsSchema = z.object({
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
 
+function functionHasUseNoMemoDirective(node: TSESTree.Node): boolean {
+  let body: TSESTree.BlockStatement | null = null
+
+  if (
+    node.type === AST_NODE_TYPES.FunctionDeclaration ||
+    node.type === AST_NODE_TYPES.FunctionExpression
+  ) {
+    body = node.body
+  } else if (node.type === AST_NODE_TYPES.ArrowFunctionExpression) {
+    if (node.body.type === AST_NODE_TYPES.BlockStatement) {
+      body = node.body
+    }
+  }
+
+  if (!body || body.body.length === 0) return false
+
+  const firstStatement = body.body[0]
+
+  if (!firstStatement) return false
+
+  return (
+    firstStatement.type === AST_NODE_TYPES.ExpressionStatement &&
+    firstStatement.expression.type === AST_NODE_TYPES.Literal &&
+    firstStatement.expression.value === 'use no memo'
+  )
+}
+
+function getContainingFunction(node: TSESTree.Node): TSESTree.Node | null {
+  let current = node.parent
+  while (current) {
+    if (
+      current.type === AST_NODE_TYPES.FunctionDeclaration ||
+      current.type === AST_NODE_TYPES.FunctionExpression ||
+      current.type === AST_NODE_TYPES.ArrowFunctionExpression
+    ) {
+      return current
+    }
+    current = current.parent
+  }
+  return null
+}
+
 /**
  * Checks if a callee is a React hook (starts with "use")
  */
@@ -562,6 +604,14 @@ const rule = createRule<
       }
     }
 
+    function shouldSkipDueToUseNoMemo(node: TSESTree.Node): boolean {
+      const containingFunction = getContainingFunction(node)
+      return (
+        containingFunction !== null &&
+        functionHasUseNoMemoDirective(containingFunction)
+      )
+    }
+
     return {
       CallExpression(node) {
         if (!isHook(node.callee)) return
@@ -569,6 +619,7 @@ const rule = createRule<
         // Check direct arguments that are object expressions
         for (const arg of node.arguments) {
           if (arg.type === AST_NODE_TYPES.ObjectExpression) {
+            if (shouldSkipDueToUseNoMemo(node)) return
             checkForObjectMethods(arg)
             checkNestedThisUsage(arg)
           }
@@ -577,6 +628,7 @@ const rule = createRule<
           if (arg.type === AST_NODE_TYPES.ArrowFunctionExpression) {
             // If the body is an object expression, check it
             if (arg.body.type === AST_NODE_TYPES.ObjectExpression) {
+              if (shouldSkipDueToUseNoMemo(node)) return
               checkForObjectMethods(arg.body)
               checkNestedThisUsage(arg.body)
             }
@@ -588,6 +640,7 @@ const rule = createRule<
                   statement.type === AST_NODE_TYPES.ReturnStatement &&
                   statement.argument?.type === AST_NODE_TYPES.ObjectExpression
                 ) {
+                  if (shouldSkipDueToUseNoMemo(node)) return
                   checkForObjectMethods(statement.argument)
                   checkNestedThisUsage(statement.argument)
                 }
@@ -602,6 +655,7 @@ const rule = createRule<
                 statement.type === AST_NODE_TYPES.ReturnStatement &&
                 statement.argument?.type === AST_NODE_TYPES.ObjectExpression
               ) {
+                if (shouldSkipDueToUseNoMemo(node)) return
                 checkForObjectMethods(statement.argument)
                 checkNestedThisUsage(statement.argument)
               }
@@ -642,6 +696,8 @@ const rule = createRule<
               typeAnnotation,
             )
           ) {
+            if (functionHasUseNoMemoDirective(functionNode)) return
+
             context.report({
               node: functionNode,
               messageId: 'functionCallingHooksMustBeComponent',
@@ -666,6 +722,8 @@ const rule = createRule<
 
             // Valid if it behaves like a component/hook OR has string directive
             if (!behavesLikeComponent && !hasStringDirective) {
+              if (functionHasUseNoMemoDirective(functionNode)) return
+
               context.report({
                 node: functionNode,
                 messageId: 'fcComponentShouldReturnJsx',
@@ -708,6 +766,8 @@ const rule = createRule<
 
         // Check if this function calls hooks but is not a valid React component or hook
         if (callsHooksButNotValidComponent(node, context.sourceCode)) {
+          if (functionHasUseNoMemoDirective(node)) return
+
           context.report({
             node,
             messageId: 'functionCallingHooksMustBeComponent',
@@ -727,6 +787,8 @@ const rule = createRule<
 
           // Valid if it behaves like a component/hook OR has string directive
           if (!behavesLikeComponent && !hasStringDirective) {
+            if (functionHasUseNoMemoDirective(node)) return
+
             context.report({
               node,
               messageId: 'fcComponentShouldReturnJsx',
@@ -761,6 +823,8 @@ const rule = createRule<
 
         // Check if this function expression calls hooks but is not a valid React component or hook
         if (callsHooksButNotValidComponent(node, context.sourceCode)) {
+          if (functionHasUseNoMemoDirective(node)) return
+
           context.report({
             node,
             messageId: 'functionCallingHooksMustBeComponent',

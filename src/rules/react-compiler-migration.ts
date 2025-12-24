@@ -26,11 +26,53 @@ const optionsSchema = z.object({
       }),
     )
     .optional(),
-  runOnlyWithEnableCompilerDirective: z.boolean(),
+  runOnlyWithEnableCompilerDirective: z.boolean().optional(),
 })
 
 const hasEnableCompilerDirectiveRegex =
   /eslint +react-compiler\/react-compiler: +\["error/
+
+function functionHasUseNoMemoDirective(node: TSESTree.Node): boolean {
+  let body: TSESTree.BlockStatement | null = null
+
+  if (
+    node.type === AST_NODE_TYPES.FunctionDeclaration ||
+    node.type === AST_NODE_TYPES.FunctionExpression
+  ) {
+    body = node.body
+  } else if (node.type === AST_NODE_TYPES.ArrowFunctionExpression) {
+    if (node.body.type === AST_NODE_TYPES.BlockStatement) {
+      body = node.body
+    }
+  }
+
+  if (!body || body.body.length === 0) return false
+
+  const firstStatement = body.body[0]
+
+  if (!firstStatement) return false
+
+  return (
+    firstStatement.type === AST_NODE_TYPES.ExpressionStatement &&
+    firstStatement.expression.type === AST_NODE_TYPES.Literal &&
+    firstStatement.expression.value === 'use no memo'
+  )
+}
+
+function getContainingFunction(node: TSESTree.Node): TSESTree.Node | null {
+  let current = node.parent
+  while (current) {
+    if (
+      current.type === AST_NODE_TYPES.FunctionDeclaration ||
+      current.type === AST_NODE_TYPES.FunctionExpression ||
+      current.type === AST_NODE_TYPES.ArrowFunctionExpression
+    ) {
+      return current
+    }
+    current = current.parent
+  }
+  return null
+}
 
 /**
  * Checks if a callee is a hook (starts with "use")
@@ -98,6 +140,14 @@ const rule = createRule<
 
     if (!isEnabled) return {}
 
+    function shouldSkipDueToUseNoMemo(node: TSESTree.Node): boolean {
+      const containingFunction = getContainingFunction(node)
+      return (
+        containingFunction !== null &&
+        functionHasUseNoMemoDirective(containingFunction)
+      )
+    }
+
     return {
       CallExpression(node) {
         if (options.disallowHooks?.length) {
@@ -120,6 +170,8 @@ const rule = createRule<
             )
 
             if (disallowedHook && hookNode) {
+              if (shouldSkipDueToUseNoMemo(node)) return
+
               context.report({
                 node,
                 messageId: 'disallowedFunctionOrMethod',
@@ -169,6 +221,8 @@ const rule = createRule<
                 )
 
                 if (disallowedMethod) {
+                  if (shouldSkipDueToUseNoMemo(node)) return
+
                   // Check for requireTrueProp condition
                   if (disallowedMethod.requireTrueProp) {
                     const requiredPropName = disallowedMethod.requireTrueProp

@@ -201,14 +201,6 @@ export const rulesOfHooksESLintRule = {
       return {
         // Disable usage of useMemo and useCallback
         CallExpression(node) {
-          const containingFunction = getContainingFunction(node)
-          if (
-            containingFunction &&
-            functionHasUseNoMemoDirective(containingFunction)
-          ) {
-            return
-          }
-
           let hookType = null
 
           if (node.callee.name === 'useMemo') {
@@ -218,6 +210,14 @@ export const rulesOfHooksESLintRule = {
           }
 
           if (hookType) {
+            const containingFunction = getContainingFunction(node)
+            if (
+              containingFunction &&
+              functionHasUseNoMemoDirective(containingFunction)
+            ) {
+              return
+            }
+
             context.report({
               node,
               message: `"${hookType}" is not necessary when using React Compiler.`,
@@ -236,14 +236,6 @@ export const rulesOfHooksESLintRule = {
           return {
             // Disable usage of useMemo and useCallback
             CallExpression(node) {
-              const containingFunction = getContainingFunction(node)
-              if (
-                containingFunction &&
-                functionHasUseNoMemoDirective(containingFunction)
-              ) {
-                return
-              }
-
               let hookType = null
 
               if (node.callee.name === 'useMemo') {
@@ -253,6 +245,14 @@ export const rulesOfHooksESLintRule = {
               }
 
               if (hookType) {
+                const containingFunction = getContainingFunction(node)
+                if (
+                  containingFunction &&
+                  functionHasUseNoMemoDirective(containingFunction)
+                ) {
+                  return
+                }
+
                 context.report({
                   node,
                   message: `"${hookType}" is not necessary when using React Compiler.`,

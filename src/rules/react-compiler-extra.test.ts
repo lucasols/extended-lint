@@ -968,3 +968,42 @@ describe('Use memo directive naming validation', () => {
     )
   })
 })
+
+describe('"use no memo" directive skips all checks', () => {
+  test('hook call with object method - skipped with "use no memo"', async () => {
+    await valid(
+      dedent`
+        function Component() {
+          "use no memo";
+          const result = useState({
+            method() {
+              return 42
+            }
+          });
+        }
+      `,
+    )
+  })
+
+  test('FC component without JSX or hooks - skipped with "use no memo"', async () => {
+    await valid(
+      dedent`
+        const MyComponent: FC = () => {
+          "use no memo";
+          return calculateValue()
+        }
+      `,
+    )
+  })
+
+  test('function declaration without JSX or hooks - skipped with "use no memo"', async () => {
+    await valid(
+      dedent`
+        function useMyHook() {
+          "use no memo";
+          return calculateValue()
+        }
+      `,
+    )
+  })
+})
