@@ -26,6 +26,45 @@ function hasUseNoMemoDirective(sourceCode) {
   return false
 }
 
+function functionHasUseNoMemoDirective(node) {
+  let body = null
+
+  if (
+    node.type === 'FunctionDeclaration' ||
+    node.type === 'FunctionExpression'
+  ) {
+    body = node.body
+  } else if (node.type === 'ArrowFunctionExpression') {
+    if (node.body.type === 'BlockStatement') {
+      body = node.body
+    }
+  }
+
+  if (!body || body.body.length === 0) return false
+
+  const firstStatement = body.body[0]
+  return (
+    firstStatement.type === 'ExpressionStatement' &&
+    firstStatement.expression.type === 'Literal' &&
+    firstStatement.expression.value === 'use no memo'
+  )
+}
+
+function getContainingFunction(node) {
+  let current = node.parent
+  while (current) {
+    if (
+      current.type === 'FunctionDeclaration' ||
+      current.type === 'FunctionExpression' ||
+      current.type === 'ArrowFunctionExpression'
+    ) {
+      return current
+    }
+    current = current.parent
+  }
+  return null
+}
+
 /** @type {import('@typescript-eslint/utils').TSESLint.RuleModule<string, any[]>} */
 export const exhaustiveDepsESLintRule = {
   meta: {
@@ -825,7 +864,12 @@ export const exhaustiveDepsESLintRule = {
         unnecessaryDependencies.size
 
       if (problemCount === 0) {
-        if (reactCompilerIsEnabled) {
+        const containingFunction = getContainingFunction(reactiveHook)
+        const hasNoMemoDirective =
+          containingFunction &&
+          functionHasUseNoMemoDirective(containingFunction)
+
+        if (reactCompilerIsEnabled && !hasNoMemoDirective) {
           return
         }
 
@@ -1398,18 +1442,19 @@ export const exhaustiveDepsESLintRule = {
     const reactCompilerIsAlwaysEnabled =
       !!context.options[0]?.reactCompilerIsEnabled
 
-    if (
-      context.options[0]?.ignoreIfReactCompilerIsEnabled ||
-      reactCompilerIsAlwaysEnabled
-    ) {
+    if (reactCompilerIsAlwaysEnabled) {
+      reactCompilerIsEnabled = true
+      return {
+        CallExpression: (node) => visitCallExpression(node),
+      }
+    }
+
+    if (context.options[0]?.ignoreIfReactCompilerIsEnabled) {
       for (const comment of context.sourceCode.getAllComments()) {
-        if (
-          reactCompilerIsAlwaysEnabled ||
-          hasEnableCompilerDirectiveRegex.test(comment.value)
-        ) {
+        if (hasEnableCompilerDirectiveRegex.test(comment.value)) {
           reactCompilerIsEnabled = true
           return {
-            CallExpression: (node) => visitCallExpression(node, true),
+            CallExpression: (node) => visitCallExpression(node),
           }
         }
       }

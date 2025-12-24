@@ -131,6 +131,45 @@ function hasUseNoMemoDirective(sourceCode) {
   return false
 }
 
+function functionHasUseNoMemoDirective(node) {
+  let body = null
+
+  if (
+    node.type === 'FunctionDeclaration' ||
+    node.type === 'FunctionExpression'
+  ) {
+    body = node.body
+  } else if (node.type === 'ArrowFunctionExpression') {
+    if (node.body.type === 'BlockStatement') {
+      body = node.body
+    }
+  }
+
+  if (!body || body.body.length === 0) return false
+
+  const firstStatement = body.body[0]
+  return (
+    firstStatement.type === 'ExpressionStatement' &&
+    firstStatement.expression.type === 'Literal' &&
+    firstStatement.expression.value === 'use no memo'
+  )
+}
+
+function getContainingFunction(node) {
+  let current = node.parent
+  while (current) {
+    if (
+      current.type === 'FunctionDeclaration' ||
+      current.type === 'FunctionExpression' ||
+      current.type === 'ArrowFunctionExpression'
+    ) {
+      return current
+    }
+    current = current.parent
+  }
+  return null
+}
+
 /** @type {import('eslint').Rule.RuleModule} */
 export const rulesOfHooksESLintRule = {
   meta: {
@@ -162,6 +201,14 @@ export const rulesOfHooksESLintRule = {
       return {
         // Disable usage of useMemo and useCallback
         CallExpression(node) {
+          const containingFunction = getContainingFunction(node)
+          if (
+            containingFunction &&
+            functionHasUseNoMemoDirective(containingFunction)
+          ) {
+            return
+          }
+
           let hookType = null
 
           if (node.callee.name === 'useMemo') {
@@ -189,6 +236,14 @@ export const rulesOfHooksESLintRule = {
           return {
             // Disable usage of useMemo and useCallback
             CallExpression(node) {
+              const containingFunction = getContainingFunction(node)
+              if (
+                containingFunction &&
+                functionHasUseNoMemoDirective(containingFunction)
+              ) {
+                return
+              }
+
               let hookType = null
 
               if (node.callee.name === 'useMemo') {

@@ -8077,6 +8077,19 @@ const reactCompiler = {
     },
 
     {
+      name: 'unmemoized function in useEffect deps - no error with React Compiler',
+      options: [{ ignoreIfReactCompilerIsEnabled: true, reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function MyComponent() {
+          const local = () => {};
+          useEffect(() => {
+            local();
+          }, [local]);
+        }
+      `,
+    },
+
+    {
       name: 'missing useCallback in deps should not be reported',
       options: [{ ignoreIfReactCompilerIsEnabled: true }],
       code: normalizeIndent`
@@ -8171,6 +8184,27 @@ const reactCompiler = {
               `,
             },
           ],
+        },
+      ],
+    },
+    {
+      name: 'unmemoized function in useEffect deps - error with "use no memo" directive',
+      options: [{ ignoreIfReactCompilerIsEnabled: true, reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function MyComponent() {
+          "use no memo";
+          const local = () => {};
+          useEffect(() => {
+            local();
+          }, [local]);
+        }
+      `,
+      errors: [
+        {
+          message:
+            "The 'local' function makes the dependencies of useEffect Hook " +
+            "(at line 7) change on every render. Move it inside the useEffect callback. " +
+            "Alternatively, wrap the definition of 'local' in its own useCallback() Hook.",
         },
       ],
     },

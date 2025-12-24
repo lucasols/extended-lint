@@ -1152,7 +1152,76 @@ const tests = {
 }
 
 const reactCompilerTests = {
-  valid: [],
+  valid: [
+    {
+      name: 'useMemo allowed with "use no memo" directive in function declaration',
+      options: [{ reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function ComponentWithUseNoMemo() {
+          "use no memo";
+          const value = useMemo(() => computeExpensiveValue(), []);
+          return value;
+        }
+      `,
+    },
+    {
+      name: 'useCallback allowed with "use no memo" directive in function declaration',
+      options: [{ reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function ComponentWithUseNoMemo() {
+          "use no memo";
+          const cb = useCallback(() => {}, []);
+          return cb;
+        }
+      `,
+    },
+    {
+      name: 'useMemo allowed with "use no memo" directive in arrow function',
+      options: [{ reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        const ComponentWithUseNoMemo = () => {
+          "use no memo";
+          const value = useMemo(() => computeExpensiveValue(), []);
+          return value;
+        };
+      `,
+    },
+    {
+      name: 'useCallback allowed with "use no memo" directive in arrow function',
+      options: [{ reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        const ComponentWithUseNoMemo = () => {
+          "use no memo";
+          const cb = useCallback(() => {}, []);
+          return cb;
+        };
+      `,
+    },
+    {
+      name: 'useMemo allowed with "use no memo" directive in hook',
+      options: [{ reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function useCustomHook() {
+          "use no memo";
+          const value = useMemo(() => computeExpensiveValue(), []);
+          return value;
+        }
+      `,
+    },
+    {
+      name: 'useMemo allowed with "use no memo" directive via ignoreIfReactCompilerIsEnabled',
+      options: [{ ignoreIfReactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        /* test-eslint react-compiler/react-compiler: ["error"] */
+
+        function ComponentWithUseNoMemo() {
+          "use no memo";
+          const value = useMemo(() => computeExpensiveValue(), []);
+          return value;
+        }
+      `,
+    },
+  ],
   invalid: [
     {
       name: 'ignoreIfCompilerIsEnabled option disable useCallback',
@@ -1171,6 +1240,53 @@ const reactCompilerTests = {
       errors: [
         {
           message: '"useCallback" is not necessary when using React Compiler.',
+        },
+      ],
+    },
+    {
+      name: 'useMemo still reports error without "use no memo" directive',
+      options: [{ reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function ComponentWithoutDirective() {
+          const value = useMemo(() => computeExpensiveValue(), []);
+          return value;
+        }
+      `,
+      errors: [
+        {
+          message: '"useMemo" is not necessary when using React Compiler.',
+        },
+      ],
+    },
+    {
+      name: 'useCallback still reports error without "use no memo" directive',
+      options: [{ reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function ComponentWithoutDirective() {
+          const cb = useCallback(() => {}, []);
+          return cb;
+        }
+      `,
+      errors: [
+        {
+          message: '"useCallback" is not necessary when using React Compiler.',
+        },
+      ],
+    },
+    {
+      name: 'useMemo reports error when "use no memo" is not first statement',
+      options: [{ reactCompilerIsEnabled: true }],
+      code: normalizeIndent`
+        function ComponentWithDirectiveNotFirst() {
+          const x = 1;
+          "use no memo";
+          const value = useMemo(() => computeExpensiveValue(), []);
+          return value;
+        }
+      `,
+      errors: [
+        {
+          message: '"useMemo" is not necessary when using React Compiler.',
         },
       ],
     },
