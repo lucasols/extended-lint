@@ -302,6 +302,117 @@ test('nested hook call with object method using this', async () => {
   `)
 })
 
+test('hook function returning object with object method', async () => {
+  const { result } = await invalid(dedent`
+    function useResult() {
+      const state = useState(0)
+      return {
+        method() {
+          return state
+        }
+      }
+    }
+  `)
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'objectMethodIsNotSupported', line: 4 }
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "function useResult() {
+      const state = useState(0)
+      return {
+        method: () => {
+          return state
+        }
+      }
+    }"
+  `)
+})
+
+test('arrow function hook returning object with object method', async () => {
+  const { result } = await invalid(dedent`
+    const useResult = () => {
+      const state = useState(0)
+      return {
+        method() {
+          return state
+        }
+      }
+    }
+  `)
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'objectMethodIsNotSupported', line: 4 }
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "const useResult = () => {
+      const state = useState(0)
+      return {
+        method: () => {
+          return state
+        }
+      }
+    }"
+  `)
+})
+
+test('hook returning object with this usage', async () => {
+  const { result } = await invalid(dedent`
+    function useResult() {
+      const state = useState(0)
+      return {
+        method() {
+          return this.value
+        }
+      }
+    }
+  `)
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'thisKeywordInMethod', line: 4 }
+    "
+  `)
+})
+
+test('regular function returning object with method is valid', async () => {
+  await valid(dedent`
+    function getResult() {
+      return {
+        method() {
+          return 42
+        }
+      }
+    }
+  `)
+})
+
+test('PascalCase component returning object with method is valid', async () => {
+  await valid(dedent`
+    function MyComponent() {
+      return {
+        method() {
+          return 42
+        }
+      }
+    }
+  `)
+})
+
+test('hook with use no memo returning object with method is valid', async () => {
+  await valid(dedent`
+    function useResult() {
+      "use no memo"
+      return {
+        method() {
+          return 42
+        }
+      }
+    }
+  `)
+})
+
 describe('with runOnlyWithEnableCompilerDirective option', () => {
   test('hook call with object method without directive', async () => {
     await valid({
@@ -340,6 +451,41 @@ describe('with runOnlyWithEnableCompilerDirective option', () => {
           return 42
         }
       });"
+    `)
+  })
+
+  test('hook call returning object with object method with directive', async () => {
+    const { result } = await invalid({
+      code: dedent`
+        // eslint react-compiler/react-compiler: ["error"]
+        function useResult() {
+          "use memo"
+
+          return {
+            method() {
+              return 42
+            }
+          }
+        }
+      `,
+      options: [{ runOnlyWithEnableCompilerDirective: true }],
+    })
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'objectMethodIsNotSupported', line: 6 }
+      "
+    `)
+    expect(result.output).toMatchInlineSnapshot(`
+      "// eslint react-compiler/react-compiler: ["error"]
+      function useResult() {
+        "use memo"
+
+        return {
+          method: () => {
+            return 42
+          }
+        }
+      }"
     `)
   })
 

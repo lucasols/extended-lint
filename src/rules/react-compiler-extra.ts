@@ -831,6 +831,44 @@ const rule = createRule<
           })
         }
       },
+
+      ReturnStatement(node) {
+        if (node.argument?.type !== AST_NODE_TYPES.ObjectExpression) return
+
+        const containingFunction = getContainingFunction(node)
+        if (!containingFunction) return
+
+        // Check if containing function is a React component or hook
+        let functionName: string | undefined
+
+        if (
+          containingFunction.type === AST_NODE_TYPES.FunctionDeclaration &&
+          containingFunction.id
+        ) {
+          functionName = containingFunction.id.name
+        } else if (
+          containingFunction.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+          containingFunction.type === AST_NODE_TYPES.FunctionExpression
+        ) {
+          if (
+            containingFunction.parent.type ===
+              AST_NODE_TYPES.VariableDeclarator &&
+            containingFunction.parent.id.type === AST_NODE_TYPES.Identifier
+          ) {
+            functionName = containingFunction.parent.id.name
+          }
+        }
+
+        if (!functionName) return
+
+        // Only check hooks (starts with "use")
+        if (!isHookName(functionName)) return
+
+        if (shouldSkipDueToUseNoMemo(node)) return
+
+        checkForObjectMethods(node.argument)
+        checkNestedThisUsage(node.argument)
+      },
     }
   },
 })
