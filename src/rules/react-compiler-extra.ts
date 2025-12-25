@@ -554,6 +554,8 @@ const rule = createRule<
               let newText = ''
               if (functionExpr.generator) {
                 newText = `${methodName}: function* (${paramsList}) ${bodyText}`
+              } else if (functionExpr.async) {
+                newText = `${methodName}: async (${paramsList}) => ${bodyText}`
               } else {
                 newText = `${methodName}: (${paramsList}) => ${bodyText}`
               }

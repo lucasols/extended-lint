@@ -122,6 +122,28 @@ test('useCallback with object method', async () => {
   `)
 })
 
+test('hook call with async object method', async () => {
+  const { result } = await invalid(dedent`
+    const result = useState({
+      async method() {
+        return 42
+      }
+    });
+  `)
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'objectMethodIsNotSupported', line: 2 }
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "const result = useState({
+      method: async () => {
+        return 42
+      }
+    });"
+  `)
+})
+
 test('useMemo with object method', async () => {
   const { result } = await invalid(dedent`
     const result = useMemo(() => ({
