@@ -45,6 +45,7 @@ import { noUnnecessaryVoidOnPromise } from './no-unnecessary-void-on-promise'
 import { requireLazyExecution } from './require-lazy-execution'
 import { noUnnecessaryIife } from './no-unnecessary-iife'
 import { noRestrictedComments } from './no-restricted-comments'
+import { noDataAttributesOnComponents } from './no-data-attributes-on-components'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -94,4 +95,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noReexport.name]: noReexport.rule,
   [noUnnecessaryIife.name]: noUnnecessaryIife.rule,
   [noRestrictedComments.name]: noRestrictedComments.rule,
+  [noDataAttributesOnComponents.name]: noDataAttributesOnComponents.rule,
 }
