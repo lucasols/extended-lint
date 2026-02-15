@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils } from '@typescript-eslint/utils'
+import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
 
 const createRule = ESLintUtils.RuleCreator(
   (name) => `https://github.com/lucasols/extended-lint#${name}`,
@@ -13,6 +13,7 @@ export type Options = [
       minGenerics?: number
       allowAny?: boolean
       disallowTypes?: string[]
+      disallowTypeOf?: boolean
     }[]
     disallowTypes?: string[]
   },
@@ -20,7 +21,7 @@ export type Options = [
 
 const rule = createRule<
   Options,
-  'missingGenericDeclaration' | 'anyUsedInGenerics'
+  'missingGenericDeclaration' | 'anyUsedInGenerics' | 'typeOfUsedInGenerics'
 >({
   name,
   meta: {
@@ -31,6 +32,7 @@ const rule = createRule<
     messages: {
       missingGenericDeclaration: `Function '{{ functionName }}' should be called with at least {{ minGenerics }} generic(s) (ex: \`fn<Generic>()\`) defined`,
       anyUsedInGenerics: `Function '{{ functionName }}' should not be called with 'any' in generics`,
+      typeOfUsedInGenerics: `Function '{{ functionName }}' should not be called with 'typeof' in generics`,
     },
     schema: [
       {
@@ -45,6 +47,7 @@ const rule = createRule<
                 minGenerics: { type: 'number' },
                 allowAny: { type: 'boolean' },
                 disallowTypes: { type: 'array', items: { type: 'string' } },
+                disallowTypeOf: { type: 'boolean' },
               },
               required: ['name'],
             },
@@ -61,7 +64,17 @@ const rule = createRule<
       options.functions.map((config) => [config.name, config]),
     )
 
+    const hasDisallowTypeOf = options.functions.some((f) => f.disallowTypeOf)
+    const typeOfAliases = new Set<string>()
+
     return {
+      ...(hasDisallowTypeOf && {
+        TSTypeAliasDeclaration(node: TSESTree.TSTypeAliasDeclaration) {
+          if (node.typeAnnotation.type === AST_NODE_TYPES.TSTypeQuery) {
+            typeOfAliases.add(node.id.name)
+          }
+        },
+      }),
       CallExpression(node) {
         const { callee } = node
 
@@ -75,6 +88,7 @@ const rule = createRule<
           minGenerics = 1,
           allowAny,
           disallowTypes = options.disallowTypes,
+          disallowTypeOf,
         } = functionConfig
 
         const generics = node.typeArguments?.params.length || 0
@@ -109,6 +123,26 @@ const rule = createRule<
               functionName: callee.name,
             },
           })
+        }
+
+        if (disallowTypeOf) {
+          if (
+            node.typeArguments?.params.some(
+              (type) =>
+                type.type === AST_NODE_TYPES.TSTypeQuery ||
+                (type.type === AST_NODE_TYPES.TSTypeReference &&
+                  type.typeName.type === AST_NODE_TYPES.Identifier &&
+                  typeOfAliases.has(type.typeName.name)),
+            )
+          ) {
+            context.report({
+              node,
+              messageId: 'typeOfUsedInGenerics',
+              data: {
+                functionName: callee.name,
+              },
+            })
+          }
         }
       },
     }

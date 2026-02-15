@@ -96,4 +96,85 @@ tests.addInvalid(
   },
 )
 
+tests.addInvalid(
+  'invalid usage of typeof in generics',
+  `
+      const user = { name: 'test' };
+      test<typeof user>('user/update', { name });
+    `,
+  [
+    {
+      messageId: 'typeOfUsedInGenerics',
+      data: { functionName: 'test' },
+    },
+  ],
+  {
+    options: [
+      {
+        functions: [{ name: 'test', disallowTypeOf: true }],
+      },
+    ],
+  },
+)
+
+tests.addInvalid(
+  'invalid usage of local type alias that resolves to typeof',
+  `
+      const user = { name: 'test' };
+      type User = typeof user;
+      test<User>('user/update', { name });
+    `,
+  [
+    {
+      messageId: 'typeOfUsedInGenerics',
+      data: { functionName: 'test' },
+    },
+  ],
+  {
+    options: [
+      {
+        functions: [{ name: 'test', disallowTypeOf: true }],
+      },
+    ],
+  },
+)
+
+tests.addValid(
+  'valid: disallowTypeOf with non-typeof type reference',
+  `
+      type User = { name: string };
+      test<User>('user/update', { name });
+    `,
+  [
+    {
+      functions: [{ name: 'test', disallowTypeOf: true }],
+    },
+  ],
+)
+
+tests.addValid(
+  'valid: disallowTypeOf with external/non-local type reference',
+  `
+      test<SomeImportedType>('user/update', { name });
+    `,
+  [
+    {
+      functions: [{ name: 'test', disallowTypeOf: true }],
+    },
+  ],
+)
+
+tests.addValid(
+  'valid: typeof used but disallowTypeOf not enabled',
+  `
+      const user = { name: 'test' };
+      test<typeof user>('user/update', { name });
+    `,
+  [
+    {
+      functions: [{ name: 'test' }],
+    },
+  ],
+)
+
 tests.run()
