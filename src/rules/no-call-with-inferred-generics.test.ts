@@ -177,4 +177,36 @@ tests.addValid(
   ],
 )
 
+tests.addInvalid(
+  'invalid usage of unknown in generics',
+  `
+      test<unknown>('user/update', { name });
+    `,
+  [
+    {
+      messageId: 'unknownUsedInGenerics',
+      data: { functionName: 'test' },
+    },
+  ],
+  {
+    options: [
+      {
+        functions: [{ name: 'test', disallowUnknown: true }],
+      },
+    ],
+  },
+)
+
+tests.addValid(
+  'valid: unknown used but disallowUnknown not enabled',
+  `
+      test<unknown>('user/update', { name });
+    `,
+  [
+    {
+      functions: [{ name: 'test' }],
+    },
+  ],
+)
+
 tests.run()
