@@ -179,6 +179,8 @@ const allowedPrefixes = [
   'XXX:',
   'REVIEW:',
   'eslint',
+  'cspell:',
+  'spell-checker:',
 ]
 
 const rule = createRule({

@@ -693,4 +693,21 @@ tests.addValid(
   `,
 )
 
+tests.addValid(
+  'cspell and spell-checker comments should be allowed',
+  `
+    // spell-checker: ignore
+    // spell-checker: disable
+    // spell-checker: enable
+    // spell-checker: disable-next-line
+    // cspell: ignore exported constants
+    // cspell: ignore fine comment
+    // cspell: ignore tables and their fields
+    // cspell: disable
+    // cspell: enable
+    // cspell: disable-next-line
+    // cspell: words myCustomWord anotherWord
+  `,
+)
+
 tests.run()
