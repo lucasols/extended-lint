@@ -737,6 +737,112 @@ tests.describe('mustMatchSelector', () => {
   )
 })
 
+tests.describe('mustMatchSyntax excludeRegex', () => {
+  tests.addValid(
+    'excluded file is skipped even if includeRegex matches',
+    `
+      const test = 'bar';
+    `,
+    {
+      __dev_simulateFileName: 'stringFile.test.ts',
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          excludeRegex: '\\.test\\.',
+          mustMatchSelector: [
+            {
+              selector: 'Identifier[name="foo"]',
+              message: 'File should declare "foo"',
+            },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.addInvalid(
+    'non-excluded file still triggers error',
+    `
+      const test = 'bar';
+    `,
+    [
+      {
+        data: {
+          message: 'File should declare "foo"',
+        },
+      },
+    ],
+    {
+      options: {
+        __dev_simulateFileName: 'stringFile.ts',
+        mustMatchSyntax: [
+          {
+            includeRegex: '.*',
+            excludeRegex: '\\.test\\.',
+            mustMatchSelector: [
+              {
+                selector: 'Identifier[name="foo"]',
+                message: 'File should declare "foo"',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  )
+
+  tests.addValid(
+    'excluded file with mustCallFn is skipped',
+    `
+      function foo(bar) {
+        const test = 1;
+      }
+    `,
+    {
+      __dev_simulateFileName: 'stringFile.spec.ts',
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          excludeRegex: '\\.(spec|test)\\.',
+          mustCallFn: [
+            {
+              anyCall: [
+                {
+                  fn: 'shouldCallFn',
+                  withArgs: [{ atIndex: 0, literal: 'foo' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  )
+
+  tests.addValid(
+    'excluded file with mustHaveExport is skipped',
+    `
+      const testVar = 'test';
+    `,
+    {
+      __dev_simulateFileName: 'components/Test.stories.tsx',
+      mustMatchSyntax: [
+        {
+          includeRegex: '.*',
+          excludeRegex: '\\.stories\\.',
+          mustHaveExport: [
+            {
+              name: 'testVar',
+              type: 'variable',
+              message: 'Must export testVar',
+            },
+          ],
+        },
+      ],
+    },
+  )
+})
+
 tests.describe('disallowFnCalls', () => {
   tests.addValid('different function call', 'someOtherFunction();', {
     disallowFnCalls: [

@@ -42,6 +42,7 @@ const optionSchema = z.object({
     z.array(
       z.object({
         includeRegex: z.string(),
+        excludeRegex: z.optional(z.string()),
         mustCallFn: z.optional(
           z.array(
             z.object({
@@ -212,6 +213,7 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
 
     for (const {
       includeRegex,
+      excludeRegex,
       mustCallFn,
       mustMatchSelector,
       mustHaveExport,
@@ -222,6 +224,8 @@ export const advancedNoRestrictedSyntax = createExtendedLintRule<
       )
 
       if (!fileNameVars) continue
+
+      if (excludeRegex && new RegExp(excludeRegex).test(fileName)) continue
 
       function replaceStringWithVars(str: string) {
         let newStr = str
