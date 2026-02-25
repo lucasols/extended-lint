@@ -140,6 +140,56 @@ test('valid: regex value used by one component is ignored', async () => {
   })
 })
 
+test('valid: class instantiation used by one component is ignored', async () => {
+  await valid({
+    code: dedent`
+      class Store {
+        state: Record<string, true | 'inProgress'>
+
+        constructor() {
+          this.state = {}
+        }
+      }
+
+      const notificationWasForwardedState = new Store()
+
+      export function List({ id }: { id: string }) {
+        const value = notificationWasForwardedState.state[id]
+        return <div>{value ? 'forwarded' : 'pending'}</div>
+      }
+    `,
+    filename: 'list.tsx',
+  })
+})
+
+test('valid: object used twice in one component is ignored', async () => {
+  await valid({
+    code: dedent`
+      const mockAppPermissions = {
+        canViewApp: true,
+      }
+
+      export function GridPositioningStory() {
+        return (
+          <div>
+            <Editable appPermissions={mockAppPermissions} />
+            <Readonly appPermissions={mockAppPermissions} />
+          </div>
+        )
+      }
+
+      function Editable({ appPermissions }: { appPermissions: { canViewApp: boolean } }) {
+        return <div>{appPermissions.canViewApp ? 'yes' : 'no'}</div>
+      }
+
+      function Readonly({ appPermissions }: { appPermissions: { canViewApp: boolean } }) {
+        return <div>{appPermissions.canViewApp ? 'yes' : 'no'}</div>
+      }
+    `,
+    filename: 'GridPositioningStory.tsx',
+  })
+})
+
 test('invalid: module array used only in one component', async () => {
   const { result } = await invalid({
     code: dedent`

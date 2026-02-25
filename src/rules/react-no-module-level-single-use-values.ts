@@ -19,7 +19,7 @@ export const reactNoModuleLevelSingleUseValues = createExtendedLintRule<
     type: 'problem',
     docs: {
       description:
-        'Disallow module-level allocated data values and long strings that are only used in one React component, excluding functions, inferable aliases, and regex values',
+        'Disallow module-level allocated data values and long strings that are only used in one React component, excluding functions, inferable aliases, regex values, and class instantiations',
     },
     schema: [],
     messages: {
@@ -54,11 +54,14 @@ export const reactNoModuleLevelSingleUseValues = createExtendedLintRule<
 
         const componentUsages = new Set<string>()
         let hasUsageOutsideComponents = false
-        let hasUsage = false
+        let usageCount = 0
 
         for (const reference of variable.references) {
           if (reference.init) continue
-          hasUsage = true
+
+          usageCount++
+
+          if (usageCount > 1) break
 
           const componentName = getContainingComponentName(
             reference.identifier,
@@ -75,7 +78,7 @@ export const reactNoModuleLevelSingleUseValues = createExtendedLintRule<
           if (componentUsages.size > 1) break
         }
 
-        if (!hasUsage) return
+        if (usageCount !== 1) return
         if (hasUsageOutsideComponents) return
         if (componentUsages.size !== 1) return
 
@@ -314,7 +317,6 @@ function isNonPrimitiveInitializer(expression: TSESTree.Expression): boolean {
   if (expression.type === AST_NODE_TYPES.ArrayExpression) return true
   if (expression.type === AST_NODE_TYPES.ObjectExpression) return true
   if (expression.type === AST_NODE_TYPES.ClassExpression) return true
-  if (expression.type === AST_NODE_TYPES.NewExpression) return true
 
   return false
 }
