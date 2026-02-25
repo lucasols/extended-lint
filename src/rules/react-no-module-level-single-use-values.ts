@@ -19,7 +19,7 @@ export const reactNoModuleLevelSingleUseValues = createExtendedLintRule<
     type: 'problem',
     docs: {
       description:
-        'Disallow module-level non-primitive values and long strings that are only used in one React component',
+        'Disallow module-level allocated data values and long strings that are only used in one React component, excluding functions, inferable aliases, and regex values',
     },
     schema: [],
     messages: {
@@ -276,9 +276,18 @@ function isTargetInitializer(initializer: TSESTree.Expression | null): boolean {
 
   const unwrappedInitializer = unwrapExpression(initializer)
 
+  if (isInferableReferenceInitializer(unwrappedInitializer)) return false
+
   if (isLongString(unwrappedInitializer)) return true
 
   return isNonPrimitiveInitializer(unwrappedInitializer)
+}
+
+function isInferableReferenceInitializer(expression: TSESTree.Expression) {
+  return (
+    expression.type === AST_NODE_TYPES.Identifier
+    || expression.type === AST_NODE_TYPES.MemberExpression
+  )
 }
 
 function isLongString(expression: TSESTree.Expression): boolean {
@@ -302,14 +311,8 @@ function isLongString(expression: TSESTree.Expression): boolean {
 }
 
 function isNonPrimitiveInitializer(expression: TSESTree.Expression): boolean {
-  if (expression.type === AST_NODE_TYPES.Literal) {
-    return expression.value instanceof RegExp
-  }
-
   if (expression.type === AST_NODE_TYPES.ArrayExpression) return true
   if (expression.type === AST_NODE_TYPES.ObjectExpression) return true
-  if (expression.type === AST_NODE_TYPES.ArrowFunctionExpression) return true
-  if (expression.type === AST_NODE_TYPES.FunctionExpression) return true
   if (expression.type === AST_NODE_TYPES.ClassExpression) return true
   if (expression.type === AST_NODE_TYPES.NewExpression) return true
 

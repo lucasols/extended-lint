@@ -67,6 +67,79 @@ test('valid: non tsx files are ignored', async () => {
   })
 })
 
+test('valid: same-file component declaration as arrow function is ignored', async () => {
+  await valid({
+    code: dedent`
+      const CopyPublicLinkButton = ({ appId }: { appId: string }) => {
+        return <button>{appId}</button>
+      }
+
+      export function AppViewHeader({ appId }: { appId: string }) {
+        return (
+          <div>
+            <CopyPublicLinkButton appId={appId} />
+          </div>
+        )
+      }
+    `,
+    filename: 'AppViewHeader.tsx',
+  })
+})
+
+test('valid: module helper arrow function used by one component is ignored', async () => {
+  await valid({
+    code: dedent`
+      const formatLabel = (value: string) => value.toUpperCase()
+
+      export function Header() {
+        return <div>{formatLabel('item')}</div>
+      }
+    `,
+    filename: 'header.tsx',
+  })
+})
+
+test('valid: inferable alias reference is ignored', async () => {
+  await valid({
+    code: dedent`
+      const options = ['a', 'b']
+      const listOptions = options
+
+      export function List() {
+        return <div>{listOptions.join(', ')}</div>
+      }
+    `,
+    filename: 'list.tsx',
+  })
+})
+
+test('valid: inferable member reference is ignored', async () => {
+  await valid({
+    code: dedent`
+      const config = { labels: ['a', 'b'] }
+      const listOptions = config.labels
+
+      export function List() {
+        return <div>{listOptions.join(', ')}</div>
+      }
+    `,
+    filename: 'list.tsx',
+  })
+})
+
+test('valid: regex value used by one component is ignored', async () => {
+  await valid({
+    code: dedent`
+      const userIdRegex = /^user_[a-z0-9]+$/
+
+      export function List({ value }: { value: string }) {
+        return <div>{userIdRegex.test(value) ? 'ok' : 'invalid'}</div>
+      }
+    `,
+    filename: 'list.tsx',
+  })
+})
+
 test('invalid: module array used only in one component', async () => {
   const { result } = await invalid({
     code: dedent`
