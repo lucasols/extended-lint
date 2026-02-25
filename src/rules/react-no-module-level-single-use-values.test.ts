@@ -162,8 +162,8 @@ test('valid: class instantiation used by one component is ignored', async () => 
   })
 })
 
-test('valid: object used twice in one component is ignored', async () => {
-  await valid({
+test('invalid: object used twice in one component', async () => {
+  const { result } = await invalid({
     code: dedent`
       const mockAppPermissions = {
         canViewApp: true,
@@ -188,6 +188,12 @@ test('valid: object used twice in one component is ignored', async () => {
     `,
     filename: 'GridPositioningStory.tsx',
   })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'moveValueInsideComponent', line: 1 }
+    "
+  `)
 })
 
 test('invalid: module array used only in one component', async () => {

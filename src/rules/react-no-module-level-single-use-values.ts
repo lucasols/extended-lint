@@ -54,14 +54,12 @@ export const reactNoModuleLevelSingleUseValues = createExtendedLintRule<
 
         const componentUsages = new Set<string>()
         let hasUsageOutsideComponents = false
-        let usageCount = 0
+        let hasUsage = false
 
         for (const reference of variable.references) {
           if (reference.init) continue
 
-          usageCount++
-
-          if (usageCount > 1) break
+          hasUsage = true
 
           const componentName = getContainingComponentName(
             reference.identifier,
@@ -78,7 +76,7 @@ export const reactNoModuleLevelSingleUseValues = createExtendedLintRule<
           if (componentUsages.size > 1) break
         }
 
-        if (usageCount !== 1) return
+        if (!hasUsage) return
         if (hasUsageOutsideComponents) return
         if (componentUsages.size !== 1) return
 
