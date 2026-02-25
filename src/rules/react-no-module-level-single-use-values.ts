@@ -1,17 +1,25 @@
 import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
-import { createExtendedLintRule } from '../createRule'
+import { z } from 'zod/v4'
+import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const reactFileExtensionRegex = /\.(tsx|jsx)$/
 const pascalCaseRegex = /^[A-Z][A-Za-z0-9]*$/
+const constantCaseRegex = /^[A-Z][A-Z0-9_]*$/
 const longStringLengthMin = 80
+
+const optionsSchema = z.object({
+  ignoreConstCaseVarRegex: z.string().optional(),
+})
 
 type ComponentFunctionNode =
   | TSESTree.ArrowFunctionExpression
   | TSESTree.FunctionDeclaration
   | TSESTree.FunctionExpression
 
+type Options = z.infer<typeof optionsSchema>
+
 export const reactNoModuleLevelSingleUseValues = createExtendedLintRule<
-  [],
+  [Options],
   'moveValueInsideComponent'
 >({
   name: 'react-no-module-level-single-use-values',
@@ -19,21 +27,24 @@ export const reactNoModuleLevelSingleUseValues = createExtendedLintRule<
     type: 'problem',
     docs: {
       description:
-        'Disallow module-level allocated data values and long strings that are only used in one React component, excluding functions, inferable aliases, regex values, and class instantiations',
+        'Disallow module-level allocated data values and long strings that are only used in one React component, excluding functions, inferable aliases, regex values, and class instantiations except Set/Map',
     },
-    schema: [],
+    schema: [getJsonSchemaFromZod(optionsSchema)],
     messages: {
       moveValueInsideComponent:
-        'Module-level "{{valueName}}" is only used in React component "{{componentName}}". Move it inside the component to improve memory usage.',
+        'Module-level `{{valueName}}` is only used in React component `{{componentName}}`. Move it inside the component to improve memory usage.',
     },
   },
-  defaultOptions: [],
-  create(context) {
+  defaultOptions: [{}],
+  create(context, [options]) {
     if (!reactFileExtensionRegex.test(context.filename)) {
       return {}
     }
 
     const sourceCode = context.sourceCode
+    const ignoreConstCaseVarPattern = getIgnoreConstCaseVarPattern(
+      options.ignoreConstCaseVarRegex,
+    )
     const topLevelComponents = getTopLevelComponents(sourceCode.ast.body)
 
     if (topLevelComponents.length === 0) return {}
@@ -45,6 +56,14 @@ export const reactNoModuleLevelSingleUseValues = createExtendedLintRule<
         if (!isTargetInitializer(node.init)) return
 
         const valueName = node.id.name
+        if (
+          ignoreConstCaseVarPattern
+          && isConstantCaseName(valueName)
+          && ignoreConstCaseVarPattern.test(valueName)
+        ) {
+          return
+        }
+
         const declaredVariables = sourceCode.getDeclaredVariables(node)
         const variable = declaredVariables.find(
           (declaredVariable) => declaredVariable.name === valueName,
@@ -315,6 +334,46 @@ function isNonPrimitiveInitializer(expression: TSESTree.Expression): boolean {
   if (expression.type === AST_NODE_TYPES.ArrayExpression) return true
   if (expression.type === AST_NODE_TYPES.ObjectExpression) return true
   if (expression.type === AST_NODE_TYPES.ClassExpression) return true
+  if (expression.type === AST_NODE_TYPES.NewExpression) {
+    return isSetOrMapInstantiation(expression)
+  }
 
   return false
+}
+
+function isSetOrMapInstantiation(expression: TSESTree.NewExpression): boolean {
+  const constructorName = getConstructorName(expression.callee)
+
+  return constructorName === 'Set' || constructorName === 'Map'
+}
+
+function getConstructorName(
+  callee: TSESTree.Expression,
+): string | null {
+  if (callee.type === AST_NODE_TYPES.Identifier) {
+    return callee.name
+  }
+
+  if (callee.type === AST_NODE_TYPES.MemberExpression) {
+    if (callee.computed) return null
+    if (callee.property.type !== AST_NODE_TYPES.Identifier) return null
+
+    return callee.property.name
+  }
+
+  return null
+}
+
+function isConstantCaseName(varName: string): boolean {
+  return constantCaseRegex.test(varName)
+}
+
+function getIgnoreConstCaseVarPattern(regexStr: string | undefined): RegExp | null {
+  if (!regexStr) return null
+
+  try {
+    return new RegExp(regexStr)
+  } catch {
+    return null
+  }
 }

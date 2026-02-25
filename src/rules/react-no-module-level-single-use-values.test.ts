@@ -162,6 +162,82 @@ test('valid: class instantiation used by one component is ignored', async () => 
   })
 })
 
+test('valid: ignoreConstCaseVarRegex ignores matching constant-case variable', async () => {
+  await valid({
+    code: dedent`
+      const MOCK_APP_PERMISSIONS = {
+        canViewApp: true,
+      }
+
+      export function GridPositioningStory() {
+        return <div>{MOCK_APP_PERMISSIONS.canViewApp ? 'yes' : 'no'}</div>
+      }
+    `,
+    filename: 'GridPositioningStory.tsx',
+    options: [{ ignoreConstCaseVarRegex: '^MOCK_' }],
+  })
+})
+
+test('invalid: set instantiation used in one component', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      const selectedIds = new Set<string>()
+
+      export function List({ id }: { id: string }) {
+        return <div>{selectedIds.has(id) ? 'selected' : 'not selected'}</div>
+      }
+    `,
+    filename: 'list.tsx',
+  })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'moveValueInsideComponent', line: 1 }
+    "
+  `)
+})
+
+test('invalid: map instantiation used in one component', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      const nameById = new Map<string, string>()
+
+      export function List({ id }: { id: string }) {
+        return <div>{nameById.get(id) ?? 'unknown'}</div>
+      }
+    `,
+    filename: 'list.tsx',
+  })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'moveValueInsideComponent', line: 1 }
+    "
+  `)
+})
+
+test('invalid: ignoreConstCaseVarRegex does not ignore non constant-case variable', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      const mockAppPermissions = {
+        canViewApp: true,
+      }
+
+      export function GridPositioningStory() {
+        return <div>{mockAppPermissions.canViewApp ? 'yes' : 'no'}</div>
+      }
+    `,
+    filename: 'GridPositioningStory.tsx',
+    options: [{ ignoreConstCaseVarRegex: '^mock' }],
+  })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'moveValueInsideComponent', line: 1 }
+    "
+  `)
+})
+
 test('invalid: object used twice in one component', async () => {
   const { result } = await invalid({
     code: dedent`
