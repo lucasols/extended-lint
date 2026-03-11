@@ -47,6 +47,7 @@ import { requireLazyExecution } from './require-lazy-execution'
 import { noUnnecessaryIife } from './no-unnecessary-iife'
 import { noRestrictedComments } from './no-restricted-comments'
 import { noDataAttributesOnComponents } from './no-data-attributes-on-components'
+import { requireUsageExplanation } from './require-usage-explanation'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
@@ -99,4 +100,5 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noUnnecessaryIife.name]: noUnnecessaryIife.rule,
   [noRestrictedComments.name]: noRestrictedComments.rule,
   [noDataAttributesOnComponents.name]: noDataAttributesOnComponents.rule,
+  [requireUsageExplanation.name]: requireUsageExplanation.rule,
 }
