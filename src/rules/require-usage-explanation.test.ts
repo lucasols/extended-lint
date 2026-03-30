@@ -253,6 +253,111 @@ test('valid: comment above return statement containing fn call', async () => {
   })
 })
 
+test('valid: comment inside ternary above fn call', async () => {
+  await valid({
+    code: dedent`
+      const data = selector
+        ? selector(state.data)
+        : (
+            // WORKAROUND: Without a selector the hook returns full state
+            dangerousFn(state.data)
+          )
+    `,
+    options: [
+      {
+        matches: [{ fn: 'dangerousFn', commentPrefix: 'WORKAROUND:' }],
+      },
+    ],
+  })
+})
+
+test('valid: comment inside ternary above fn call 2', async () => {
+  await valid({
+    code: dedent`
+      const data = selector
+        ? selector(state.data)
+        : // WORKAROUND: Without a selector the hook returns full state
+        dangerousFn(state.data)
+
+    `,
+    options: [
+      {
+        matches: [{ fn: 'dangerousFn', commentPrefix: 'WORKAROUND:' }],
+      },
+    ],
+  })
+})
+
+test('valid: inline comment in ternary without parens above fn call', async () => {
+  await valid({
+    code: dedent`
+      const data = selector
+        ? selector(state.data)
+        : // WORKAROUND: Without a selector the hook returns full state
+          dangerousFn(state.data)
+    `,
+    options: [
+      {
+        matches: [{ fn: 'dangerousFn', commentPrefix: 'WORKAROUND:' }],
+      },
+    ],
+  })
+})
+
+test('invalid: fn call inside ternary with no comment', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      const data = selector
+        ? selector(state.data)
+        : dangerousFn(state.data)
+    `,
+    options: [
+      {
+        matches: [{ fn: 'dangerousFn', commentPrefix: 'WORKAROUND:' }],
+      },
+    ],
+  })
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'default', line: 3 }
+    "
+  `)
+})
+
+test('valid: comment inside array above fn call', async () => {
+  await valid({
+    code: dedent`
+      const items = [
+        // WORKAROUND: needed for legacy support
+        dangerousFn(),
+        otherFn(),
+      ]
+    `,
+    options: [
+      {
+        matches: [{ fn: 'dangerousFn', commentPrefix: 'WORKAROUND:' }],
+      },
+    ],
+  })
+})
+
+test('valid: comment inside function argument above fn call', async () => {
+  await valid({
+    code: dedent`
+      foo(
+        // WORKAROUND: needed for legacy support
+        dangerousFn()
+      )
+    `,
+    options: [
+      {
+        matches: [{ fn: 'dangerousFn', commentPrefix: 'WORKAROUND:' }],
+      },
+    ],
+  })
+})
+
 test('invalid: fn call inside return with no comment', async () => {
   const { result } = await invalid({
     code: dedent`

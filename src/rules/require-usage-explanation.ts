@@ -108,6 +108,28 @@ export const requireUsageExplanation = createExtendedLintRule<
       return base
     }
 
+    function hasValidCommentAbove(
+      node: TSESTree.Node,
+      prefix: string,
+    ): boolean {
+      const statementNode = findStatementLevelAncestor(node)
+      if (!statementNode) return false
+
+      let current: TSESTree.Node = node
+
+      while (current !== statementNode && current.parent) {
+        const comments = sourceCode.getCommentsBefore(current)
+        if (hasValidComment(comments, prefix)) return true
+
+        current = current.parent
+      }
+
+      const statementComments = sourceCode.getCommentsBefore(statementNode)
+      if (hasValidComment(statementComments, prefix)) return true
+
+      return false
+    }
+
     function checkNodeForComment(
       node: TSESTree.Node,
       config: {
@@ -116,11 +138,7 @@ export const requireUsageExplanation = createExtendedLintRule<
         message: string | undefined
       },
     ): void {
-      const statementNode = findStatementLevelAncestor(node)
-      if (!statementNode) return
-
-      const comments = sourceCode.getCommentsBefore(statementNode)
-      if (hasValidComment(comments, config.commentPrefix)) return
+      if (hasValidCommentAbove(node, config.commentPrefix)) return
 
       context.report({
         node,
