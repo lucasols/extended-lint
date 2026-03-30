@@ -1090,6 +1090,23 @@ describe('string assertions', () => {
     `)
   })
 
+  test('always false Array.isArray check on Record<string, unknown>', async () => {
+    const { result } = await invalid(
+      dedent`
+        const value: Record<string, unknown> = {}
+        if (Array.isArray(value)) {
+          console.log(value)
+        }
+      `,
+    )
+
+    expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+      "
+      - { messageId: 'alwaysFalseArrayIsArrayCondition', line: 2 }
+      "
+    `)
+  })
+
   test('always false length comparison on literal string', async () => {
     const { result } = await invalid(
       dedent`

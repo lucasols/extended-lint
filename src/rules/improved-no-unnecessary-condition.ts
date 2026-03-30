@@ -521,13 +521,12 @@ export const improvedNoUnnecessaryCondition = {
         if (type.flags & ts.TypeFlags.Void) return true
         if (type.flags & ts.TypeFlags.Never) return true
 
-        const symbol = type.getSymbol()
-        if (symbol) {
-          const symbolName = checker.getFullyQualifiedName(symbol)
-          if (symbolName === '__function') return true
-          if (symbolName === '__object' && !isRuntimeArrayType(type)) {
-            return true
-          }
+        if (
+          type.flags & ts.TypeFlags.Object &&
+          !type.isClassOrInterface() &&
+          !isRuntimeArrayType(type)
+        ) {
+          return true
         }
 
         return false
