@@ -33,22 +33,14 @@ export const noReexport = createExtendedLintRule<[], 'noReexport'>({
       return false
     }
 
-    function containsImportedTypeName(typeName: TSESTree.EntityName): boolean {
-      if (typeName.type === AST_NODE_TYPES.Identifier) {
-        return importedIdentifiers.has(typeName.name)
-      }
-
-      if (typeName.type === AST_NODE_TYPES.ThisExpression) return false
-
-      if (typeName.left.type === AST_NODE_TYPES.ThisExpression) return false
-
-      return containsImportedTypeName(typeName.left)
-    }
-
     function isImportedTypeReference(node: TSESTree.TypeNode): boolean {
       if (node.type !== AST_NODE_TYPES.TSTypeReference) return false
+      if (node.typeArguments) return false
 
-      return containsImportedTypeName(node.typeName)
+      return (
+        node.typeName.type === AST_NODE_TYPES.Identifier &&
+        importedIdentifiers.has(node.typeName.name)
+      )
     }
 
     return {

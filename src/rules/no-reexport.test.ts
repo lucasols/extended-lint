@@ -179,4 +179,30 @@ tests.addValid(
   `,
 )
 
+tests.addValid(
+  'export type inferred from local schema with imported generic',
+  `
+    import { z } from 'zod'
+
+    const userSchema = z.object({
+      id: z.number(),
+    })
+
+    export type User = z.infer<typeof userSchema>
+  `,
+)
+
+tests.addValid(
+  'export type created from imported generic',
+  `
+    import type { Result } from './module'
+
+    type User = {
+      name: string
+    }
+
+    export type UserResult = Result<User>
+  `,
+)
+
 tests.run()
