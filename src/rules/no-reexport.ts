@@ -17,18 +17,38 @@ export const noReexport = createExtendedLintRule<[], 'noReexport'>({
   create(context) {
     const importedIdentifiers = new Set<string>()
 
-    function containsImportedIdentifier(node: TSESTree.Node | null | undefined): boolean {
+    function containsImportedIdentifier(
+      node: TSESTree.Node | null | undefined,
+    ): boolean {
       if (!node) return false
-      
+
       if (node.type === AST_NODE_TYPES.Identifier) {
         return importedIdentifiers.has(node.name)
       }
-      
+
       if (node.type === AST_NODE_TYPES.MemberExpression) {
         return containsImportedIdentifier(node.object)
       }
-      
+
       return false
+    }
+
+    function containsImportedTypeName(typeName: TSESTree.EntityName): boolean {
+      if (typeName.type === AST_NODE_TYPES.Identifier) {
+        return importedIdentifiers.has(typeName.name)
+      }
+
+      if (typeName.type === AST_NODE_TYPES.ThisExpression) return false
+
+      if (typeName.left.type === AST_NODE_TYPES.ThisExpression) return false
+
+      return containsImportedTypeName(typeName.left)
+    }
+
+    function isImportedTypeReference(node: TSESTree.TypeNode): boolean {
+      if (node.type !== AST_NODE_TYPES.TSTypeReference) return false
+
+      return containsImportedTypeName(node.typeName)
     }
 
     return {
@@ -49,6 +69,13 @@ export const noReexport = createExtendedLintRule<[], 'noReexport'>({
               context.report({ node, messageId: 'noReexport' })
             }
           }
+        }
+
+        if (
+          node.declaration?.type === AST_NODE_TYPES.TSTypeAliasDeclaration &&
+          isImportedTypeReference(node.declaration.typeAnnotation)
+        ) {
+          context.report({ node, messageId: 'noReexport' })
         }
 
         if (node.specifiers.length > 0) {

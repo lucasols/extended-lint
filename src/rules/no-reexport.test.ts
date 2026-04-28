@@ -163,6 +163,14 @@ tests.addInvalid(
   `,
 )
 
+tests.addInvalid(
+  'type import alias and exported type alias',
+  `
+    import type { MyType as MyTypeType } from './module'
+    export type MyType = MyTypeType
+  `,
+)
+
 tests.addValid(
   'destructuring locally defined object',
   `
