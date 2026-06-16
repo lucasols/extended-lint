@@ -502,6 +502,17 @@ export const improvedNoUnnecessaryCondition = {
         return false
       }
 
+      function isEmptyObjectType(type: ts.Type) {
+        if (!checker) return false
+
+        return (
+          type.getProperties().length === 0 &&
+          checker.getIndexInfosOfType(type).length === 0 &&
+          type.getCallSignatures().length === 0 &&
+          type.getConstructSignatures().length === 0
+        )
+      }
+
       function isDefinitelyNotArrayType(type: ts.Type) {
         if (!checker) return false
 
@@ -524,7 +535,8 @@ export const improvedNoUnnecessaryCondition = {
         if (
           type.flags & ts.TypeFlags.Object &&
           !type.isClassOrInterface() &&
-          !isRuntimeArrayType(type)
+          !isRuntimeArrayType(type) &&
+          !isEmptyObjectType(type)
         ) {
           return true
         }

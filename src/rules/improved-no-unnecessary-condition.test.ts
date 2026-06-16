@@ -1107,6 +1107,17 @@ describe('string assertions', () => {
     `)
   })
 
+  test('valid Array.isArray check on empty object type', async () => {
+    await valid(
+      dedent`
+        function hasMeaningfulValue(value: {}): boolean {
+          if (Array.isArray(value)) return value.some(Boolean)
+          return true
+        }
+      `,
+    )
+  })
+
   test('always false length comparison on literal string', async () => {
     const { result } = await invalid(
       dedent`
