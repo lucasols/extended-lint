@@ -147,6 +147,7 @@ Checks performed:
 - **Unnecessary casts** (auto-fixable): casting a value that is already of the target type
 - **Nullish casts**: `String(value)` produces the strings `"null"`/`"undefined"`, and `Number(value)` produces `0` for `null` and `NaN` for `undefined`. A suggestion is provided to add a `?? ''`/`?? 0` fallback
 - **Invalid `Number()` casts**: casting a `symbol` (throws at runtime) or an object without a numeric `valueOf` (always results in `NaN`)
+- **`any`/`unknown` casts**: casting untyped values is unsafe, type or narrow the value before casting
 
 Bad:
 
@@ -179,6 +180,10 @@ type Options = [
     allowNullishCasting?: boolean
     /** Allow symbol/object Number() casts (default: false) */
     allowInvalidCasting?: boolean
+    /** Allow casting `any` values (default: false) */
+    allowAnyCasting?: boolean
+    /** Allow casting `unknown` values, e.g. `String(err)` in catch blocks (default: false) */
+    allowUnknownCasting?: boolean
   },
 ]
 ```

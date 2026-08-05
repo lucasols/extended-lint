@@ -35,16 +35,53 @@ test('Number on object with numeric valueOf is valid', async () => {
   )
 })
 
-test('unknown and any args are skipped', async () => {
-  await valid(
-    dedent`
+test('any and unknown casts', async () => {
+  const { result } = await invalid(dedent`
+    declare const unknownValue: unknown
+    declare function getAny(): any
+
+    const a = String(unknownValue)
+    const b = Number(getAny())
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unknownCasting', line: 4 }
+    - { messageId: 'anyCasting', line: 5 }
+    "
+  `)
+})
+
+test('any and unknown casts are allowed with options', async () => {
+  await valid({
+    code: dedent`
       declare const unknownValue: unknown
       declare function getAny(): any
 
       const a = String(unknownValue)
       const b = Number(getAny())
     `,
-  )
+    options: [{ allowAnyCasting: true, allowUnknownCasting: true }],
+  })
+})
+
+test('any and unknown checks do not apply to custom cast functions', async () => {
+  await valid({
+    code: dedent`
+      declare function toNumber(val: string | number): number
+
+      declare const anyValue: any
+
+      const result = toNumber(anyValue)
+    `,
+    options: [
+      {
+        additionalCastFunctions: [
+          { name: 'toNumber', expectedType: 'number' },
+        ],
+      },
+    ],
+  })
 })
 
 test('calls with no args or multiple args are skipped', async () => {

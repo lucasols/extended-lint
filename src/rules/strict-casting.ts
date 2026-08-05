@@ -18,6 +18,8 @@ const optionsSchema = z.object({
     .optional(),
   allowNullishCasting: z.boolean().optional(),
   allowInvalidCasting: z.boolean().optional(),
+  allowAnyCasting: z.boolean().optional(),
+  allowUnknownCasting: z.boolean().optional(),
 })
 
 type CastFunction = {
@@ -73,6 +75,8 @@ export const strictCasting = createExtendedLintRule<
   | 'nullishNumberCasting'
   | 'symbolNumberCasting'
   | 'nanNumberCasting'
+  | 'anyCasting'
+  | 'unknownCasting'
   | 'addNullishFallback'
 >({
   name: 'strict-casting',
@@ -95,6 +99,10 @@ export const strictCasting = createExtendedLintRule<
       symbolNumberCasting: 'Number() cast of a symbol throws at runtime',
       nanNumberCasting:
         'Number() cast of a value of type "{{type}}" will result in NaN',
+      anyCasting:
+        '{{name}}() cast of an `any` value is unsafe, type the value before casting',
+      unknownCasting:
+        '{{name}}() cast of an `unknown` value is unsafe, narrow the value before casting',
       addNullishFallback:
         'Add a `?? {{fallback}}` fallback to handle the nullish case',
     },
@@ -103,6 +111,8 @@ export const strictCasting = createExtendedLintRule<
   create(context, [options]) {
     const allowNullishCasting = options.allowNullishCasting ?? false
     const allowInvalidCasting = options.allowInvalidCasting ?? false
+    const allowAnyCasting = options.allowAnyCasting ?? false
+    const allowUnknownCasting = options.allowUnknownCasting ?? false
 
     const castFunctions = new Map<string, CastFunction>([
       ['String', { expectedType: 'string', builtin: true }],
@@ -137,12 +147,6 @@ export const strictCasting = createExtendedLintRule<
           }
         } else {
           parts.push(rawPart)
-        }
-      }
-
-      for (const part of parts) {
-        if (part.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) {
-          return undefined
         }
       }
 
@@ -227,6 +231,37 @@ export const strictCasting = createExtendedLintRule<
         const parts = resolveUnionParts(argType)
 
         if (!parts) return
+
+        let hasAnyPart = false
+        let hasUnknownPart = false
+
+        for (const part of parts) {
+          if (part.flags & ts.TypeFlags.Any) {
+            hasAnyPart = true
+          } else if (part.flags & ts.TypeFlags.Unknown) {
+            hasUnknownPart = true
+          }
+        }
+
+        if (hasAnyPart || hasUnknownPart) {
+          if (builtin) {
+            if (hasAnyPart && !allowAnyCasting) {
+              context.report({
+                node,
+                messageId: 'anyCasting',
+                data: { name: functionName },
+              })
+            } else if (hasUnknownPart && !allowUnknownCasting) {
+              context.report({
+                node,
+                messageId: 'unknownCasting',
+                data: { name: functionName },
+              })
+            }
+          }
+
+          return
+        }
 
         if (builtin && !allowNullishCasting) {
           const hasNullishPart = parts.some(
