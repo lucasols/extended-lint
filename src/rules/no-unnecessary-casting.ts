@@ -47,6 +47,9 @@ export const noUnnecessaryCasting = {
       docs: {
         description: 'Prevents unnecessary Number and String castings',
       },
+      deprecated: {
+        message: 'Use the strict-casting rule instead',
+      },
       messages: {
         unnecessaryNumberCasting:
           'Unnecessary Number() casting on a value already of number type',

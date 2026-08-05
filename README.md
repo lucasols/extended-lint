@@ -137,3 +137,50 @@ foo<string>('bar') // OK
 A fork of the `eslint-plugin-react-hooks` `rules-of-hooks` rule, but with the following changes:
 
 - Identifies hooks in camelCase namespaced functions (e.g. `test.useFoo()`)
+
+## `strict-casting`
+
+Enforces safe and necessary `String()`/`Number()` casts. Replaces the deprecated `no-unnecessary-casting` rule.
+
+Checks performed:
+
+- **Unnecessary casts** (auto-fixable): casting a value that is already of the target type
+- **Nullish casts**: `String(value)` produces the strings `"null"`/`"undefined"`, and `Number(value)` produces `0` for `null` and `NaN` for `undefined`. A suggestion is provided to add a `?? ''`/`?? 0` fallback
+- **Invalid `Number()` casts**: casting a `symbol` (throws at runtime) or an object without a numeric `valueOf` (always results in `NaN`)
+
+Bad:
+
+```ts
+declare const str: string
+declare const nullable: string | null
+declare const obj: { a: string }
+
+String(str) // Error: unnecessary cast
+String(nullable) // Error: may produce "null"
+Number(obj) // Error: results in NaN
+```
+
+Good:
+
+```ts
+String(num)
+String(nullable ?? '')
+Number(date) // Date has a numeric valueOf
+```
+
+Options:
+
+```ts
+type Options = [
+  {
+    /** Extra functions checked for unnecessary casts */
+    additionalCastFunctions?: { name: string; expectedType: 'string' | 'number' }[]
+    /** Allow casting possibly nullish values (default: false) */
+    allowNullishCasting?: boolean
+    /** Allow symbol/object Number() casts (default: false) */
+    allowInvalidCasting?: boolean
+  },
+]
+```
+
+For `String(obj)` producing `"[object Object]"`, use `@typescript-eslint/no-base-to-string`, which covers that case well.
