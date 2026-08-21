@@ -20,8 +20,6 @@ const startsWithPatterns = [
   'var ',
   'return ',
   'throw ',
-  'break',
-  'continue',
   'try {',
   'catch (',
   'finally {',
@@ -35,6 +33,8 @@ const startsWithPatterns = [
 ]
 
 const returnStatementRegex = /^\s*return\s+/
+const breakOrContinueStatementRegex =
+  /^\s*(?:break|continue)(?:;|\s+[A-Za-z_$][\w$]*;?)?\s*$/
 const stringAssignmentRegex = /\w=("|'|`)/
 const objectPropertyWithQuotesRegex = /\w+:\s*('|"|`)/
 const computedPropertyAssignmentRegex = /\[['"][^'"]*['"]\]:\s*('|"|`|[^'"`\s])/
@@ -125,6 +125,7 @@ const codePatterns: (string | RegExp)[] = [
   ') {',
   'return;',
   regexPatterns.returnStatement,
+  breakOrContinueStatementRegex,
   'if (',
   'else {',
   'else if (',

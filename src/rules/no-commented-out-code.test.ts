@@ -695,6 +695,27 @@ tests.addValid(
 )
 
 tests.addValid(
+  'comments beginning with code keyword prefixes',
+  `
+    // pipes are escaped and line breaks encoded as \`<br>\` (the GFM way of
+    // breaking lines inside cells, supported by the msg renderer) so they
+    // don't corrupt the one-cell-per-column, one-line-per-row table syntax
+  `,
+)
+
+tests.addInvalid(
+  'commented break and continue statements',
+  `
+    // break
+    // break;
+    // break outerLoop;
+    // continue
+    // continue;
+  `,
+  5,
+)
+
+tests.addValid(
   'cspell and spell-checker comments should be allowed',
   `
     // spell-checker: ignore
