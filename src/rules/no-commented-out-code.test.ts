@@ -690,6 +690,7 @@ tests.addValid(
     // Third pass: find exported constants
     // Second: this if a fine comment too
     // Step 1: Create all tables and their fields
+    // chats: sending one would deliver raw markdown pipe text to the recipient
   `,
 )
 

@@ -58,6 +58,8 @@ const htmlClosingTagRegex = /<\/[a-z]+>/
 const jsdocCommentRegex = /^\s*[*\s]*$/
 const headerPatternRegex = /^[a-zA-Z]/
 const headerThenTextRegex = /^[A-Z][A-Za-z]*(?:\s+\d+)?(?:\s+[a-z]+)*:\s+[A-Za-z]/
+const lowercaseHeaderThenSentenceRegex =
+  /^[a-z][A-Za-z0-9_-]*:\s+[A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){2,}/
 const fencedBlockRegex = /```[\s\S]*?```/g
 const backtickCodeRegex = /`[^`]*`/g
 const alphanumericRegex = /[a-zA-Z0-9]/
@@ -109,7 +111,12 @@ function isDescriptiveCommentText(text: string): boolean {
   if (colonPatternRegex.test(trimmed)) return false
   if (controlFlowRegex.test(trimmed)) return false
   if (trimmed.includes(':')) {
-    if (headerThenTextRegex.test(trimmed)) return true
+    if (
+      headerThenTextRegex.test(trimmed) ||
+      lowercaseHeaderThenSentenceRegex.test(trimmed)
+    ) {
+      return true
+    }
   }
   return false
 }
