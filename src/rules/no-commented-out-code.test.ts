@@ -1,8 +1,58 @@
-import { createTester } from '../../tests/utils/createTester'
+import { dedent } from '@ls-stack/utils/dedent'
+import { expect, test } from 'vitest'
+import {
+  createNewTester,
+  createTester,
+  getErrorsFromResult,
+} from '../../tests/utils/createTester'
 import { noCommentedOutCode } from './no-commented-out-code'
 
 const tests = createTester(noCommentedOutCode, {
   defaultErrorId: 'commentedOutCode',
+})
+
+const { valid, invalid } = createNewTester(noCommentedOutCode)
+
+test('allows the descriptive type comment from the reported false positive', async () => {
+  await valid(dedent`
+    // type doesn't declare it.
+    const requestInit = {};
+  `)
+})
+
+test('allows descriptive comments starting with type', async () => {
+  await valid(dedent`
+    // type does not declare this property.
+    // type inference is handled by the compiler.
+    // type RequestInit doesn't declare dispatcher.
+    // type compatibility depends on the declared fields.
+  `)
+})
+
+test('detects commented type aliases', async () => {
+  const { result } = await invalid(dedent`
+    // type Value = string;
+    // type Value=string;
+    // type Value<T> = T;
+    // type Value<T extends object = object> = T;
+    // type $Value = string;
+    // type _Value =
+    // type${'\t'}Value = string;
+    // type Résultat = string;
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'commentedOutCode', line: 1 }
+    - { messageId: 'commentedOutCode', line: 2 }
+    - { messageId: 'commentedOutCode', line: 3 }
+    - { messageId: 'commentedOutCode', line: 4 }
+    - { messageId: 'commentedOutCode', line: 5 }
+    - { messageId: 'commentedOutCode', line: 6 }
+    - { messageId: 'commentedOutCode', line: 7 }
+    - { messageId: 'commentedOutCode', line: 8 }
+    "
+  `)
 })
 
 tests.addValid(

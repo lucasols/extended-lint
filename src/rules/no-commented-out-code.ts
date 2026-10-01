@@ -10,7 +10,6 @@ const startsWithPatterns = [
   'function ',
   'class ',
   'interface ',
-  'type ',
   'enum ',
   'namespace ',
   'import ',
@@ -33,6 +32,8 @@ const startsWithPatterns = [
 ]
 
 const returnStatementRegex = /^\s*return\s+/
+const typeAliasDeclarationRegex =
+  /^\s*type\s+[\p{ID_Start}$_][\p{ID_Continue}$\u200C\u200D]*\s*(?:=|<)/u
 const breakOrContinueStatementRegex =
   /^\s*(?:break|continue)(?:;|\s+[A-Za-z_$][\w$]*;?)?\s*$/
 const stringAssignmentRegex = /\w=("|'|`)/
@@ -70,6 +71,7 @@ const controlFlowRegex = /\bif\s*\(|\belse\b|=>/
 
 const regexPatterns = {
   returnStatement: returnStatementRegex,
+  typeAliasDeclaration: typeAliasDeclarationRegex,
   stringAssignment: stringAssignmentRegex,
   objectPropertyWithQuotes: objectPropertyWithQuotesRegex,
   computedPropertyAssignment: computedPropertyAssignmentRegex,
@@ -125,6 +127,7 @@ const codePatterns: (string | RegExp)[] = [
   ') {',
   'return;',
   regexPatterns.returnStatement,
+  regexPatterns.typeAliasDeclaration,
   breakOrContinueStatementRegex,
   'if (',
   'else {',
