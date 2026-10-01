@@ -55,6 +55,52 @@ test('detects commented type aliases', async () => {
   `)
 })
 
+test('allows descriptive headers containing parenthetical prose', async () => {
+  await valid(dedent`
+    // chatbot: exposes UI config (colors, avatar, etc) but no sensitive fields
+    // Step failures don't reject the Mastra call, but they must fail the
+    // job: a batched flush would otherwise ack (and drop) a batch that got
+    // no reply, while failing leaves it claimed for the retries to re-claim.
+  `)
+})
+
+test('allows descriptive headers containing slashes', async () => {
+  await valid(dedent`
+    // ticket-solver/whatsapp: only expose monitoredResponses + type
+    // inactive agents are excluded from the list
+    // virtual default agents are appended after DB rows
+    // frontend/backend: expose shared config (colors, avatar) to both clients
+  `)
+})
+
+test('detects code under headers with parentheses or slashes', async () => {
+  const { result } = await invalid(dedent`
+    // chatbot: getConfig(colors, avatar),
+    // chatbot: getConfig (colors, avatar),
+    // chatbot: async function getConfig (colors, avatar) {
+    // chatbot: exposes UI config (colors = defaults) but no sensitive fields
+    // chatbot: exposes UI config (config.getColors()) but no sensitive fields
+    // chatbot: exposes UI config (colors => colors) but no sensitive fields
+    // ticket-solver/whatsapp: getConfig(colors, avatar),
+    // 'ticket-solver/whatsapp': 'value',
+    // chatbot: async function getConfig(colors, avatar)
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'commentedOutCode', line: 1 }
+    - { messageId: 'commentedOutCode', line: 2 }
+    - { messageId: 'commentedOutCode', line: 3 }
+    - { messageId: 'commentedOutCode', line: 4 }
+    - { messageId: 'commentedOutCode', line: 5 }
+    - { messageId: 'commentedOutCode', line: 6 }
+    - { messageId: 'commentedOutCode', line: 7 }
+    - { messageId: 'commentedOutCode', line: 8 }
+    - { messageId: 'commentedOutCode', line: 9 }
+    "
+  `)
+})
+
 tests.addValid(
   'valid code',
   `

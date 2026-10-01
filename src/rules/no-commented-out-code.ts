@@ -60,7 +60,8 @@ const jsdocCommentRegex = /^\s*[*\s]*$/
 const headerPatternRegex = /^[a-zA-Z]/
 const headerThenTextRegex = /^[A-Z][A-Za-z]*(?:\s+\d+)?(?:\s+[a-z]+)*:\s+[A-Za-z]/
 const lowercaseHeaderThenSentenceRegex =
-  /^[a-z][A-Za-z0-9_-]*:\s+[A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){2,}/
+  /^[a-z][A-Za-z0-9_/-]*:\s+[A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){2,}/
+const parentheticalProseRegex = /\s\([A-Za-z][\w\s,.'/-]*\)/g
 const fencedBlockRegex = /```[\s\S]*?```/g
 const backtickCodeRegex = /`[^`]*`/g
 const alphanumericRegex = /[a-zA-Z0-9]/
@@ -109,7 +110,10 @@ function isDescriptiveCommentText(text: string): boolean {
   const trimmed = text.trim()
   if (trimmed.length === 0) return false
   if (methodCallPatternRegex.test(trimmed)) return false
-  if (specialCharsRegex.test(trimmed)) return false
+  const textWithoutParentheticalProse = trimmed.includes('(')
+    ? trimmed.replace(parentheticalProseRegex, '')
+    : trimmed
+  if (specialCharsRegex.test(textWithoutParentheticalProse)) return false
   if (colonPatternRegex.test(trimmed)) return false
   if (controlFlowRegex.test(trimmed)) return false
   if (trimmed.includes(':')) {
