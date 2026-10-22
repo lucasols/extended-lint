@@ -7,8 +7,8 @@ const createRule = ESLintUtils.RuleCreator(
 const name = 'require-description'
 
 const DIRECTIVE_PATTERN =
-  /^(eslint(?:-env|-enable|-disable(?:(?:-next)?-line)?)?|exported|globals?)(?:\s|$)/u
-const LINE_COMMENT_PATTERN = /^eslint-disable-(next-)?line$/u
+  /^(eslint(?:-env|-enable|-disable(?:(?:-next)?-line)?)?|oxlint-(?:enable|disable(?:(?:-next)?-line)?)|exported|globals?)(?:\s|$)/u
+const LINE_COMMENT_PATTERN = /^(?:eslint|oxlint)-disable-(next-)?line$/u
 
 type Options = [
   {
@@ -21,7 +21,7 @@ const rule = createRule<Options, 'missingDescription'>({
   meta: {
     type: 'problem',
     docs: {
-      description: 'Require descriptions for eslint directives.',
+      description: 'Require descriptions for eslint and oxlint directives.',
     },
     messages: {
       missingDescription:
@@ -42,6 +42,10 @@ const rule = createRule<Options, 'missingDescription'>({
                 'eslint-disable-next-line',
                 'eslint-enable',
                 'eslint-env',
+                'oxlint-disable',
+                'oxlint-disable-line',
+                'oxlint-disable-next-line',
+                'oxlint-enable',
                 'exported',
                 'global',
                 'globals',
@@ -131,7 +135,7 @@ function toForceLocation(location: TSESTree.SourceLocation) {
   return {
     start: {
       line: location.start.line,
-      column: -1,
+      column: 0,
     },
     end: location.end,
   }
