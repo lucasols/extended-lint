@@ -205,6 +205,7 @@ export type UseTypesDirectlyAboveUsageOptions = {
 
 export type ReactCompilerExtraOptions = {
   runOnlyWithEnableCompilerDirective?: boolean
+  disallowManualMemoization?: boolean
 }
 
 type RuleOptions = {
