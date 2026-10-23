@@ -54,6 +54,8 @@ struct RawConfig {
     rules: FxHashMap<String, serde_json::Value>,
     #[serde(default)]
     overrides: Vec<RawOverride>,
+    #[serde(default)]
+    report_unused_disable_directives: bool,
 }
 
 #[derive(Deserialize)]
@@ -253,6 +255,8 @@ impl Ignores {
 pub struct Config {
     /// tsconfig paths, relative to the config directory.
     pub projects: Vec<String>,
+    /// Report `fast-lint-disable*` directives that suppressed nothing.
+    pub report_unused_disable_directives: bool,
     ignores: Option<Ignores>,
     blocks: Vec<Block>,
 }
@@ -282,6 +286,7 @@ impl Config {
         }
         Ok(Config {
             projects: raw.projects,
+            report_unused_disable_directives: raw.report_unused_disable_directives,
             ignores: (!raw.ignores.is_empty())
                 .then(|| Ignores::new(&raw.ignores))
                 .transpose()?,
@@ -293,6 +298,7 @@ impl Config {
     pub fn all_rules() -> Config {
         Config {
             projects: Vec::new(),
+            report_unused_disable_directives: false,
             ignores: None,
             blocks: vec![Block {
                 files: None,

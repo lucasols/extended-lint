@@ -41,6 +41,7 @@ impl Project {
             fix,
             errors_only: false,
             fix_errors_only: false,
+            report_unused_disable_directives: false,
         }
     }
 
@@ -926,4 +927,54 @@ fn fix_maps_problems_inside_a_fixed_range_to_their_new_position() {
     export const x = String(Number(o))
     "###);
     assert_snapshot!(summary(&project, &output), @"src/a.ts:2:25 strict-casting error");
+}
+
+#[test]
+fn unused_fast_lint_directives_are_reported_when_enabled() {
+    let project = Project::new(
+        "unused-directives",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            (
+                "fast-lint.config.json",
+                r#"{ "rules": { "strict-casting": "error" } }"#,
+            ),
+            (
+                "src/a.ts",
+                "// fast-lint-disable-next-line strict-casting\nexport const a = (s: string) => String(s)\n// fast-lint-disable-next-line strict-casting\nexport const b = 1\n// fast-lint-disable-next-line improved-no-unnecessary-condition\nexport const c = 1\n// eslint-disable-next-line strict-casting\nexport const d = 1\n",
+            ),
+            (
+                "src/b.ts",
+                "/* fast-lint-disable */\nexport const e = 1\n",
+            ),
+        ],
+    );
+
+    let (code, stdout) = project.cli(&["--format", "compact"]);
+    assert_eq!((code, stdout.as_str()), (0, ""));
+
+    let (code, stdout) =
+        project.cli(&["--format", "compact", "--report-unused-disable-directives"]);
+    assert_eq!(code, 0);
+    assert_snapshot!(stdout, @r###"
+    src/a.ts: line 3, col 1, Warning - Unused fast-lint-disable directive (no problems were reported from 'strict-casting').
+    src/b.ts: line 1, col 1, Warning - Unused fast-lint-disable directive (no problems were reported).
+
+    2 problems
+    "###);
+
+    let (code, _) = project.cli(&["--report-unused-disable-directives", "--max-warnings", "0"]);
+    assert_eq!(code, 1);
+    let (code, stdout) = project.cli(&["--report-unused-disable-directives", "--quiet"]);
+    assert_eq!((code, stdout.as_str()), (0, ""));
+
+    std::fs::write(
+        project.path("fast-lint.config.json"),
+        r#"{ "rules": { "strict-casting": "error" }, "reportUnusedDisableDirectives": true }"#,
+    )
+    .expect("write config");
+    let (code, stdout) = project.cli(&["--format", "json"]);
+    assert_eq!(code, 0);
+    assert!(stdout.contains(r#""ruleId":null"#), "{stdout}");
+    assert!(stdout.contains(r#""warningCount":1"#), "{stdout}");
 }

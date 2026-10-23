@@ -45,6 +45,7 @@ export type FastLintConfig = {
   ignores?: string[]
   rules?: RulesConfig
   overrides?: Override[]
+  reportUnusedDisableDirectives?: boolean
 }
 
 export function defineConfig(config: FastLintConfig): FastLintConfig

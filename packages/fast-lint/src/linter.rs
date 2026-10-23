@@ -14,7 +14,7 @@ use tsrslint::rule::{Ctx, ReportedDiagnostic, Rule, RuleFix, RuleSuggestion, Rul
 use tsrslint::tsconfig::{ExtendedConfigCache, ParseHost, TsConfigResolver};
 
 use crate::config::{Config, EnabledRule, Severity};
-use crate::suppressions::{line_starts, Suppressions};
+use crate::suppressions::{line_starts, Suppressions, Suppressor};
 use crate::utils::comment_at;
 
 pub struct LintOptions {
@@ -30,6 +30,9 @@ pub struct LintOptions {
     pub errors_only: bool,
     /// Apply only the fixes of `error` diagnostics (`--quiet`).
     pub fix_errors_only: bool,
+    /// Report `fast-lint-disable*` directives that suppressed nothing, as warnings. Skipped with `errors_only`: warn
+    /// rules didn't run and warnings aren't shown.
+    pub report_unused_disable_directives: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -492,19 +495,32 @@ fn lint_group(
             .push(d);
     }
 
+    let report_unused = lint_opts.report_unused_disable_directives && !lint_opts.errors_only;
+    let ran: Vec<&str> = rules.iter().map(|r| r.name).collect();
     let mut results = Vec::with_capacity(by_file.len());
-    for (_, (file, mut reported)) in by_file {
+    for &file in files {
+        let mut reported = by_file
+            .remove(file.file_name())
+            .map(|(_, reported)| reported)
+            .unwrap_or_default();
+        if reported.is_empty() && !report_unused {
+            continue;
+        }
         reported.sort_by_key(|d| (d.pos, d.end));
         let text = file.text();
         let suppressions = Suppressions::parse(text, |pos| {
             let (start, end, is_block) = comment_at(file, u32::try_from(pos).ok()?)?;
             Some((start as usize, end as usize, is_block))
         });
+        let mut used: FxHashSet<Suppressor> = FxHashSet::default();
         let mut diagnostics: Vec<Diagnostic> = reported
             .into_iter()
             .filter_map(|d| {
                 let (line, column) = line_col(file, d.pos);
-                if suppressions.is_suppressed(d.rule_name, d.pos as usize, line as usize) {
+                if let Some(suppressor) =
+                    suppressions.suppressed_by(d.rule_name, d.pos as usize, line as usize)
+                {
+                    used.insert(suppressor);
                     return None;
                 }
                 let (end_line, end_column) = line_col(file, d.end);
@@ -528,6 +544,28 @@ fn lint_group(
                 })
             })
             .collect();
+        if report_unused {
+            for unused in suppressions.unused(&used, &ran) {
+                let pos = u32::try_from(unused.pos).unwrap_or(0);
+                let (line, column) = line_col(file, i32::try_from(pos).unwrap_or(0));
+                diagnostics.push(Diagnostic {
+                    rule: "",
+                    fatal: false,
+                    pos,
+                    end: pos,
+                    severity: Severity::Warn,
+                    message_id: "",
+                    message: unused.message,
+                    line,
+                    column,
+                    end_line: line,
+                    end_column: column,
+                    fixes: Vec::new(),
+                    suggestions: Vec::new(),
+                });
+            }
+            diagnostics.sort_by_key(|d| (d.pos, d.end));
+        }
         if diagnostics.is_empty() {
             continue;
         }

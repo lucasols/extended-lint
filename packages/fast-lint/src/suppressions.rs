@@ -23,6 +23,8 @@ const KINDS: &[(&str, Kind)] = &[
 
 #[derive(Debug)]
 struct Directive {
+    /// `eslint-`, `oxlint-` or `fast-lint-`.
+    prefix: &'static str,
     kind: Kind,
     /// Byte offset of the comment start: `disable` and `enable` apply from there.
     pos: usize,
@@ -34,6 +36,16 @@ struct Directive {
 
 /// A comment: its byte range and whether it is a block comment.
 pub type Comment = (usize, usize, bool);
+
+/// What suppressed a diagnostic: a directive (its index) and the rule in its list (None when it names no rules).
+pub type Suppressor = (usize, Option<usize>);
+
+/// An unused `fast-lint-disable*` directive: the byte offset of its comment and the message to report.
+#[derive(Debug, PartialEq, Eq)]
+pub struct UnusedDirective {
+    pub pos: usize,
+    pub message: String,
+}
 
 /// The `eslint-disable*` / `oxlint-disable*` / `fast-lint-disable*` directives of a file.
 #[derive(Debug, Default)]
@@ -65,57 +77,88 @@ impl Suppressions {
 
     /// Whether a diagnostic of `rule` starting at byte offset `pos` on 1-based `line` is disabled.
     pub fn is_suppressed(&self, rule: &str, pos: usize, line: usize) -> bool {
-        let mut disabled_all = false;
-        let mut disabled: FxHashSet<&str> = FxHashSet::default();
-        let mut reenabled: FxHashSet<&str> = FxHashSet::default();
-        for d in &self.directives {
-            let matches = |rules: &Option<Vec<String>>| {
-                rules
-                    .as_ref()
-                    .is_none_or(|names| names.iter().any(|n| n == rule))
+        self.suppressed_by(rule, pos, line).is_some()
+    }
+
+    /// The directive that disables a diagnostic of `rule` starting at byte offset `pos` on 1-based `line`, as ESLint
+    /// picks it: the last `disable` before it that no `enable` cancelled, else the last matching line directive.
+    pub fn suppressed_by(&self, rule: &str, pos: usize, line: usize) -> Option<Suppressor> {
+        let entry = |d: &Directive| match &d.rules {
+            None => Some(None),
+            Some(names) => names.iter().position(|n| n == rule).map(Some),
+        };
+        let mut block = None;
+        let mut line_directive = None;
+        for (index, d) in self.directives.iter().enumerate() {
+            let Some(entry) = entry(d) else {
+                continue;
             };
             match d.kind {
-                Kind::DisableNextLine => {
-                    if d.line + 1 == line && matches(&d.rules) {
-                        return true;
-                    }
+                Kind::Disable if d.pos < pos => block = Some((index, entry)),
+                Kind::Enable if d.pos < pos => block = None,
+                Kind::DisableNextLine if d.line + 1 == line => {
+                    line_directive = Some((index, entry));
                 }
-                Kind::DisableLine => {
-                    if d.line == line && matches(&d.rules) {
-                        return true;
-                    }
-                }
-                Kind::Disable if d.pos < pos => match &d.rules {
-                    None => {
-                        disabled_all = true;
-                        reenabled.clear();
-                    }
-                    Some(names) => {
-                        for n in names {
-                            disabled.insert(n);
-                            reenabled.remove(n.as_str());
-                        }
-                    }
-                },
-                Kind::Enable if d.pos < pos => match &d.rules {
-                    None => {
-                        disabled_all = false;
-                        disabled.clear();
-                        reenabled.clear();
-                    }
-                    Some(names) => {
-                        for n in names {
-                            disabled.remove(n.as_str());
-                            if disabled_all {
-                                reenabled.insert(n);
-                            }
-                        }
-                    }
-                },
-                Kind::Disable | Kind::Enable => {}
+                Kind::DisableLine if d.line == line => line_directive = Some((index, entry)),
+                _ => {}
             }
         }
-        (disabled_all && !reenabled.contains(rule)) || disabled.contains(rule)
+        block.or(line_directive)
+    }
+
+    /// The `fast-lint-disable*` directives that suppressed nothing, like ESLint's `reportUnusedDisableDirectives`.
+    /// Only the rules that `ran` are checked: a directive naming another rule, or an `eslint-`/`oxlint-` directive
+    /// that may belong to another linter, is left alone.
+    pub fn unused(&self, used: &FxHashSet<Suppressor>, ran: &[&str]) -> Vec<UnusedDirective> {
+        let mut unused = Vec::new();
+        for (index, d) in self.directives.iter().enumerate() {
+            if d.prefix != "fast-lint-" || d.kind == Kind::Enable {
+                continue;
+            }
+            let message = |description: Option<String>| {
+                match description {
+                Some(description) => format!(
+                    "Unused fast-lint-disable directive (no problems were reported from {description})."
+                ),
+                None => "Unused fast-lint-disable directive (no problems were reported).".to_string(),
+            }
+            };
+            let Some(names) = &d.rules else {
+                if !used.contains(&(index, None)) {
+                    unused.push(UnusedDirective {
+                        pos: d.pos,
+                        message: message(None),
+                    });
+                }
+                continue;
+            };
+            let reportable: Vec<String> = names
+                .iter()
+                .enumerate()
+                .filter(|&(i, name)| {
+                    ran.contains(&name.as_str()) && !used.contains(&(index, Some(i)))
+                })
+                .map(|(_, name)| format!("'{name}'"))
+                .collect();
+            if reportable.len() == names.len() {
+                let description = match reportable.split_last() {
+                    Some((last, rest)) if rest.len() >= 2 => {
+                        format!("{}, or {last}", rest.join(", "))
+                    }
+                    _ => reportable.join(" or "),
+                };
+                unused.push(UnusedDirective {
+                    pos: d.pos,
+                    message: message(Some(description)),
+                });
+            } else {
+                unused.extend(reportable.into_iter().map(|name| UnusedDirective {
+                    pos: d.pos,
+                    message: message(Some(name)),
+                }));
+            }
+        }
+        unused
     }
 }
 
@@ -200,9 +243,9 @@ fn label_of(directive: &str) -> Option<&str> {
 fn parse_directive(text: &str, comment: Comment, line_starts: &[usize]) -> Option<Directive> {
     let directive = directive_part(comment_value(text, comment)?);
     let label = label_of(directive)?;
-    let name = PREFIXES
+    let (prefix, name) = PREFIXES
         .iter()
-        .find_map(|prefix| label.strip_prefix(prefix))?;
+        .find_map(|&prefix| Some((prefix, label.strip_prefix(prefix)?)))?;
     let &(_, kind) = KINDS.iter().find(|(k, _)| *k == name)?;
     let (start, end, is_block) = comment;
     if !is_block && matches!(kind, Kind::Disable | Kind::Enable) {
@@ -227,6 +270,7 @@ fn parse_directive(text: &str, comment: Comment, line_starts: &[usize]) -> Optio
         .filter(|r| !r.is_empty())
         .collect();
     Some(Directive {
+        prefix,
         kind,
         pos: start,
         line: if kind == Kind::DisableNextLine {
@@ -240,6 +284,8 @@ fn parse_directive(text: &str, comment: Comment, line_starts: &[usize]) -> Optio
 
 #[cfg(test)]
 mod tests {
+    use rustc_hash::FxHashSet;
+
     use super::{Comment, Suppressions};
 
     /// Comments of test texts, which have no strings containing `//` or `/*`.
@@ -380,5 +426,71 @@ mod tests {
     fn directive_text_outside_comment_start_is_ignored() {
         let text = "const s = 'eslint-disable-next-line strict-casting'\nString(a)\n";
         assert!(!suppressed(text, "strict-casting", 2));
+    }
+
+    /// The messages of the unused directives after suppressing diagnostics of `rule` on each of `lines`, with only
+    /// `ran` rules run.
+    fn unused(text: &str, problems: &[(&str, usize)], ran: &[&str]) -> Vec<String> {
+        let suppressions = parse(text);
+        let used: FxHashSet<_> = problems
+            .iter()
+            .filter_map(|&(rule, line)| {
+                let pos = text
+                    .split_inclusive('\n')
+                    .take(line - 1)
+                    .map(str::len)
+                    .sum();
+                suppressions.suppressed_by(rule, pos, line)
+            })
+            .collect();
+        suppressions
+            .unused(&used, ran)
+            .into_iter()
+            .map(|u| format!("{} {}", u.pos, u.message))
+            .collect()
+    }
+
+    #[test]
+    fn unused_fast_lint_directives_are_reported() {
+        let text = "// fast-lint-disable-next-line strict-casting\nString(a)\n// fast-lint-disable-next-line strict-casting\nb\n/* fast-lint-disable */\nc\n";
+        assert_eq!(
+            unused(text, &[("strict-casting", 2)], &["strict-casting"]),
+            vec![
+                "56 Unused fast-lint-disable directive (no problems were reported from 'strict-casting').",
+                "104 Unused fast-lint-disable directive (no problems were reported).",
+            ]
+        );
+    }
+
+    #[test]
+    fn unused_directives_of_other_linters_or_rules_are_not_reported() {
+        let text = "// eslint-disable-next-line strict-casting\na\n// oxlint-disable-line strict-casting\n// fast-lint-disable-next-line other-rule\nb\n";
+        assert!(unused(text, &[], &["strict-casting"]).is_empty());
+    }
+
+    #[test]
+    fn unused_rules_of_a_directive_are_listed_together_or_one_by_one() {
+        let text = "// fast-lint-disable-next-line strict-casting, improved-no-unnecessary-condition, no-unnecessary-void-on-promise\na\n// fast-lint-disable-next-line strict-casting, improved-no-unnecessary-condition\nString(b)\n";
+        let ran = &[
+            "strict-casting",
+            "improved-no-unnecessary-condition",
+            "no-unnecessary-void-on-promise",
+        ];
+        assert_eq!(
+            unused(text, &[("strict-casting", 4)], ran),
+            vec![
+                "0 Unused fast-lint-disable directive (no problems were reported from 'strict-casting', 'improved-no-unnecessary-condition', or 'no-unnecessary-void-on-promise').",
+                "115 Unused fast-lint-disable directive (no problems were reported from 'improved-no-unnecessary-condition').",
+            ]
+        );
+    }
+
+    #[test]
+    fn only_the_last_matching_directive_is_used() {
+        let text = "/* fast-lint-disable strict-casting */\n/* fast-lint-disable strict-casting */\nString(a)\n";
+        assert_eq!(
+            unused(text, &[("strict-casting", 3)], &["strict-casting"]),
+            vec!["0 Unused fast-lint-disable directive (no problems were reported from 'strict-casting')."]
+        );
     }
 }

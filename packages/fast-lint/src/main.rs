@@ -31,6 +31,8 @@ Options:
   -f, --format <format>     stylish (default), compact or json
       --quiet               Report errors only
       --max-warnings <n>    Fail when there are more than n warnings (-1: no limit)
+      --report-unused-disable-directives
+                            Warn about fast-lint-disable directives that suppress nothing
       --timing              Print program and lint times to stderr
       --color, --no-color   Force or disable colors
   -h, --help                Print this help
@@ -46,6 +48,7 @@ struct Args {
     format: Format,
     quiet: bool,
     max_warnings: Option<usize>,
+    report_unused_disable_directives: bool,
     timing: bool,
     color: bool,
     paths: Vec<String>,
@@ -66,6 +69,7 @@ fn parse_args(raw: Vec<String>) -> Result<Parsed, String> {
         format: Format::Stylish,
         quiet: false,
         max_warnings: None,
+        report_unused_disable_directives: false,
         timing: false,
         color: (std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none())
             || std::env::var_os("FORCE_COLOR").is_some_and(|v| v != "0"),
@@ -88,6 +92,7 @@ fn parse_args(raw: Vec<String>) -> Result<Parsed, String> {
                     | "--version"
                     | "--fix"
                     | "--quiet"
+                    | "--report-unused-disable-directives"
                     | "--timing"
                     | "--color"
                     | "--no-color"
@@ -118,6 +123,7 @@ fn parse_args(raw: Vec<String>) -> Result<Parsed, String> {
                     .map_err(|_| format!("--max-warnings expects a number, got \"{v}\""))?;
                 args.max_warnings = usize::try_from(max).ok();
             }
+            "--report-unused-disable-directives" => args.report_unused_disable_directives = true,
             "--timing" => args.timing = true,
             "--color" => args.color = true,
             "--no-color" => args.color = false,
@@ -287,6 +293,8 @@ fn run(args: Args) -> Result<ExitCode, String> {
         fix: args.fix,
         errors_only: args.quiet && args.max_warnings.is_none(),
         fix_errors_only: args.quiet,
+        report_unused_disable_directives: args.report_unused_disable_directives
+            || config.report_unused_disable_directives,
     };
 
     let mut output = linter::run(&config, &opts)?;

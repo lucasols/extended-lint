@@ -26,6 +26,7 @@ fast-lint --format json        # stylish (default), compact or json, in ESLint's
 fast-lint --max-warnings 0 --timing   # --max-warnings -1: no limit
 fast-lint -p packages/app      # a tsconfig, or a directory with a tsconfig.json
 fast-lint --color -- -odd-name.ts     # force colors; `--` ends the options
+fast-lint --report-unused-disable-directives   # warn about fast-lint-disable comments that suppress nothing
 ```
 
 A solution-style tsconfig (empty `files` plus `references`) lints its referenced projects; a file in several
@@ -66,6 +67,7 @@ export default defineConfig({
       rules: { 'strict-casting': 'error', 'no-leaked-conditional-rendering': 'error' },
     },
   ],
+  reportUnusedDisableDirectives: true,
 })
 ```
 
@@ -86,7 +88,14 @@ A script config's default export must be the config object, or a promise of it.
 directives such as `// eslint-disable-next-line @ls-stack/improved-no-unnecessary-condition` keep working. They are
 parsed like ESLint does: the comment text must start with the directive, `disable` and `enable` need a block comment
 (`/* */`), and a multi-line `disable-next-line` block comment applies to the line after the comment ends. Inline
-config comments (`/* eslint rule: "off" */`) are ignored, and unused directives aren't reported.
+config comments (`/* eslint rule: "off" */`) are ignored.
+
+`--report-unused-disable-directives` (or `reportUnusedDisableDirectives: true` in the config) warns about
+`fast-lint-disable*` directives that suppressed nothing, like ESLint's option of the same name: a directive without a
+rule list when no problem was suppressed, else each listed rule that ran on the file and reported nothing there. Only
+`fast-lint-` directives are checked, since `eslint-` and `oxlint-` ones may belong to rules of those linters. The
+warnings have no rule id and no fix. Under `--quiet` they are hidden, and they aren't computed unless
+`--max-warnings` is given (warn rules don't run then, so their directives would look unused).
 
 ### Running alongside ESLint
 
