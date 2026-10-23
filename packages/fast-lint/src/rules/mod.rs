@@ -37,6 +37,7 @@ pub mod require_reads_to_var_prop;
 pub mod sort_react_components_and_styles;
 pub mod strict_casting;
 pub mod use_state_setter_naming;
+pub mod use_top_level_regex;
 pub mod use_types_directly_above_usage;
 
 /// The rules that run when no config file is given: the type-aware ones. Every other rule only runs when configured.
@@ -85,6 +86,7 @@ pub const RULE_NAMES: &[&str] = &[
     sort_react_components_and_styles::NAME,
     strict_casting::NAME,
     use_state_setter_naming::NAME,
+    use_top_level_regex::NAME,
     use_types_directly_above_usage::NAME,
 ];
 
@@ -134,6 +136,7 @@ pub fn create_rule(
         sort_react_components_and_styles::NAME => sort_react_components_and_styles::create(options),
         strict_casting::NAME => strict_casting::create(options),
         use_state_setter_naming::NAME => use_state_setter_naming::create(options),
+        use_top_level_regex::NAME => use_top_level_regex::create(options),
         use_types_directly_above_usage::NAME => use_types_directly_above_usage::create(options),
         _ => return Err(format!("unknown rule: {name}")),
     };
