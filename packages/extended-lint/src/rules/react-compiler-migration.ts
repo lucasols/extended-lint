@@ -1,10 +1,7 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
+import { AST_NODE_TYPES } from '@typescript-eslint/types'
+import type { TSESTree } from '@typescript-eslint/types'
 import { z } from 'zod/v4'
-import { getJsonSchemaFromZod } from '../createRule'
-
-const createRule = ESLintUtils.RuleCreator(
-  (name) => `https://github.com/lucasols/extended-lint#${name}`,
-)
+import { createRule, getJsonSchemaFromZod } from '../createRule'
 
 const name = 'react-compiler-migration'
 

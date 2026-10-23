@@ -6,6 +6,8 @@ To use any of these rules, you need to install the package:
 pnpm add -D @lucasols/eslint-plugin-extended-lint
 ```
 
+There is no `typescript` peer dependency (only an optional `eslint` one), so it works with any TypeScript version (including TypeScript 7) or none at all, and also as an [oxlint JS plugin](https://oxc.rs/docs/guide/usage/linter/js-plugins).
+
 And then configure it in your eslint config:
 
 ```json

@@ -6,6 +6,7 @@ pub mod no_call_with_explicit_generics;
 pub mod no_call_with_inferred_generics;
 pub mod no_commented_out_code;
 pub mod no_default_export;
+pub mod no_duplicate_key;
 pub mod no_leaked_conditional_rendering;
 pub mod no_leaked_text_in_jsx;
 pub mod no_non_camel_case_functions;
@@ -53,6 +54,7 @@ pub const RULE_NAMES: &[&str] = &[
     no_call_with_inferred_generics::NAME,
     no_commented_out_code::NAME,
     no_default_export::NAME,
+    no_duplicate_key::NAME,
     no_leaked_conditional_rendering::NAME,
     no_leaked_text_in_jsx::NAME,
     no_non_camel_case_functions::NAME,
@@ -99,6 +101,7 @@ pub fn create_rule(
         no_call_with_inferred_generics::NAME => no_call_with_inferred_generics::create(options),
         no_commented_out_code::NAME => no_commented_out_code::create(options),
         no_default_export::NAME => no_default_export::create(options),
+        no_duplicate_key::NAME => no_duplicate_key::create(options),
         no_leaked_conditional_rendering::NAME => no_leaked_conditional_rendering::create(options),
         no_leaked_text_in_jsx::NAME => no_leaked_text_in_jsx::create(options),
         no_non_camel_case_functions::NAME => no_non_camel_case_functions::create(options),

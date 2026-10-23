@@ -13,6 +13,7 @@ only these rules run, against one shared program per tsconfig. Type-aware rules 
 | `strict-casting` | moved from `@ls-stack/extended-lint` (see below) |
 | `no-unnecessary-void-on-promise` | moved from `@ls-stack/extended-lint` |
 | `no-leaked-conditional-rendering` | port of `@eslint-react/no-leaked-conditional-rendering` (v2.3.13); option `reactVersion` (default `"19.0.0"`, also used for `""` and `"detect"`: the installed version isn't read) |
+| `no-duplicate-key` | port of `@eslint-react/no-duplicate-key` (v2.3.13, see below) |
 | `no-restricted-syntax` | ESLint's `no-restricted-syntax` merged with `@ls-stack/advanced-no-restricted-syntax` (moved from `@ls-stack/extended-lint`; see below) |
 | `naming-convention` | new, replaces `no-restricted-syntax` naming selectors (see below) |
 | `no-default-export` | moved from `@ls-stack/extended-lint` |
@@ -101,6 +102,21 @@ type Options = [
 ```
 
 For `String(obj)` producing `"[object Object]"`, use `@typescript-eslint/no-base-to-string`, which covers that case well.
+
+### `no-duplicate-key`
+
+Port of `@eslint-react/no-duplicate-key` (v2.3.13), with the same message (`A key must be unique. 'key="1"' is
+duplicated.`, `noDuplicateKey`), no options and the same quirks:
+
+- Keys of sibling elements (children of one JSX element or fragment, or items of one array literal) are compared by
+  value, and only string literals compare equal: `key="a"` and `key='a'` are duplicates, `key={1}` twice or
+  `key={"a"}` twice are not.
+- A group is reported when its last key duplicates an earlier one, and then every key of the group is reported:
+  `[<a key="x" />, <b key="y" />, <c key="x" />]` reports all three, `[<a key="x" />, <b key="x" />, <c key="y" />]`
+  none.
+- An element returned by the callback of a `.map()` call (or a method ending with `Map`, e.g. `flatMap`) is reported
+  when its key is a string literal. Only the last such key per call counts.
+- Files without `key=` are skipped.
 
 ### `no-restricted-syntax`
 

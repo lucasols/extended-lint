@@ -212,6 +212,7 @@ type RuleOptions = {
   'strict-casting': StrictCastingOptions
   'no-unnecessary-void-on-promise': Record<string, never>
   'no-leaked-conditional-rendering': NoLeakedConditionalRenderingOptions
+  'no-duplicate-key': Record<string, never>
   'naming-convention': NamingConventionOptions
   'no-restricted-syntax': NoRestrictedSyntaxOptions
   'advanced-no-restricted-syntax': NoRestrictedSyntaxOptions

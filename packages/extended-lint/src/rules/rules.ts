@@ -1,4 +1,3 @@
-import { LooseRuleDefinition } from '@typescript-eslint/utils/ts-eslint'
 import { collapseSimpleObjsInOneLine } from './collapse-simple-objs-in-one-line'
 import { noDataAttributesOnComponents } from './no-data-attributes-on-components'
 import { noRestrictedComments } from './no-restricted-comments'
@@ -10,7 +9,16 @@ import { requireUsageExplanation } from './require-usage-explanation'
 import { templateIndent } from './template-indent'
 import { useTopLevelRegex } from './use-top-level-regex'
 
-export const rules: Record<string, LooseRuleDefinition> = {
+type ExtendedLintRuleListener = {
+  visit(node: unknown): void
+}['visit']
+
+export type ExtendedLintRule = {
+  meta?: object
+  create(context: never): Record<string, ExtendedLintRuleListener | undefined>
+}
+
+export const rules: Record<string, ExtendedLintRule> = {
   [collapseSimpleObjsInOneLine.name]: collapseSimpleObjsInOneLine.rule,
   [noDataAttributesOnComponents.name]: noDataAttributesOnComponents.rule,
   [noRestrictedComments.name]: noRestrictedComments.rule,

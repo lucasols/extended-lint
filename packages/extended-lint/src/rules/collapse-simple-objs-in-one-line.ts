@@ -1,16 +1,8 @@
-import {
-  AST_NODE_TYPES,
-  AST_TOKEN_TYPES,
-  ESLintUtils,
-  TSESLint,
-  TSESTree,
-} from '@typescript-eslint/utils'
+import { AST_NODE_TYPES, AST_TOKEN_TYPES } from '@typescript-eslint/types'
+import type { TSESTree } from '@typescript-eslint/types'
+import type { TSESLint } from '@typescript-eslint/utils'
 import { z } from 'zod/v4'
-import { getJsonSchemaFromZod } from '../createRule'
-
-const createRule = ESLintUtils.RuleCreator(
-  (name) => `https://github.com/lucasols/extended-lint#${name}`,
-)
+import { createRule, getJsonSchemaFromZod } from '../createRule'
 
 const name = 'collapse-simple-objs-in-one-line'
 
