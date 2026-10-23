@@ -47,6 +47,9 @@ only these rules run, against one shared program per tsconfig. Type-aware rules 
 | `sort-react-components-and-styles` | moved from `@ls-stack/extended-lint` (see below) |
 | `use-types-directly-above-usage` | moved from `@ls-stack/extended-lint` (see below) |
 | `react-compiler-extra` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-restricted-comments` | moved from `@ls-stack/extended-lint` (see below) |
+| `require-usage-explanation` | moved from `@ls-stack/extended-lint` (see below) |
+| `use-top-level-regex` | moved from `@ls-stack/extended-lint` (see below) |
 
 Options are the same as the former ESLint rules' (see `lib/index.d.ts`). Rule names may carry a plugin prefix, so
 existing `@ls-stack/strict-casting` configs and disable comments keep working.
@@ -696,6 +699,75 @@ type Options = [
   },
 ]
 ```
+
+### `no-restricted-comments`
+
+Disallows comments matching configured patterns:
+
+- each pattern matches the comment text (without `//` or `/* */`) by `regex` or, without one, by `includes`
+- a comment is reported once, for the first pattern it matches, with the pattern's `message` or
+  `Comment matches restricted pattern '<pattern>'`
+- the comment's removal is offered as a suggestion, or applied as an autofix with `autoFix: true`
+
+```ts
+type Options = [
+  {
+    patterns: {
+      /** Rust `regex` syntax (no lookarounds or backreferences) */
+      regex?: string
+      includes?: string
+      /** Replaces the default message */
+      message?: string
+      /** Remove the comment as an autofix instead of a suggestion (default: false) */
+      autoFix?: boolean
+    }[]
+  },
+]
+```
+
+### `require-usage-explanation`
+
+Requires an explanatory comment with a given prefix above matched code:
+
+- calls of a function (`fn`, matching `name()` and `obj.name()`) or nodes matching an ESQuery `selector`
+- the comment can be right before the matched node or before any of its ancestors up to the statement holding it
+  (e.g. above the `const` or `return` statement, or inside a ternary branch, array or argument list)
+- the comment must start with `commentPrefix` and have some text after it (`// WORKAROUND:` alone doesn't count)
+
+```ts
+type Options = [
+  {
+    matches: {
+      /** Name of the function whose calls need an explanation */
+      fn?: string
+      /** ESQuery selector of the nodes that need an explanation */
+      selector?: string
+      /** Prefix the explanation comment must start with, e.g. `WORKAROUND:` */
+      commentPrefix: string
+      /** Text appended to the error message */
+      message?: string
+    }[]
+  },
+]
+```
+
+### `use-top-level-regex`
+
+Requires regex literals to be declared at the top level, so functions don't create a new `RegExp` object on each call.
+
+- regex literals inside functions, arrow functions and methods (including their default parameters) are reported
+- regexes with the stateful `g` or `y` flags are allowed, since hoisting them would share `lastIndex` between calls
+- regexes passed directly to `new RegExp(...)` are allowed
+
+```ts
+const WORD = /\w+/ // ok
+
+function isWord(input: string) {
+  return /\w+/.test(input) // Error: move it to the top level
+}
+```
+
+No options.
 
 ## Usage
 
