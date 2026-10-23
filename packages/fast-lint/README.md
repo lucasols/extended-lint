@@ -2,8 +2,8 @@
 
 Type-aware lint rules running natively on [tsrs](https://github.com/maschwenk/tsrs), the Rust port of the TypeScript 7
 checker, through [tsrslint](https://github.com/maschwenk/tsrslint)'s rule framework. No ESLint, no Node type checker:
-only these rules run, against one shared program per tsconfig. Type-aware rules live here, not in
-[`@ls-stack/extended-lint`](../extended-lint).
+only these rules run, against one shared program per tsconfig. It replaces the `@ls-stack/extended-lint` ESLint
+plugin, whose rules were all moved here or removed.
 
 ## Rules
 

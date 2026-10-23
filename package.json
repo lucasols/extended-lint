@@ -6,9 +6,6 @@
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "build": "pnpm -r build",
-    "test:ui": "pnpm --filter @ls-stack/extended-lint test:ui",
-    "build:no-test": "pnpm --filter @ls-stack/extended-lint build:no-test",
-    "run-in-test-project": "pnpm --filter @ls-stack/extended-lint run-in-test-project",
     "publish-package": "pkg-manager publish"
   },
   "repository": "github:lucaslos/eslint-plugin-extended-lint",
