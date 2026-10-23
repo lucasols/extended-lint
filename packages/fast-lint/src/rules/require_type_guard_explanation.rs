@@ -16,6 +16,8 @@ pub const NAME: &str = "require-type-guard-explanation";
 #[derive(serde::Deserialize, Default)]
 #[serde(default, deny_unknown_fields, rename_all = "camelCase")]
 struct AlternativeMsgs {
+    default: Option<String>,
+    unknown_input: Option<String>,
     in_array_find: Option<String>,
     in_array_filter: Option<String>,
 }
@@ -42,6 +44,7 @@ pub struct RequireTypeGuardExplanation {
     comment_prefix: String,
     min_length: usize,
     missing_message: String,
+    missing_message_unknown_input: Option<String>,
     missing_message_in_find: Option<String>,
     missing_message_in_filter: Option<String>,
 }
@@ -59,12 +62,18 @@ pub fn create(options: Option<&serde_json::Value>) -> Result<Box<dyn Rule>, Stri
         hint.filter(|hint| !hint.is_empty())
             .map(|hint| format!("{missing_message} {hint}"))
     };
+    let msgs = options.alternative_msgs;
+    let default = with_hint(msgs.default);
+    let unknown_input = with_hint(msgs.unknown_input).or_else(|| default.clone());
+    let missing_message_in_find = with_hint(msgs.in_array_find);
+    let missing_message_in_filter = with_hint(msgs.in_array_filter);
     Ok(Box::new(RequireTypeGuardExplanation {
         comment_prefix: options.comment_prefix,
         min_length: options.min_length,
-        missing_message_in_find: with_hint(options.alternative_msgs.in_array_find),
-        missing_message_in_filter: with_hint(options.alternative_msgs.in_array_filter),
-        missing_message,
+        missing_message: default.unwrap_or(missing_message),
+        missing_message_unknown_input: unknown_input,
+        missing_message_in_find,
+        missing_message_in_filter,
     }))
 }
 
@@ -574,14 +583,52 @@ fn array_method_of_callback(function: P<Node>) -> Option<&'static str> {
     matches!(method, "filter" | "find").then_some(method)
 }
 
+/// Whether the parameter `predicate` narrows is declared as `unknown`.
+fn narrows_unknown_parameter(checker: &mut Checker, function: P<Node>, predicate: P<Node>) -> bool {
+    let name = predicate.as_type_predicate_node().parameter_name();
+    if !ast::is_identifier(name) {
+        return false;
+    }
+    let target = name.as_identifier().text();
+    function
+        .parameters()
+        .iter()
+        .find(|&&parameter| {
+            parameter.name().is_some_and(|name| {
+                ast::is_identifier(name) && name.as_identifier().text() == target
+            })
+        })
+        .and_then(|&parameter| parameter.symbol())
+        .is_some_and(|symbol| {
+            checker
+                .get_type_of_symbol(symbol)
+                .flags()
+                .intersects(TypeFlags::Unknown)
+        })
+}
+
 impl RequireTypeGuardExplanation {
-    fn missing_message(&self, function: P<Node>) -> String {
-        let with_hint = match array_method_of_callback(function) {
+    /// The message with the most specific configured hint: `.filter()`/`.find()` callback, then `unknown` input, then
+    /// the default one.
+    fn missing_message(
+        &self,
+        checker: &mut Checker,
+        function: P<Node>,
+        predicate: P<Node>,
+    ) -> String {
+        let in_array = match array_method_of_callback(function) {
             Some("filter") => self.missing_message_in_filter.as_ref(),
             Some(_) => self.missing_message_in_find.as_ref(),
             None => None,
         };
-        with_hint.unwrap_or(&self.missing_message).clone()
+        in_array
+            .or_else(|| {
+                self.missing_message_unknown_input
+                    .as_ref()
+                    .filter(|_| narrows_unknown_parameter(checker, function, predicate))
+            })
+            .unwrap_or(&self.missing_message)
+            .clone()
     }
 }
 
@@ -613,10 +660,7 @@ impl RuleVisitor for Visitor {
         if self.has_explanation(ctx, node) {
             return;
         }
-        ctx.report_range(
-            pos,
-            end,
-            RuleMessage::new("missingExplanation", self.rule.missing_message(node)),
-        );
+        let message = self.rule.missing_message(ctx.checker, node, predicate);
+        ctx.report_range(pos, end, RuleMessage::new("missingExplanation", message));
     }
 }

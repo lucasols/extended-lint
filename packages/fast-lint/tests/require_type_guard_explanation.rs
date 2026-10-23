@@ -781,3 +781,103 @@ fn empty_alternative_msg_is_ignored() {
       line: 5
     "#);
 }
+
+fn all_hints_case(code: &str) -> Case<'_> {
+    Case {
+        code,
+        options: Some(json!([{
+            "alternativeMsgs": {
+                "default": "DEFAULT hint.",
+                "unknownInput": "UNKNOWN hint.",
+                "inArrayFind": "FIND hint.",
+                "inArrayFilter": "FILTER hint."
+            }
+        }])),
+        filename: None,
+    }
+}
+
+fn hints(result: &common::LintResult) -> String {
+    result
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let message = diagnostic.message.as_str();
+            let hint = message.rsplit(". ").next().unwrap_or(message);
+            format!("{}: {hint}\n", diagnostic.line)
+        })
+        .collect()
+}
+
+#[test]
+fn most_specific_hint_wins() {
+    let result = invalid(
+        RULE,
+        all_hints_case(indoc! {r#"
+        type Node = { kind: string }
+        declare const items: unknown[]
+        declare const nodes: (Node | string)[]
+        declare function isObject(value: unknown): value is object
+
+        function isNode(value: unknown): value is Node {
+          return isObject(value) && 'kind' in value
+        }
+        function isNodeOrString(value: Node | string | number): value is Node {
+          return isObject(value)
+        }
+        class Wrapper {
+          isWrapped(): this is { inner: Node } {
+            return true
+          }
+        }
+        items.filter((item): item is Node => isObject(item) && 'kind' in item)
+        nodes.find((item): item is Node => isObject(item))
+        const check = (value: unknown): asserts value is Node => {
+          if (!isObject(value)) throw new Error()
+        }
+    "#}),
+    );
+    assert_snapshot!(hints(&result), @r#"
+    6: UNKNOWN hint.
+    9: DEFAULT hint.
+    13: DEFAULT hint.
+    17: FILTER hint.
+    18: FIND hint.
+    19: UNKNOWN hint.
+    "#);
+}
+
+#[test]
+fn unknown_input_falls_back_to_default() {
+    let result = invalid(
+        RULE,
+        Case {
+            code: indoc! {r#"
+            type Node = { kind: string }
+            declare function isObject(value: unknown): value is object
+
+            function isNode(value: unknown): value is Node {
+              return isObject(value) && 'kind' in value
+            }
+        "#},
+            options: Some(json!([{ "alternativeMsgs": { "default": "DEFAULT hint." } }])),
+            filename: None,
+        },
+    );
+    assert_snapshot!(hints(&result), @"4: DEFAULT hint.");
+}
+
+#[test]
+fn any_input_is_not_unknown_input() {
+    let result = invalid(
+        RULE,
+        all_hints_case(indoc! {r#"
+        type Node = { kind: string }
+
+        function isNode(value: any): value is Node {
+          return typeof value === 'object' && 'kind' in value
+        }
+    "#}),
+    );
+    assert_snapshot!(hints(&result), @"3: DEFAULT hint.");
+}
