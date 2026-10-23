@@ -1,0 +1,66 @@
+[package]
+name = "fast-lint"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Type-aware lint rules of @ls-stack/extended-lint, natively on top of tsrs and tsrslint"
+publish = false
+
+[[bin]]
+name = "fast-lint"
+path = "src/main.rs"
+
+[lib]
+name = "fast_lint"
+path = "src/lib.rs"
+
+# tsrs crates must use the same git source spec as tsrslint's (branch = "main") so cargo unifies them into one
+# copy; Cargo.lock pins the exact tsrs commit that the pinned tsrslint revision was built and tested with.
+[dependencies]
+tsrslint = { git = "https://github.com/maschwenk/tsrslint", rev = "ba93b9c1dcaed0fa896cb87130774f7fad4b637e", default-features = false }
+tsrs_core = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+tsrs_ast = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+tsrs_scanner = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+tsrs_checker = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+tsrs_compiler = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+tsrs_tsoptions = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+tsrs_vfs = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+tsrs_diagnostics = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+tsrs_contentmapper = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+tsrs_parser = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+tsrs_astnav = { git = "https://github.com/maschwenk/tsrs", branch = "main" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rustc-hash = "2"
+globset = "0.4"
+mimalloc = "0.1.52"
+
+[dev-dependencies]
+indoc = "2"
+insta = "1"
+
+[profile.release]
+opt-level = 3
+debug = "line-tables-only"
+panic = "unwind"
+
+[profile.dist]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+debug = false
+strip = "symbols"
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"

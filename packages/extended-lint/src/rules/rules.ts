@@ -1,8 +1,6 @@
 import { LooseRuleDefinition } from '@typescript-eslint/utils/ts-eslint'
 import { advancedNoRestrictedSyntax } from './advanced-no-restricted-syntax'
 import { collapseSimpleObjsInOneLine } from './collapse-simple-objs-in-one-line'
-import { exhaustiveDepsESLintRule } from './exhaustive-deps'
-import { improvedNoUnnecessaryCondition } from './improved-no-unnecessary-condition'
 import { noCallWithExplicitGenerics } from './no-call-with-explicit-generics'
 import { noCallWithInferredGenerics } from './no-call-with-inferred-generics'
 import { noCommentedOutCode } from './no-commented-out-code'
@@ -15,7 +13,6 @@ import { noRelativeImports } from './no-relative-imports'
 import { noStaticStyleProp } from './no-static-style-prop'
 import { noTypeGuards } from './no-type-guards'
 import { noUnnecessaryAsyncOnJsxProps } from './no-unnecessary-async-on-jsx-props'
-import { noUnnecessaryCasting } from './no-unnecessary-casting'
 import { noUnnecessaryDescribe } from './no-unnecessary-describe'
 import { noUnnecessaryTyping } from './no-unnecessary-typing'
 import { noUnusedObjProps } from './no-unused-obj-props'
@@ -33,7 +30,6 @@ import { reactNoModuleLevelSingleUseValues } from './react-no-module-level-singl
 import { reactOptimizedCollections } from './react-optimized-collections'
 import { requireDescription } from './require-description'
 import { requireReadsToVarProp } from './require-reads-to-var-prop'
-import { rulesOfHooksESLintRule } from './rules-of-hooks'
 import { templateIndent } from './template-indent'
 import { useTopLevelRegex } from './use-top-level-regex'
 import { useTypesDirectlyAboveUsage } from './use-types-directly-above-usage'
@@ -42,20 +38,16 @@ import { useStateSetterNaming } from './use-state-setter-naming'
 import { noRedundantFunctionParams } from './no-redundant-function-params'
 import { noSyncDynamicImport } from './no-sync-dynamic-import'
 import { sortReactComponentsAndStyles } from './sort-react-components-and-styles'
-import { noUnnecessaryVoidOnPromise } from './no-unnecessary-void-on-promise'
 import { requireLazyExecution } from './require-lazy-execution'
 import { noUnnecessaryIife } from './no-unnecessary-iife'
 import { noRestrictedComments } from './no-restricted-comments'
 import { noDataAttributesOnComponents } from './no-data-attributes-on-components'
 import { requireUsageExplanation } from './require-usage-explanation'
-import { strictCasting } from './strict-casting'
 
 export const rules: Record<string, LooseRuleDefinition> = {
   [noUnusedObjectTypeProperties.name]: noUnusedObjectTypeProperties.rule,
   [noCommentedOutCode.name]: noCommentedOutCode.rule,
   [noCallWithInferredGenerics.name]: noCallWithInferredGenerics.rule,
-  ['rules-of-hooks']: rulesOfHooksESLintRule,
-  ['exhaustive-deps']: exhaustiveDepsESLintRule,
   ['require-description']: requireDescription.rule,
   [noDefaultExport.name]: noDefaultExport.rule,
   [noNonCamelCaseFunctions.name]: noNonCamelCaseFunctions.rule,
@@ -74,8 +66,6 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [reactNoModuleLevelSingleUseValues.name]:
     reactNoModuleLevelSingleUseValues.rule,
   [reactOptimizedCollections.name]: reactOptimizedCollections.rule,
-  [improvedNoUnnecessaryCondition.name]: improvedNoUnnecessaryCondition.rule,
-  [noUnnecessaryCasting.name]: noUnnecessaryCasting.rule,
   [noUnnecessaryDescribe.name]: noUnnecessaryDescribe.rule,
   [noUnnecessaryTyping.name]: noUnnecessaryTyping.rule,
   [noUnusedSelectedValues.name]: noUnusedSelectedValues.rule,
@@ -95,12 +85,10 @@ export const rules: Record<string, LooseRuleDefinition> = {
   [noRedundantFunctionParams.name]: noRedundantFunctionParams.rule,
   [noSyncDynamicImport.name]: noSyncDynamicImport.rule,
   [sortReactComponentsAndStyles.name]: sortReactComponentsAndStyles.rule,
-  [noUnnecessaryVoidOnPromise.name]: noUnnecessaryVoidOnPromise.rule,
   [requireLazyExecution.name]: requireLazyExecution.rule,
   [noReexport.name]: noReexport.rule,
   [noUnnecessaryIife.name]: noUnnecessaryIife.rule,
   [noRestrictedComments.name]: noRestrictedComments.rule,
   [noDataAttributesOnComponents.name]: noDataAttributesOnComponents.rule,
   [requireUsageExplanation.name]: requireUsageExplanation.rule,
-  [strictCasting.name]: strictCasting.rule,
 }
