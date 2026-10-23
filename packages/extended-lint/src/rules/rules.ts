@@ -1,4 +1,3 @@
-import { collapseSimpleObjsInOneLine } from './collapse-simple-objs-in-one-line'
 import { noDataAttributesOnComponents } from './no-data-attributes-on-components'
 import { noRestrictedComments } from './no-restricted-comments'
 import { noUnnecessaryAsyncOnJsxProps } from './no-unnecessary-async-on-jsx-props'
@@ -19,7 +18,6 @@ export type ExtendedLintRule = {
 }
 
 export const rules: Record<string, ExtendedLintRule> = {
-  [collapseSimpleObjsInOneLine.name]: collapseSimpleObjsInOneLine.rule,
   [noDataAttributesOnComponents.name]: noDataAttributesOnComponents.rule,
   [noRestrictedComments.name]: noRestrictedComments.rule,
   [noUnnecessaryAsyncOnJsxProps.name]: noUnnecessaryAsyncOnJsxProps.rule,
