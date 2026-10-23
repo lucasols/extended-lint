@@ -1,6 +1,6 @@
 {
   "name": "@ls-stack/fast-lint",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "description": "Type-aware lint rules of @ls-stack/extended-lint running natively on tsrs, the Rust port of the TypeScript checker",
   "type": "module",
