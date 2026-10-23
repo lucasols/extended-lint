@@ -9,15 +9,33 @@ use crate::utils::comments;
 
 pub const NAME: &str = "no-commented-out-code";
 
-#[derive(serde::Deserialize, Default)]
-#[serde(deny_unknown_fields)]
-struct Options {}
+#[derive(serde::Deserialize)]
+#[serde(default, deny_unknown_fields, rename_all = "camelCase")]
+struct Options {
+    explanation_prefixes: Vec<String>,
+}
 
-pub struct NoCommentedOutCode;
+impl Default for Options {
+    fn default() -> Options {
+        Options {
+            explanation_prefixes: vec!["type-guard-safety:".to_string()],
+        }
+    }
+}
+
+pub struct NoCommentedOutCode {
+    explanation_prefixes: Vec<String>,
+}
 
 pub fn create(options: Option<&serde_json::Value>) -> Result<Box<dyn Rule>, String> {
-    super::parse_options::<Options>(options)?;
-    Ok(Box::new(NoCommentedOutCode))
+    let options = super::parse_options::<Options>(options)?;
+    Ok(Box::new(NoCommentedOutCode {
+        explanation_prefixes: options
+            .explanation_prefixes
+            .into_iter()
+            .filter(|prefix| !prefix.is_empty())
+            .collect(),
+    }))
 }
 
 impl Rule for NoCommentedOutCode {
@@ -25,7 +43,7 @@ impl Rule for NoCommentedOutCode {
         NAME
     }
     fn create_visitor(&'static self, ctx: &mut Ctx) -> Box<dyn RuleVisitor> {
-        check_comments(ctx);
+        check_comments(ctx, &self.explanation_prefixes);
         Box::new(Visitor)
     }
 }
@@ -410,9 +428,17 @@ fn strip_inline_code_if_text_outside(
     }
 }
 
-fn check_comments(ctx: &mut Ctx) {
+/// Whether only whitespace with a single line break separates two line comments.
+fn continues_line_comment(text: &str, previous_end: usize, start: usize) -> bool {
+    text.get(previous_end..start).is_some_and(|between| {
+        between.chars().filter(|&c| c == '\n').count() == 1 && between.chars().all(is_js_whitespace)
+    })
+}
+
+fn check_comments(ctx: &mut Ctx, explanation_prefixes: &[String]) {
     let patterns = &*PATTERNS;
     let text = ctx.text();
+    let mut explanation_block_end: Option<usize> = None;
     for (start, end, is_block) in comments(ctx.file) {
         let (Ok(start_index), Ok(end_index)) = (usize::try_from(start), usize::try_from(end))
         else {
@@ -424,6 +450,23 @@ fn check_comments(ctx: &mut Ctx) {
         } else {
             raw.get(2..).unwrap_or_default()
         };
+        let continues_explanation = !is_block
+            && explanation_block_end.is_some_and(|previous_end| {
+                continues_line_comment(text, previous_end, start_index)
+            });
+        let starts_explanation = explanation_prefixes.iter().any(|prefix| {
+            value
+                .trim_start_matches(is_js_whitespace)
+                .starts_with(prefix.as_str())
+        });
+        if continues_explanation || (starts_explanation && !is_block) {
+            explanation_block_end = Some(end_index);
+            continue;
+        }
+        explanation_block_end = None;
+        if starts_explanation {
+            continue;
+        }
         let processed = strip_inline_code_if_text_outside(patterns, value, is_block);
         let Some(wrong_pattern) = commented_code_pattern(patterns, &processed, is_block) else {
             continue;
