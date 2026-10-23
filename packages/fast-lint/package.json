@@ -1,6 +1,6 @@
 {
   "name": "@ls-stack/fast-lint",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "MIT",
   "description": "Fast type-aware lint rules for TypeScript and React, running natively on tsrs, the Rust port of the TypeScript checker",
   "type": "module",
