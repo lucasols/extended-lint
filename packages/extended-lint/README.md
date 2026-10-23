@@ -17,6 +17,11 @@ And then configure it in your eslint config:
 }
 ```
 
+The type-aware rules `improved-no-unnecessary-condition`, `strict-casting` and `no-unnecessary-void-on-promise` were
+removed from this plugin and now live only in [`@ls-stack/fast-lint`](../fast-lint), as does the deprecated
+`no-unnecessary-casting` (replaced by fast-lint's `strict-casting`). The `rules-of-hooks` and
+`exhaustive-deps` forks were also removed; use `eslint-plugin-react-hooks` instead.
+
 ## `no-unused-type-props-in-args`
 
 Checks if there are unused type props in function arguments.
@@ -132,60 +137,3 @@ function foo<T>(arg: T) {
 foo<string>('bar') // OK
 ```
 
-## `rules-of-hooks`
-
-A fork of the `eslint-plugin-react-hooks` `rules-of-hooks` rule, but with the following changes:
-
-- Identifies hooks in camelCase namespaced functions (e.g. `test.useFoo()`)
-
-## `strict-casting`
-
-Enforces safe and necessary `String()`/`Number()` casts. Replaces the deprecated `no-unnecessary-casting` rule.
-
-Checks performed:
-
-- **Unnecessary casts** (auto-fixable): casting a value that is already of the target type
-- **Nullish casts**: `String(value)` produces the strings `"null"`/`"undefined"`, and `Number(value)` produces `0` for `null` and `NaN` for `undefined`. A suggestion is provided to add a `?? ''`/`?? 0` fallback
-- **Invalid `Number()` casts**: casting a `symbol` (throws at runtime) or an object without a numeric `valueOf` (always results in `NaN`)
-- **`any`/`unknown` casts**: casting untyped values is unsafe, type or narrow the value before casting
-
-Bad:
-
-```ts
-declare const str: string
-declare const nullable: string | null
-declare const obj: { a: string }
-
-String(str) // Error: unnecessary cast
-String(nullable) // Error: may produce "null"
-Number(obj) // Error: results in NaN
-```
-
-Good:
-
-```ts
-String(num)
-String(nullable ?? '')
-Number(date) // Date has a numeric valueOf
-```
-
-Options:
-
-```ts
-type Options = [
-  {
-    /** Extra functions checked for unnecessary casts */
-    additionalCastFunctions?: { name: string; expectedType: 'string' | 'number' }[]
-    /** Allow casting possibly nullish values (default: false) */
-    allowNullishCasting?: boolean
-    /** Allow symbol/object Number() casts (default: false) */
-    allowInvalidCasting?: boolean
-    /** Allow casting `any` values (default: false) */
-    allowAnyCasting?: boolean
-    /** Allow casting `unknown` values, e.g. `String(err)` in catch blocks (default: false) */
-    allowUnknownCasting?: boolean
-  },
-]
-```
-
-For `String(obj)` producing `"[object Object]"`, use `@typescript-eslint/no-base-to-string`, which covers that case well.

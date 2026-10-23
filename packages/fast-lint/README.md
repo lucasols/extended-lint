@@ -1,20 +1,73 @@
 # @ls-stack/fast-lint
 
-The type-aware rules of [`@ls-stack/extended-lint`](../extended-lint) (plus a port of eslint-react's
-`no-leaked-conditional-rendering`), running natively on [tsrs](https://github.com/maschwenk/tsrs), the Rust port of
-the TypeScript 7 checker, through [tsrslint](https://github.com/maschwenk/tsrslint)'s rule framework. No ESLint, no
-Node type checker: only these rules run, against one shared program per tsconfig.
+Type-aware lint rules running natively on [tsrs](https://github.com/maschwenk/tsrs), the Rust port of the TypeScript 7
+checker, through [tsrslint](https://github.com/maschwenk/tsrslint)'s rule framework. No ESLint, no Node type checker:
+only these rules run, against one shared program per tsconfig. Type-aware rules live here, not in
+[`@ls-stack/extended-lint`](../extended-lint).
 
 ## Rules
 
-| rule | ported from |
+| rule | origin |
 | --- | --- |
-| `improved-no-unnecessary-condition` | `@ls-stack/improved-no-unnecessary-condition` |
-| `strict-casting` | `@ls-stack/strict-casting` |
-| `no-unnecessary-void-on-promise` | `@ls-stack/no-unnecessary-void-on-promise` |
-| `no-leaked-conditional-rendering` | `@eslint-react/no-leaked-conditional-rendering` (v2.3.13); option `reactVersion` (default `"19.0.0"`, also used for `""` and `"detect"`: the installed version isn't read) |
+| `improved-no-unnecessary-condition` | moved from `@ls-stack/extended-lint` |
+| `strict-casting` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-unnecessary-void-on-promise` | moved from `@ls-stack/extended-lint` |
+| `no-leaked-conditional-rendering` | port of `@eslint-react/no-leaked-conditional-rendering` (v2.3.13); option `reactVersion` (default `"19.0.0"`, also used for `""` and `"detect"`: the installed version isn't read) |
 
-Options are the same as the ESLint rules'.
+Options are the same as the former ESLint rules' (see `lib/index.d.ts`). Rule names may carry a plugin prefix, so
+existing `@ls-stack/strict-casting` configs and disable comments keep working.
+
+### `strict-casting`
+
+Enforces safe and necessary `String()`/`Number()` casts.
+
+Checks performed:
+
+- **Unnecessary casts** (auto-fixable): casting a value that is already of the target type
+- **Nullish casts**: `String(value)` produces the strings `"null"`/`"undefined"`, and `Number(value)` produces `0` for `null` and `NaN` for `undefined`. A suggestion is provided to add a `?? ''`/`?? 0` fallback
+- **Invalid `Number()` casts**: casting a `symbol` (throws at runtime) or an object without a numeric `valueOf` (always results in `NaN`)
+- **`any`/`unknown` casts**: casting untyped values is unsafe, type or narrow the value before casting
+
+Bad:
+
+```ts
+declare const str: string
+declare const nullable: string | null
+declare const obj: { a: string }
+
+String(str) // Error: unnecessary cast
+String(nullable) // Error: may produce "null"
+Number(obj) // Error: results in NaN
+```
+
+Good:
+
+```ts
+String(num)
+String(nullable ?? '')
+Number(date) // Date has a numeric valueOf
+```
+
+Options:
+
+```ts
+type Options = [
+  {
+    /** Extra functions checked for unnecessary casts */
+    additionalCastFunctions?: { name: string; expectedType: 'string' | 'number' }[]
+    /** Allow casting possibly nullish values (default: false) */
+    allowNullishCasting?: boolean
+    /** Allow symbol/object Number() casts (default: false) */
+    allowInvalidCasting?: boolean
+    /** Allow casting `any` values (default: false) */
+    allowAnyCasting?: boolean
+    /** Allow casting `unknown` values, e.g. `String(err)` in catch blocks (default: false) */
+    allowUnknownCasting?: boolean
+  },
+]
+```
+
+For `String(obj)` producing `"[object Object]"`, use `@typescript-eslint/no-base-to-string`, which covers that case well.
 
 ## Usage
 
@@ -119,7 +172,7 @@ reporting directives that are unused for the remaining ESLint rules.
 ## Development
 
 ```sh
-cargo test                     # rule tests (tests/*.rs), ported from the TS rule tests
+cargo test                     # rule tests (tests/*.rs)
 cargo clippy --all-targets
 node scripts/build.mjs         # release binaries for every platform into dist/<platform>-<arch>/
 node scripts/build.mjs --clean linux-x64 win32-x64   # some platforms, deleting their build dirs afterwards

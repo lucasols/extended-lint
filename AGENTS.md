@@ -1,6 +1,11 @@
 # Project Overview
 
-This is a pnpm monorepo. The **ESLint plugin** (`@ls-stack/extended-lint`) that provides custom linting rules for TypeScript/JavaScript projects lives in `packages/extended-lint`.
+This is a pnpm monorepo with two linters for TypeScript/JavaScript projects:
+
+- **fast-lint** (`@ls-stack/fast-lint`, `packages/fast-lint`): a Rust linter on tsrs/tsrslint. **This is where rules
+  go.** See the "fast-lint (Rust)" section.
+- **ESLint plugin** (`@ls-stack/extended-lint`, `packages/extended-lint`): legacy. Its rules must be migrated to
+  fast-lint; don't add new rules to it.
 
 **Key Requirements:**
 
@@ -111,13 +116,14 @@ test('invalid example with options', async () => {
 - Dont use `expect(result.output).toMatchInlineSnapshot(...)` if the test do not have auto fixable code.
 - For code with fix suggestions, use `expect(getSuggestionOutput(result)).toMatchInlineSnapshot(...)` to check the fix.
 
-# Architecture
+# ESLint plugin architecture (legacy)
 
+This and the next sections apply only to maintaining the ESLint plugin until its rules are migrated to fast-lint.
 All paths below are relative to `packages/extended-lint`.
 
 - **Entry point**: `src/extended-lint.ts`
 - **Rule creation**: Use `createExtendedLintRule` from `@packages/extended-lint/src/createRule.ts`
-- **Rules registry**: `src/rules/rules.ts` - add all new rules here
+- **Rules registry**: `src/rules/rules.ts`
 - **Rule files**: `src/rules/rule-name.ts` + `src/rules/rule-name.test.ts`
 
 # Rule Development Pattern
@@ -207,10 +213,19 @@ if (alwaysFalse && node.parent.type) { ... }
 
 # fast-lint (Rust)
 
-`packages/fast-lint` runs the type-aware rules natively on tsrs/tsrslint (see its README). When changing one of
-`improved-no-unnecessary-condition`, `strict-casting` or `no-unnecessary-void-on-promise`, change both the TS rule
-and its Rust port (`packages/fast-lint/src/rules/<rule_name>.rs`) and keep their tests in sync.
+Rules must be migrated to `packages/fast-lint` (see its README); the ESLint plugin is being phased out.
 
+- **New rules** are written in fast-lint only, never in the ESLint plugin.
+- **Existing ESLint rules** are migrated instead of extended: when a rule in `packages/extended-lint` needs a change,
+  port it to fast-lint first, then make the change there.
+- **Migrating a rule:**
+  1. Port the rule to `packages/fast-lint/src/rules/<rule_name>.rs` and register it in `src/rules/mod.rs`.
+  2. Port every TS test case to `packages/fast-lint/tests/<rule_name>.rs`, with the same messageIds and lines.
+  3. Add its options type to `lib/index.d.ts` and document it in the fast-lint README.
+  4. Delete the TS rule, its tests, its `rules.ts` entry and its README section, plus helpers only it used.
+- Already migrated: `improved-no-unnecessary-condition`, `strict-casting` (also replaces the removed
+  `no-unnecessary-casting`), `no-unnecessary-void-on-promise`.
+- Rule names may carry a plugin prefix (`@ls-stack/<rule>`), so existing configs and disable comments keep working.
 - Tests: `packages/fast-lint/tests/<rule_name>.rs`, via `tests/common/mod.rs` (`valid`, `invalid`, insta snapshots)
 - Run: `cargo test --test <rule_name>` and `cargo clippy --all-targets` inside `packages/fast-lint`
 - Build with `cargo test`/`cargo clippy`, not a plain `cargo build` (which rebuilds every tsrs crate with different
