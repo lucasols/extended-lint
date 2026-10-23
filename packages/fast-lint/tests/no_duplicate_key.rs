@@ -337,7 +337,7 @@ fn parenthesized_array_items() {
 }
 
 #[test]
-fn last_key_duplicating_an_earlier_one_reports_the_whole_group() {
+fn only_the_duplicated_keys_of_a_group_are_reported() {
     let result = invalid(
         RULE,
         indoc! {r#"
@@ -349,34 +349,125 @@ fn last_key_duplicating_an_earlier_one_reports_the_whole_group() {
       msg: 'A key must be unique. 'key="x"' is duplicated.'
       line: 1
     - messageId: 'noDuplicateKey'
-      msg: 'A key must be unique. 'key="y"' is duplicated.'
-      line: 1
-    - messageId: 'noDuplicateKey'
       msg: 'A key must be unique. 'key="x"' is duplicated.'
       line: 1
     "#);
 }
-
 #[test]
-fn duplicate_followed_by_a_unique_key() {
-    valid(
+fn duplicates_anywhere_in_the_group() {
+    let result = invalid(
         RULE,
-        r#"const items = [<a key="x" />, <b key="x" />, <c key="y" />];"#,
+        indoc! {r#"
+            const a = [<a key="x" />, <b key="x" />, <c key="y" />];
+            const b = [<a key="y" />,
+                <b key="x" />, <c key="x" />];
+            const c = (
+                <ul>
+                    <li key="x" />
+                    <li key="x" />
+                    <li key="y" />
+                </ul>
+            );
+        "#},
     );
+    assert_snapshot!(result.errors(), @r"
+    - { messageId: 'noDuplicateKey', line: 1 }
+    - { messageId: 'noDuplicateKey', line: 1 }
+    - { messageId: 'noDuplicateKey', line: 3 }
+    - { messageId: 'noDuplicateKey', line: 3 }
+    - { messageId: 'noDuplicateKey', line: 6 }
+    - { messageId: 'noDuplicateKey', line: 7 }
+    ");
+}
+#[test]
+fn keys_are_compared_by_static_value() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+            const a = [<a key="x" />, <b key={"x"} />, <c key={`x`} />, <d key={("x")} />];
+            const b = [<a key={1} />, <b key={1.0} />, <c key="1" />];
+            const c = [<a key="x" />, <b key="y" />, <c key={`z`} />, <d key={2} />];
+        "#},
+    );
+    assert_snapshot!(result.errors_with_msg(), @r#"
+    - messageId: 'noDuplicateKey'
+      msg: 'A key must be unique. 'key="x"' is duplicated.'
+      line: 1
+    - messageId: 'noDuplicateKey'
+      msg: 'A key must be unique. 'key={"x"}' is duplicated.'
+      line: 1
+    - messageId: 'noDuplicateKey'
+      msg: 'A key must be unique. 'key={`x`}' is duplicated.'
+      line: 1
+    - messageId: 'noDuplicateKey'
+      msg: 'A key must be unique. 'key={("x")}' is duplicated.'
+      line: 1
+    - messageId: 'noDuplicateKey'
+      msg: 'A key must be unique. 'key={1}' is duplicated.'
+      line: 2
+    - messageId: 'noDuplicateKey'
+      msg: 'A key must be unique. 'key={1.0}' is duplicated.'
+      line: 2
+    - messageId: 'noDuplicateKey'
+      msg: 'A key must be unique. 'key="1"' is duplicated.'
+      line: 2
+    "#);
 }
 
 #[test]
-fn non_string_literal_keys_are_not_compared() {
+fn identical_expression_keys_are_duplicates() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+            const a = [<a key={id} />, <b key={id} />];
+            const b = (
+                <>
+                    <Row key={item.id} />
+                    <Row key={ item . id } />
+                    <Row key={`row-${item.id}`} />
+                    <Row key={`row-${item.id}`} />
+                </>
+            );
+        "#},
+    );
+    assert_snapshot!(result.errors(), @r"
+    - { messageId: 'noDuplicateKey', line: 1 }
+    - { messageId: 'noDuplicateKey', line: 1 }
+    - { messageId: 'noDuplicateKey', line: 4 }
+    - { messageId: 'noDuplicateKey', line: 5 }
+    - { messageId: 'noDuplicateKey', line: 6 }
+    - { messageId: 'noDuplicateKey', line: 7 }
+    ");
+}
+
+#[test]
+fn different_expression_keys_are_not_compared_by_value() {
     valid(
         RULE,
         indoc! {r#"
-            const items = [<a key={1} />, <b key={1} />];
-            const other = [<a key={"x"} />, <b key={"x"} />];
-            const ids = [<a key={id} />, <b key={id} />];
+            const a = [<a key={id} />, <b key={otherId} />, <c key={item.id} />, <d key={`${id}`} />];
+            const b = [<a key={-1} />, <b key={1} />, <c key="x" />, <d key={x} />];
+            const c = [<a key />, <b key />, <c key={} />, <d key={} />];
         "#},
     );
 }
 
+#[test]
+fn keys_of_different_groups_are_not_compared() {
+    valid(
+        RULE,
+        indoc! {r#"
+            const a = [<a key="x" />, <b key="y" />];
+            const b = [<a key="x" />, <b key="y" />];
+            const c = (
+                <ul>
+                    <li key="x"><span key="x" /></li>
+                    <li key="y">{cond && <span key="y" />}{cond && <span key="y" />}</li>
+                </ul>
+            );
+        "#},
+    );
+}
 #[test]
 fn constant_key_in_flat_map_and_method_callbacks() {
     let result = invalid(
@@ -409,17 +500,78 @@ fn map_callback_passed_by_reference() {
 }
 
 #[test]
-fn only_the_last_key_of_a_map_call_counts() {
+fn every_constant_key_of_a_map_callback_is_reported() {
     let result = invalid(
         RULE,
         indoc! {r#"
             const a = items.map((item) => (item ? <div key="x" /> : <div key={item} />));
             const b = items.map((item) => (item ? <div key={item} /> : <div key="x" />));
+            const c = items.map((item) => {
+                if (item.a) return <div key="a" />;
+                if (item.b) return item.c && <div key={1} />;
+                return <div key={`c`} />;
+            });
         "#},
     );
-    assert_snapshot!(result.errors(), @"- { messageId: 'noDuplicateKey', line: 2 }");
+    assert_snapshot!(result.errors(), @r"
+    - { messageId: 'noDuplicateKey', line: 1 }
+    - { messageId: 'noDuplicateKey', line: 2 }
+    - { messageId: 'noDuplicateKey', line: 4 }
+    - { messageId: 'noDuplicateKey', line: 5 }
+    - { messageId: 'noDuplicateKey', line: 6 }
+    ");
 }
 
+#[test]
+fn constant_key_in_array_from_callback() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+            const a = Array.from(items, (item) => <div key="x">{item}</div>);
+            const b = Array.from({ length: 3 }, (_, index) => <div key={index} />);
+            const c = Array.from(items.map((item) => <div key={item.id} />));
+            const d = Other.from(items, (item) => <div key="x" />);
+        "#},
+    );
+    assert_snapshot!(result.errors(), @"- { messageId: 'noDuplicateKey', line: 1 }");
+}
+
+#[test]
+fn outer_const_key_in_map_callback() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+            const KEY = "x";
+            const { id } = props;
+            const a = items.map((item) => <div key={KEY}>{item}</div>);
+            const b = items.map((item) => <div key={id}>{item}</div>);
+            const c = groups.map((group) => group.items.map((item) => <div key={group} />));
+        "#},
+    );
+    assert_snapshot!(result.errors(), @r"
+    - { messageId: 'noDuplicateKey', line: 3 }
+    - { messageId: 'noDuplicateKey', line: 4 }
+    ");
+}
+
+#[test]
+fn keys_bound_inside_the_callback_or_non_const_are_not_constant() {
+    valid(
+        RULE,
+        indoc! {r#"
+            let counter = 0;
+            const a = items.map((item) => {
+                const key = item.id;
+                const { id } = item;
+                return [<div key={key} />, <span key={id} />];
+            });
+            const b = items.map((item) => <div key={counter++} />);
+            const c = items.map((item) => <div key={counter} />);
+            const d = items.map(({ id }) => <div key={id} />);
+            const e = items.map((item) => <div key={unknownGlobal} />);
+        "#},
+    );
+}
 #[test]
 fn file_without_key_attributes() {
     valid(RULE, "const a = [<div />, <div />];");
