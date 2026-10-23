@@ -1,8 +1,7 @@
 use rustc_hash::FxHashMap;
 use tsrs_ast::{self as ast, Kind, Node, Symbol, SymbolFlags};
 use tsrs_checker::{
-    is_tuple_type_exported as is_tuple_type, Checker, LiteralValue, ObjectFlags, SignatureKind,
-    Type, TypeFlags,
+    is_tuple_type_exported as is_tuple_type, Checker, ObjectFlags, SignatureKind, Type, TypeFlags,
 };
 use tsrs_compiler::Program;
 use tsrs_core::{jsnum, Tristate, P};
@@ -10,8 +9,8 @@ use tsrslint::rule::{Ctx, Listener, Rule, RuleMessage, RuleVisitor};
 use tsrslint::utils::{get_call_signatures, is_symbol_flag_set, type_to_string, union_type_parts};
 
 use crate::utils::{
-    is_default_lib_declaration, is_default_lib_symbol, is_estree_chain_expression, node_text,
-    skip_parens,
+    is_default_lib_declaration, is_default_lib_symbol, is_estree_chain_expression,
+    literal_string_value, node_text, skip_parens, string_literal_values_of_type,
 };
 
 pub const NAME: &str = "improved-no-unnecessary-condition";
@@ -359,33 +358,6 @@ fn always_false_typeof_message(name: &str, actual_type: &str, condition_type: &s
             "This condition will always be false. The type of \"{name}\" is \"{actual_type}\" so the condition has no overlap with \"{condition_type}\"."
         ),
     )
-}
-
-fn literal_string_value(t: P<Type>) -> Option<&'static str> {
-    match t.as_literal_type().value() {
-        Some(LiteralValue::String(value)) => Some(value),
-        _ => None,
-    }
-}
-
-fn string_literal_values_of_type(t: P<Type>) -> Option<Vec<&'static str>> {
-    if t.flags().intersects(TypeFlags::Any | TypeFlags::Unknown) {
-        return None;
-    }
-    if t.flags().intersects(TypeFlags::Union) {
-        let mut values = Vec::with_capacity(t.types().len());
-        for part in t.types() {
-            if !part.flags().intersects(TypeFlags::StringLiteral) {
-                return None;
-            }
-            values.push(literal_string_value(*part)?);
-        }
-        return Some(values);
-    }
-    if t.flags().intersects(TypeFlags::StringLiteral) {
-        return Some(vec![literal_string_value(t)?]);
-    }
-    None
 }
 
 fn string_literal_values_of_expression(

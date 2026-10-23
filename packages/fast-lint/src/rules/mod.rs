@@ -14,6 +14,7 @@ pub mod no_optional_root_props;
 pub mod no_redundant_function_params;
 pub mod no_reexport;
 pub mod no_relative_imports;
+pub mod no_restricted_comments;
 pub mod no_restricted_syntax;
 pub mod no_static_style_prop;
 pub mod no_sync_dynamic_import;
@@ -21,6 +22,7 @@ pub mod no_type_guards;
 pub mod no_unnecessary_iife;
 pub mod no_unnecessary_typing;
 pub mod no_unnecessary_void_on_promise;
+pub mod no_unused_obj_props;
 pub mod no_unused_optional_args;
 pub mod no_unused_selected_values;
 pub mod no_unused_t_state_field;
@@ -34,9 +36,12 @@ pub mod react_single_export;
 pub mod require_description;
 pub mod require_lazy_execution;
 pub mod require_reads_to_var_prop;
+pub mod require_type_guard_explanation;
+pub mod require_usage_explanation;
 pub mod sort_react_components_and_styles;
 pub mod strict_casting;
 pub mod use_state_setter_naming;
+pub mod use_top_level_regex;
 pub mod use_types_directly_above_usage;
 
 /// The rules that run when no config file is given: the type-aware ones. Every other rule only runs when configured.
@@ -62,6 +67,7 @@ pub const RULE_NAMES: &[&str] = &[
     no_redundant_function_params::NAME,
     no_reexport::NAME,
     no_relative_imports::NAME,
+    no_restricted_comments::NAME,
     no_restricted_syntax::NAME,
     no_static_style_prop::NAME,
     no_sync_dynamic_import::NAME,
@@ -69,6 +75,7 @@ pub const RULE_NAMES: &[&str] = &[
     no_unnecessary_iife::NAME,
     no_unnecessary_typing::NAME,
     no_unnecessary_void_on_promise::NAME,
+    no_unused_obj_props::NAME,
     no_unused_optional_args::NAME,
     no_unused_selected_values::NAME,
     no_unused_t_state_field::NAME,
@@ -82,9 +89,12 @@ pub const RULE_NAMES: &[&str] = &[
     require_description::NAME,
     require_lazy_execution::NAME,
     require_reads_to_var_prop::NAME,
+    require_type_guard_explanation::NAME,
+    require_usage_explanation::NAME,
     sort_react_components_and_styles::NAME,
     strict_casting::NAME,
     use_state_setter_naming::NAME,
+    use_top_level_regex::NAME,
     use_types_directly_above_usage::NAME,
 ];
 
@@ -109,6 +119,7 @@ pub fn create_rule(
         no_redundant_function_params::NAME => no_redundant_function_params::create(options),
         no_reexport::NAME => no_reexport::create(options),
         no_relative_imports::NAME => no_relative_imports::create(options),
+        no_restricted_comments::NAME => no_restricted_comments::create(options),
         no_restricted_syntax::NAME => no_restricted_syntax::create(options),
         no_static_style_prop::NAME => no_static_style_prop::create(options),
         no_sync_dynamic_import::NAME => no_sync_dynamic_import::create(options),
@@ -116,6 +127,7 @@ pub fn create_rule(
         no_unnecessary_iife::NAME => no_unnecessary_iife::create(options),
         no_unnecessary_typing::NAME => no_unnecessary_typing::create(options),
         no_unnecessary_void_on_promise::NAME => no_unnecessary_void_on_promise::create(options),
+        no_unused_obj_props::NAME => no_unused_obj_props::create(options),
         no_unused_optional_args::NAME => no_unused_optional_args::create(options),
         no_unused_selected_values::NAME => no_unused_selected_values::create(options),
         no_unused_t_state_field::NAME => no_unused_t_state_field::create(options),
@@ -131,9 +143,12 @@ pub fn create_rule(
         require_description::NAME => require_description::create(options),
         require_lazy_execution::NAME => require_lazy_execution::create(options),
         require_reads_to_var_prop::NAME => require_reads_to_var_prop::create(options),
+        require_type_guard_explanation::NAME => require_type_guard_explanation::create(options),
+        require_usage_explanation::NAME => require_usage_explanation::create(options),
         sort_react_components_and_styles::NAME => sort_react_components_and_styles::create(options),
         strict_casting::NAME => strict_casting::create(options),
         use_state_setter_naming::NAME => use_state_setter_naming::create(options),
+        use_top_level_regex::NAME => use_top_level_regex::create(options),
         use_types_directly_above_usage::NAME => use_types_directly_above_usage::create(options),
         _ => return Err(format!("unknown rule: {name}")),
     };

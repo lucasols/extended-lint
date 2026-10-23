@@ -2,8 +2,8 @@
 
 Type-aware lint rules running natively on [tsrs](https://github.com/maschwenk/tsrs), the Rust port of the TypeScript 7
 checker, through [tsrslint](https://github.com/maschwenk/tsrslint)'s rule framework. No ESLint, no Node type checker:
-only these rules run, against one shared program per tsconfig. Type-aware rules live here, not in
-[`@ls-stack/extended-lint`](../extended-lint).
+only these rules run, against one shared program per tsconfig. It replaces the `@ls-stack/extended-lint` ESLint
+plugin, whose rules were all moved here or removed.
 
 ## Rules
 
@@ -47,6 +47,11 @@ only these rules run, against one shared program per tsconfig. Type-aware rules 
 | `sort-react-components-and-styles` | moved from `@ls-stack/extended-lint` (see below) |
 | `use-types-directly-above-usage` | moved from `@ls-stack/extended-lint` (see below) |
 | `react-compiler-extra` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-restricted-comments` | moved from `@ls-stack/extended-lint` (see below) |
+| `require-usage-explanation` | moved from `@ls-stack/extended-lint` (see below) |
+| `use-top-level-regex` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-unused-obj-props` | moved from `@ls-stack/extended-lint`, stricter (see below) |
+| `require-type-guard-explanation` | new, a stricter alternative to `no-type-guards` (see below) |
 
 Options are the same as the former ESLint rules' (see `lib/index.d.ts`). Rule names may carry a plugin prefix, so
 existing `@ls-stack/strict-casting` configs and disable comments keep working.
@@ -693,6 +698,148 @@ type Options = [
     runOnlyWithEnableCompilerDirective?: boolean
     /** Report `useMemo` and `useCallback` calls (default: false) */
     disallowManualMemoization?: boolean
+  },
+]
+```
+
+### `no-restricted-comments`
+
+Disallows comments matching configured patterns:
+
+- each pattern matches the comment text (without `//` or `/* */`) by `regex` or, without one, by `includes`
+- a comment is reported once, for the first pattern it matches, with the pattern's `message` or
+  `Comment matches restricted pattern '<pattern>'`
+- the comment's removal is offered as a suggestion, or applied as an autofix with `autoFix: true`
+
+```ts
+type Options = [
+  {
+    patterns: {
+      /** Rust `regex` syntax (no lookarounds or backreferences) */
+      regex?: string
+      includes?: string
+      /** Replaces the default message */
+      message?: string
+      /** Remove the comment as an autofix instead of a suggestion (default: false) */
+      autoFix?: boolean
+    }[]
+  },
+]
+```
+
+### `require-usage-explanation`
+
+Requires an explanatory comment with a given prefix above matched code:
+
+- calls of a function (`fn`, matching `name()` and `obj.name()`) or nodes matching an ESQuery `selector`
+- the comment can be right before the matched node or before any of its ancestors up to the statement holding it
+  (e.g. above the `const` or `return` statement, or inside a ternary branch, array or argument list)
+- the comment must start with `commentPrefix` and have some text after it (`// WORKAROUND:` alone doesn't count)
+
+```ts
+type Options = [
+  {
+    matches: {
+      /** Name of the function whose calls need an explanation */
+      fn?: string
+      /** ESQuery selector of the nodes that need an explanation */
+      selector?: string
+      /** Prefix the explanation comment must start with, e.g. `WORKAROUND:` */
+      commentPrefix: string
+      /** Text appended to the error message */
+      message?: string
+    }[]
+  },
+]
+```
+
+### `use-top-level-regex`
+
+Requires regex literals to be declared at the top level, so functions don't create a new `RegExp` object on each call.
+
+- regex literals inside functions, arrow functions and methods (including their default parameters) are reported
+- regexes with the stateful `g` or `y` flags are allowed, since hoisting them would share `lastIndex` between calls
+- regexes passed directly to `new RegExp(...)` are allowed
+
+```ts
+const WORD = /\w+/ // ok
+
+function isWord(input: string) {
+  return /\w+/.test(input) // Error: move it to the top level
+}
+```
+
+No options.
+
+### `no-unused-obj-props`
+
+Reports object literal properties that are never read:
+
+- properties of a non-exported `const`/`let` initialized with an object literal (`as const` included) that no
+  `obj.key`, `obj['key']`, literal-typed `obj[key]`, destructuring or JSX `<obj.Key />` reads
+  (`unusedObjectProperty`); a property that is only assigned (`obj.key = value`) is reported too
+- properties of the objects a non-exported local function returns that none of its callers read, when every call
+  initializes a variable (`const { a } = useThing()` or `const thing = useThing()` followed by property reads)
+  (`unusedReturnObjectProperty`)
+
+The object is skipped whenever it escapes: spread, passed or returned, aliased, enumerated (`in`, `Object.keys`,
+`for...in`), typed with `typeof`, exported, reassigned, read with a non-literal key, or when one of its methods,
+accessors or function values uses `this`. Accessors, spreads, `__proto__` and dynamic computed keys are never
+reported. Typed declarations, `satisfies` and other assertions are skipped.
+
+```ts
+const config = { retries: 3, timeout: 100 }
+fetchWithRetries(config.retries) // Error: "timeout" is not being used
+
+function useForm() {
+  return { values, errors, reset } // Error: "reset" is not used by any caller
+}
+const { values, errors } = useForm()
+```
+
+No options.
+
+### `require-type-guard-explanation`
+
+A stricter alternative to `no-type-guards`: TypeScript doesn't check type guards, so each one must explain why it is
+safe and why TS inference or an alternative can't be used.
+
+- every function with a body whose return type is `x is T`, `this is T` or `asserts x is T` (declarations, function
+  expressions, arrows, object and class methods, inline callbacks like `.filter((x): x is T => ...)`) needs a
+  comment starting with `commentPrefix` and at least `minLength` characters of explanation (`missingExplanation`)
+- the comment goes right before the function or before the statement, `export`, class member or object property
+  holding it; consecutive `//` lines form one block, and block/JSDoc comments count too
+- an explicit predicate TypeScript (5.5+) would infer identically is reported even with a comment, with a suggestion
+  to remove the annotation (`inferablePredicate`); only null/undefined and `typeof` checks it is sure about are
+  reported
+- body-less signatures (overloads, `declare function`, interface members, function types) and `asserts x` are ignored
+
+```ts
+// Error: missingExplanation
+function isNode(value: unknown): value is Node {
+  return isObject(value) && 'kind' in value
+}
+
+// ok
+// type-guard-safety: values come from our serializer, which always sets `kind`; a zod schema would parse every
+// render
+function isNode(value: unknown): value is Node {
+  return isObject(value) && 'kind' in value
+}
+
+// Error: inferablePredicate, TS infers `value is null | undefined`
+function isNullish(value: unknown): value is null | undefined {
+  return value === null || value === undefined
+}
+```
+
+```ts
+type Options = [
+  {
+    /** Prefix the explanation comment must start with (default: `type-guard-safety:`) */
+    commentPrefix?: string
+    /** Minimum characters of explanation after the prefix (default: 20) */
+    minLength?: number
   },
 ]
 ```

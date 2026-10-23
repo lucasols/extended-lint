@@ -208,6 +208,29 @@ export type ReactCompilerExtraOptions = {
   disallowManualMemoization?: boolean
 }
 
+export type NoRestrictedCommentsOptions = {
+  patterns: {
+    regex?: string
+    includes?: string
+    message?: string
+    autoFix?: boolean
+  }[]
+}
+
+export type RequireTypeGuardExplanationOptions = {
+  commentPrefix?: string
+  minLength?: number
+}
+
+export type RequireUsageExplanationOptions = {
+  matches: {
+    fn?: string
+    selector?: string
+    commentPrefix: string
+    message?: string
+  }[]
+}
+
 type RuleOptions = {
   'improved-no-unnecessary-condition': ImprovedNoUnnecessaryConditionOptions
   'strict-casting': StrictCastingOptions
@@ -248,6 +271,11 @@ type RuleOptions = {
   'sort-react-components-and-styles': SortReactComponentsAndStylesOptions
   'use-types-directly-above-usage': UseTypesDirectlyAboveUsageOptions
   'react-compiler-extra': ReactCompilerExtraOptions
+  'no-restricted-comments': NoRestrictedCommentsOptions
+  'require-usage-explanation': RequireUsageExplanationOptions
+  'use-top-level-regex': Record<string, never>
+  'no-unused-obj-props': Record<string, never>
+  'require-type-guard-explanation': RequireTypeGuardExplanationOptions
 }
 
 export type RulesConfig = {

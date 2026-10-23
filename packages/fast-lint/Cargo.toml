@@ -3,7 +3,7 @@ name = "fast-lint"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Type-aware lint rules of @ls-stack/extended-lint, natively on top of tsrs and tsrslint"
+description = "Fast type-aware lint rules for TypeScript and React, natively on top of tsrs and tsrslint"
 publish = false
 
 [[bin]]
