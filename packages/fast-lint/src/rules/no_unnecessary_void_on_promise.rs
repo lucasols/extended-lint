@@ -52,11 +52,41 @@ fn is_promise_like(checker: &mut Checker, t: P<Type>) -> bool {
         .is_empty()
 }
 
+/// Whether the value of `node` is thrown away: an expression statement, a non-last operand of a comma sequence (or the
+/// last one of a discarded sequence), or a `for` initializer or update. Removing `void` elsewhere changes a used value.
+fn is_result_discarded(node: P<Node>) -> bool {
+    let mut current = node;
+    loop {
+        let Some(parent) = current.parent() else {
+            return false;
+        };
+        match parent.kind() {
+            Kind::ParenthesizedExpression => current = parent,
+            Kind::ExpressionStatement => return true,
+            Kind::ForStatement => {
+                let for_statement = parent.as_for_statement();
+                return for_statement.initializer() == Some(current)
+                    || for_statement.incrementor() == Some(current);
+            }
+            Kind::BinaryExpression if ast::is_comma_expression(parent) => {
+                if parent.as_binary_expression().left() == current {
+                    return true;
+                }
+                current = parent;
+            }
+            _ => return false,
+        }
+    }
+}
+
 impl RuleVisitor for Visitor {
     fn listeners(&self) -> &[Listener] {
         LISTENERS
     }
     fn visit(&mut self, ctx: &mut Ctx, _l: Listener, node: P<Node>) {
+        if !is_result_discarded(node) {
+            return;
+        }
         let Some(expression) = node.expression() else {
             return;
         };

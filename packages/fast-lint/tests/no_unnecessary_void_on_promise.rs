@@ -281,7 +281,7 @@ fn void_on_call_returning_promise_constrained_type_parameter() {
 }
 
 #[test]
-fn remove_void_suggestion_in_braceless_body_and_export_default() {
+fn remove_void_suggestion_in_braceless_body() {
     let result = invalid(
         RULE,
         indoc! {"
@@ -300,8 +300,48 @@ fn remove_void_suggestion_in_braceless_body_and_export_default() {
 
     if (cond) (h ?? g)()
     "###);
+}
 
-    let result = invalid(RULE, "export default void function () {}()");
+#[test]
+fn void_whose_value_is_used_is_ignored() {
+    valid(
+        RULE,
+        indoc! {"
+            declare function getString(): string
+            declare function useEffect(effect: () => void): void
 
-    assert_snapshot!(result.suggestion_output(0), @"export default (function () {}())");
+            const callback = () => void getString()
+            const value = void getString()
+            let assigned: undefined
+            assigned = void getString()
+            useEffect(() => void getString())
+            if (void getString()) {}
+            function f() {
+              return void getString()
+            }
+            const last = (getString(), void getString())
+            export default void function () {}()
+        "},
+    );
+}
+
+#[test]
+fn void_whose_value_is_discarded_in_sequences_and_for() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare function getString(): string
+
+            void getString(), getString()
+            getString(), void getString()
+            for (void getString(); ; void getString()) {}
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @r"
+    - { messageId: 'unnecessaryVoid', line: 3 }
+    - { messageId: 'unnecessaryVoid', line: 4 }
+    - { messageId: 'unnecessaryVoid', line: 5 }
+    - { messageId: 'unnecessaryVoid', line: 5 }
+    ");
 }

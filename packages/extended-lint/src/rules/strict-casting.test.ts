@@ -200,8 +200,44 @@ test('unnecessary cast on generic with string constraint', async () => {
 
   expect(result.output).toMatchInlineSnapshot(`
     "function toStr<T extends string>(value: T): string {
-      return value
+      return String(value)
     }"
+  `)
+})
+
+test('unnecessary cast of enum or type parameter is not autofixed', async () => {
+  const { result } = await invalid(dedent`
+    enum SE { A = 'a', B = 'b' }
+    enum NE { A, B }
+    declare const member: SE
+
+    let a = String(SE.A)
+    const b = String(member)
+    const c = Number(NE.B)
+    const d = <T extends number>(x: T) => Number(x)
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryCasting', line: 5 }
+    - { messageId: 'unnecessaryCasting', line: 6 }
+    - { messageId: 'unnecessaryCasting', line: 7 }
+    - { messageId: 'unnecessaryCasting', line: 8 }
+    "
+  `)
+})
+
+test('unnecessary cast of literal union is autofixed', async () => {
+  const { result } = await invalid(dedent`
+    declare const status: 'a' | 'b'
+
+    const e = String(status)
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const status: 'a' | 'b'
+
+    const e = status"
   `)
 })
 

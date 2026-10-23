@@ -275,13 +275,26 @@ export const strictCasting = createExtendedLintRule<
       )
     }
 
+    function keepsNarrowerType(type: ts.Type): boolean {
+      const parts = type.isUnion() ? type.types : [type]
+
+      return parts.some(
+        (part) =>
+          part.flags & (ts.TypeFlags.EnumLike | ts.TypeFlags.TypeParameter),
+      )
+    }
+
     function reportUnnecessary(
       node: TSESTree.CallExpression,
       arg: TSESTree.Expression,
       name: string,
       type: 'string' | 'number',
+      argType?: ts.Type,
     ) {
-      if (hasCommentsOutsideArg(node, arg)) {
+      if (
+        hasCommentsOutsideArg(node, arg) ||
+        (argType && keepsNarrowerType(argType))
+      ) {
         context.report({
           node,
           messageId: 'unnecessaryCasting',
@@ -448,7 +461,7 @@ export const strictCasting = createExtendedLintRule<
             : ts.TypeFlags.NumberLike
 
         if (parts.every((part) => part.flags & targetTypeFlags)) {
-          reportUnnecessary(node, arg, functionName, expectedType)
+          reportUnnecessary(node, arg, functionName, expectedType, argType)
         }
       },
     }

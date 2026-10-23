@@ -61,9 +61,28 @@ export const noUnnecessaryVoidOnPromise = createExtendedLintRule<
       return thenType.getCallSignatures().length > 0
     }
 
+    function isResultDiscarded(node: TSESTree.Node): boolean {
+      const parent = node.parent
+      if (!parent) return false
+
+      if (parent.type === AST_NODE_TYPES.ExpressionStatement) return true
+
+      if (parent.type === AST_NODE_TYPES.ForStatement) {
+        return parent.init === node || parent.update === node
+      }
+
+      if (parent.type === AST_NODE_TYPES.SequenceExpression) {
+        return parent.expressions.at(-1) !== node || isResultDiscarded(parent)
+      }
+
+      return false
+    }
+
     return {
       UnaryExpression(node: TSESTree.UnaryExpression) {
         if (node.operator !== 'void') return
+
+        if (!isResultDiscarded(node)) return
 
         if (node.argument.type !== AST_NODE_TYPES.CallExpression) return
 

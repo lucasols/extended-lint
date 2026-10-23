@@ -329,12 +329,27 @@ fn has_comments_outside_arg(ctx: &Ctx, node: P<Node>, arg: P<Node>) -> bool {
         })
 }
 
+/// Whether removing the cast would leave the argument with a narrower type than the cast's `string`/`number`: an enum
+/// or a type parameter, which can break later assignments or change inferred return types.
+fn keeps_narrower_type(t: P<Type>) -> bool {
+    let parts: &[P<Type>] = if t.flags().intersects(TypeFlags::Union) {
+        t.types()
+    } else {
+        std::slice::from_ref(&t)
+    };
+    parts.iter().any(|p| {
+        p.flags()
+            .intersects(TypeFlags::EnumLike | TypeFlags::TypeParameter)
+    })
+}
+
 fn report_unnecessary(
     ctx: &mut Ctx,
     node: P<Node>,
     arg: P<Node>,
     name: &str,
     expected: ExpectedType,
+    arg_type: Option<P<Type>>,
 ) {
     let message = RuleMessage::new(
         "unnecessaryCasting",
@@ -343,7 +358,7 @@ fn report_unnecessary(
             expected.as_str()
         ),
     );
-    if has_comments_outside_arg(ctx, node, arg) {
+    if has_comments_outside_arg(ctx, node, arg) || arg_type.is_some_and(keeps_narrower_type) {
         ctx.report_node(node, message);
         return;
     }
@@ -417,7 +432,7 @@ fn report_nullish(ctx: &mut Ctx, node: P<Node>, arg: P<Node>, expected: Expected
 impl StrictCasting {
     fn check(&self, ctx: &mut Ctx, node: P<Node>, arg: P<Node>, name: &str, cast: CastFunction) {
         if is_literal_of_expected_type(arg, cast.expected_type) {
-            report_unnecessary(ctx, node, arg, name, cast.expected_type);
+            report_unnecessary(ctx, node, arg, name, cast.expected_type, None);
             return;
         }
 
@@ -480,7 +495,7 @@ impl StrictCasting {
             ExpectedType::Number => TypeFlags::NumberLike,
         };
         if parts.iter().all(|p| p.flags().intersects(target_flags)) {
-            report_unnecessary(ctx, node, arg, name, cast.expected_type);
+            report_unnecessary(ctx, node, arg, name, cast.expected_type, Some(arg_type));
         }
     }
 

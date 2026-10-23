@@ -223,8 +223,51 @@ fn unnecessary_cast_on_generic_with_string_constraint() {
     assert_snapshot!(result.errors(), @"- { messageId: 'unnecessaryCasting', line: 2 }");
     assert_snapshot!(result.output, @r"
     function toStr<T extends string>(value: T): string {
-      return value
+      return String(value)
     }
+    ");
+}
+
+#[test]
+fn unnecessary_cast_of_enum_or_type_parameter_is_not_autofixed() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            enum SE { A = 'a', B = 'b' }
+            enum NE { A, B }
+            declare const member: SE
+
+            let a = String(SE.A)
+            const b = String(member)
+            const c = Number(NE.B)
+            const d = <T extends number>(x: T) => Number(x)
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @r"
+    - { messageId: 'unnecessaryCasting', line: 5 }
+    - { messageId: 'unnecessaryCasting', line: 6 }
+    - { messageId: 'unnecessaryCasting', line: 7 }
+    - { messageId: 'unnecessaryCasting', line: 8 }
+    ");
+    assert_eq!(result.output, result.code);
+}
+
+#[test]
+fn unnecessary_cast_of_literal_union_is_autofixed() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const status: 'a' | 'b'
+
+            const e = String(status)
+        "},
+    );
+
+    assert_snapshot!(result.output, @r"
+    declare const status: 'a' | 'b'
+
+    const e = status
     ");
 }
 

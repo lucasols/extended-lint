@@ -308,8 +308,40 @@ test('remove void suggestion in braceless body', async () => {
   `)
 })
 
-test('remove void suggestion in export default', async () => {
-  const { result } = await invalid('export default void function () {}()')
+test('void whose value is used is ignored', async () => {
+  await valid(dedent`
+    declare function getString(): string
+    declare function useEffect(effect: () => void): void
 
-  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`"export default (function () {}())"`)
+    const callback = () => void getString()
+    const value = void getString()
+    let assigned: undefined
+    assigned = void getString()
+    useEffect(() => void getString())
+    if (void getString()) {}
+    function f() {
+      return void getString()
+    }
+    const last = (getString(), void getString())
+    export default void function () {}()
+  `)
+})
+
+test('void whose value is discarded in sequences and for', async () => {
+  const { result } = await invalid(dedent`
+    declare function getString(): string
+
+    void getString(), getString()
+    getString(), void getString()
+    for (void getString(); ; void getString()) {}
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryVoid', line: 3 }
+    - { messageId: 'unnecessaryVoid', line: 4 }
+    - { messageId: 'unnecessaryVoid', line: 5 }
+    - { messageId: 'unnecessaryVoid', line: 5 }
+    "
+  `)
 })
