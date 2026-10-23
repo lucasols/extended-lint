@@ -813,6 +813,8 @@ safe and why TS inference or an alternative can't be used.
   to remove the annotation (`inferablePredicate`); only null/undefined and `typeof` checks it is sure about are
   reported
 - body-less signatures (overloads, `declare function`, interface members, function types) and `asserts x` are ignored
+- `alternativeMsgs` appends a project-specific hint to the message of guards passed directly to `.find()` or
+  `.filter()`, e.g. pointing to a `filterAndMap` helper
 
 ```ts
 // Error: missingExplanation
@@ -840,6 +842,11 @@ type Options = [
     commentPrefix?: string
     /** Minimum characters of explanation after the prefix (default: 20) */
     minLength?: number
+    /** Extra hints appended to the message of guards passed directly to `.find()`/`.filter()` */
+    alternativeMsgs?: {
+      inArrayFind?: string
+      inArrayFilter?: string
+    }
   },
 ]
 ```

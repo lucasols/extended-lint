@@ -220,6 +220,10 @@ export type NoRestrictedCommentsOptions = {
 export type RequireTypeGuardExplanationOptions = {
   commentPrefix?: string
   minLength?: number
+  alternativeMsgs?: {
+    inArrayFind?: string
+    inArrayFilter?: string
+  }
 }
 
 export type RequireUsageExplanationOptions = {

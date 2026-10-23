@@ -7,17 +7,25 @@ use tsrslint::rule::{
 
 use crate::esquery::estree::{self, EsType};
 use crate::utils::{
-    comment_value, comments, comments_directly_before, explanation_anchors, skip_parens,
-    type_annotation_range,
+    comment_value, comments, comments_directly_before, estree_parent, explanation_anchors,
+    skip_parens, type_annotation_range,
 };
 
 pub const NAME: &str = "require-type-guard-explanation";
+
+#[derive(serde::Deserialize, Default)]
+#[serde(default, deny_unknown_fields, rename_all = "camelCase")]
+struct AlternativeMsgs {
+    in_array_find: Option<String>,
+    in_array_filter: Option<String>,
+}
 
 #[derive(serde::Deserialize)]
 #[serde(default, deny_unknown_fields, rename_all = "camelCase")]
 struct Options {
     comment_prefix: String,
     min_length: usize,
+    alternative_msgs: AlternativeMsgs,
 }
 
 impl Default for Options {
@@ -25,6 +33,7 @@ impl Default for Options {
         Options {
             comment_prefix: "type-guard-safety:".to_string(),
             min_length: 20,
+            alternative_msgs: AlternativeMsgs::default(),
         }
     }
 }
@@ -33,6 +42,8 @@ pub struct RequireTypeGuardExplanation {
     comment_prefix: String,
     min_length: usize,
     missing_message: String,
+    missing_message_in_find: Option<String>,
+    missing_message_in_filter: Option<String>,
 }
 
 pub fn create(options: Option<&serde_json::Value>) -> Result<Box<dyn Rule>, String> {
@@ -44,9 +55,15 @@ pub fn create(options: Option<&serde_json::Value>) -> Result<Box<dyn Rule>, Stri
         options.comment_prefix.trim_end(),
         options.min_length
     );
+    let with_hint = |hint: Option<String>| {
+        hint.filter(|hint| !hint.is_empty())
+            .map(|hint| format!("{missing_message} {hint}"))
+    };
     Ok(Box::new(RequireTypeGuardExplanation {
         comment_prefix: options.comment_prefix,
         min_length: options.min_length,
+        missing_message_in_find: with_hint(options.alternative_msgs.in_array_find),
+        missing_message_in_filter: with_hint(options.alternative_msgs.in_array_filter),
         missing_message,
     }))
 }
@@ -532,6 +549,42 @@ fn is_inferable(checker: &mut Checker, function: P<Node>, predicate: P<Node>) ->
     checker.is_type_identical_to(narrowed, predicate_type)
 }
 
+/// `filter` or `find` when `function` is passed directly to a call of a method with that name.
+fn array_method_of_callback(function: P<Node>) -> Option<&'static str> {
+    let call = estree_parent(function).filter(|&parent| ast::is_call_expression(parent))?;
+    if !call
+        .arguments()
+        .iter()
+        .any(|&arg| skip_parens(arg) == function)
+    {
+        return None;
+    }
+    let callee = skip_parens(call.as_call_expression().expression);
+    let method = match callee.kind() {
+        Kind::PropertyAccessExpression => {
+            let name = callee.as_property_access_expression().name;
+            ast::is_identifier(name).then(|| name.text())
+        }
+        Kind::ElementAccessExpression => {
+            let key = skip_parens(callee.as_element_access_expression().argument_expression);
+            ast::is_string_literal_like(key).then(|| key.text())
+        }
+        _ => None,
+    }?;
+    matches!(method, "filter" | "find").then_some(method)
+}
+
+impl RequireTypeGuardExplanation {
+    fn missing_message(&self, function: P<Node>) -> String {
+        let with_hint = match array_method_of_callback(function) {
+            Some("filter") => self.missing_message_in_filter.as_ref(),
+            Some(_) => self.missing_message_in_find.as_ref(),
+            None => None,
+        };
+        with_hint.unwrap_or(&self.missing_message).clone()
+    }
+}
+
 impl RuleVisitor for Visitor {
     fn listeners(&self) -> &[Listener] {
         LISTENERS
@@ -563,7 +616,7 @@ impl RuleVisitor for Visitor {
         ctx.report_range(
             pos,
             end,
-            RuleMessage::new("missingExplanation", self.rule.missing_message.clone()),
+            RuleMessage::new("missingExplanation", self.rule.missing_message(node)),
         );
     }
 }
