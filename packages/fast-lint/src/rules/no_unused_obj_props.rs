@@ -171,20 +171,28 @@ fn referenced_function_uses_this(checker: &mut Checker, identifier: P<Node>) -> 
 
 /// Whether a method, an accessor or a `function` value of the object uses `this`, which can read any property.
 fn has_property_using_this(checker: &mut Checker, object: P<Node>) -> bool {
-    object.properties().iter().any(|&property| match property.kind() {
-        Kind::MethodDeclaration | Kind::GetAccessor | Kind::SetAccessor => uses_own_this(property),
-        Kind::PropertyAssignment => property.initializer().map(skip_parens).is_some_and(|value| {
-            match value.kind() {
-                Kind::FunctionExpression => uses_own_this(value),
-                Kind::Identifier => referenced_function_uses_this(checker, value),
-                _ => false,
+    object
+        .properties()
+        .iter()
+        .any(|&property| match property.kind() {
+            Kind::MethodDeclaration | Kind::GetAccessor | Kind::SetAccessor => {
+                uses_own_this(property)
             }
-        }),
-        Kind::ShorthandPropertyAssignment => property
-            .name()
-            .is_some_and(|name| referenced_function_uses_this(checker, name)),
-        _ => false,
-    })
+            Kind::PropertyAssignment => {
+                property
+                    .initializer()
+                    .map(skip_parens)
+                    .is_some_and(|value| match value.kind() {
+                        Kind::FunctionExpression => uses_own_this(value),
+                        Kind::Identifier => referenced_function_uses_this(checker, value),
+                        _ => false,
+                    })
+            }
+            Kind::ShorthandPropertyAssignment => property
+                .name()
+                .is_some_and(|name| referenced_function_uses_this(checker, name)),
+            _ => false,
+        })
 }
 
 /// The keys an object binding pattern reads, or `None` when it has a rest element or a dynamic key.
@@ -200,7 +208,9 @@ fn binding_pattern_keys(checker: &mut Checker, pattern: P<Node>) -> Option<Vec<&
             }
             Some(name) => keys.push(static_key(name)?),
             None => {
-                let name = element.name().filter(|name| name.kind() == Kind::Identifier)?;
+                let name = element
+                    .name()
+                    .filter(|name| name.kind() == Kind::Identifier)?;
                 keys.push(name.text());
             }
         }
@@ -235,7 +245,10 @@ fn member_access_keys(checker: &mut Checker, member: P<Node>) -> Option<Vec<&'st
             let name = member.as_property_access_expression().name;
             (name.kind() == Kind::Identifier).then(|| vec![name.text()])?
         }
-        _ => dynamic_keys(checker, member.as_element_access_expression().argument_expression)?,
+        _ => dynamic_keys(
+            checker,
+            member.as_element_access_expression().argument_expression,
+        )?,
     };
     Some(if ast::is_write_only_access(member) {
         Vec::new()
@@ -254,9 +267,7 @@ fn use_keys(checker: &mut Checker, identifier: P<Node>) -> Option<Vec<&'static s
         {
             member_access_keys(checker, parent)
         }
-        Kind::VariableDeclaration
-            if parent.initializer().map(skip_parens) == Some(identifier) =>
-        {
+        Kind::VariableDeclaration if parent.initializer().map(skip_parens) == Some(identifier) => {
             let pattern = parent
                 .name()
                 .filter(|pattern| pattern.kind() == Kind::ObjectBindingPattern)?;
@@ -360,8 +371,10 @@ impl Visitor {
         {
             return;
         }
-        let properties: Vec<Vec<(&'static str, P<Node>)>> =
-            objects.iter().map(|&object| tracked_properties(object)).collect();
+        let properties: Vec<Vec<(&'static str, P<Node>)>> = objects
+            .iter()
+            .map(|&object| tracked_properties(object))
+            .collect();
         if properties.iter().all(Vec::is_empty) {
             return;
         }
@@ -411,9 +424,11 @@ fn call_site_keys(ctx: &mut Ctx, index: &ReferenceIndex, identifier: P<Node>) ->
     }
     let name = declaration.name()?;
     match name.kind() {
-        Kind::ObjectBindingPattern => {
-            Some(binding_pattern_keys(ctx.checker, name)?.into_iter().collect())
-        }
+        Kind::ObjectBindingPattern => Some(
+            binding_pattern_keys(ctx.checker, name)?
+                .into_iter()
+                .collect(),
+        ),
         Kind::Identifier => read_keys(ctx, index, name),
         _ => None,
     }
@@ -432,7 +447,9 @@ fn report_unused(
         let message = if returned {
             RuleMessage::new(
                 "unusedReturnObjectProperty",
-                format!("The object property \"{key}\" returned by this function is not being used"),
+                format!(
+                    "The object property \"{key}\" returned by this function is not being used"
+                ),
             )
         } else {
             RuleMessage::new(

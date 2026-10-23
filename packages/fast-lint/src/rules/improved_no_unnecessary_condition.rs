@@ -1,8 +1,7 @@
 use rustc_hash::FxHashMap;
 use tsrs_ast::{self as ast, Kind, Node, Symbol, SymbolFlags};
 use tsrs_checker::{
-    is_tuple_type_exported as is_tuple_type, Checker, ObjectFlags, SignatureKind,
-    Type, TypeFlags,
+    is_tuple_type_exported as is_tuple_type, Checker, ObjectFlags, SignatureKind, Type, TypeFlags,
 };
 use tsrs_compiler::Program;
 use tsrs_core::{jsnum, Tristate, P};
