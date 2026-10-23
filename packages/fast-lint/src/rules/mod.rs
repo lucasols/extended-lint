@@ -22,6 +22,7 @@ pub mod no_type_guards;
 pub mod no_unnecessary_iife;
 pub mod no_unnecessary_typing;
 pub mod no_unnecessary_void_on_promise;
+pub mod no_unused_obj_props;
 pub mod no_unused_optional_args;
 pub mod no_unused_selected_values;
 pub mod no_unused_t_state_field;
@@ -73,6 +74,7 @@ pub const RULE_NAMES: &[&str] = &[
     no_unnecessary_iife::NAME,
     no_unnecessary_typing::NAME,
     no_unnecessary_void_on_promise::NAME,
+    no_unused_obj_props::NAME,
     no_unused_optional_args::NAME,
     no_unused_selected_values::NAME,
     no_unused_t_state_field::NAME,
@@ -123,6 +125,7 @@ pub fn create_rule(
         no_unnecessary_iife::NAME => no_unnecessary_iife::create(options),
         no_unnecessary_typing::NAME => no_unnecessary_typing::create(options),
         no_unnecessary_void_on_promise::NAME => no_unnecessary_void_on_promise::create(options),
+        no_unused_obj_props::NAME => no_unused_obj_props::create(options),
         no_unused_optional_args::NAME => no_unused_optional_args::create(options),
         no_unused_selected_values::NAME => no_unused_selected_values::create(options),
         no_unused_t_state_field::NAME => no_unused_t_state_field::create(options),
