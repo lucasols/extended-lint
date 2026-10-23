@@ -269,6 +269,7 @@ type RuleOptions = {
   'no-restricted-comments': NoRestrictedCommentsOptions
   'require-usage-explanation': RequireUsageExplanationOptions
   'use-top-level-regex': Record<string, never>
+  'no-unused-obj-props': Record<string, never>
 }
 
 export type RulesConfig = {

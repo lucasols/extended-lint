@@ -50,6 +50,7 @@ only these rules run, against one shared program per tsconfig. Type-aware rules 
 | `no-restricted-comments` | moved from `@ls-stack/extended-lint` (see below) |
 | `require-usage-explanation` | moved from `@ls-stack/extended-lint` (see below) |
 | `use-top-level-regex` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-unused-obj-props` | moved from `@ls-stack/extended-lint`, stricter (see below) |
 
 Options are the same as the former ESLint rules' (see `lib/index.d.ts`). Rule names may carry a plugin prefix, so
 existing `@ls-stack/strict-casting` configs and disable comments keep working.
@@ -765,6 +766,34 @@ const WORD = /\w+/ // ok
 function isWord(input: string) {
   return /\w+/.test(input) // Error: move it to the top level
 }
+```
+
+No options.
+
+### `no-unused-obj-props`
+
+Reports object literal properties that are never read:
+
+- properties of a non-exported `const`/`let` initialized with an object literal (`as const` included) that no
+  `obj.key`, `obj['key']`, literal-typed `obj[key]`, destructuring or JSX `<obj.Key />` reads
+  (`unusedObjectProperty`); a property that is only assigned (`obj.key = value`) is reported too
+- properties of the objects a non-exported local function returns that none of its callers read, when every call
+  initializes a variable (`const { a } = useThing()` or `const thing = useThing()` followed by property reads)
+  (`unusedReturnObjectProperty`)
+
+The object is skipped whenever it escapes: spread, passed or returned, aliased, enumerated (`in`, `Object.keys`,
+`for...in`), typed with `typeof`, exported, reassigned, read with a non-literal key, or when one of its methods,
+accessors or function values uses `this`. Accessors, spreads, `__proto__` and dynamic computed keys are never
+reported. Typed declarations, `satisfies` and other assertions are skipped.
+
+```ts
+const config = { retries: 3, timeout: 100 }
+fetchWithRetries(config.retries) // Error: "timeout" is not being used
+
+function useForm() {
+  return { values, errors, reset } // Error: "reset" is not used by any caller
+}
+const { values, errors } = useForm()
 ```
 
 No options.
