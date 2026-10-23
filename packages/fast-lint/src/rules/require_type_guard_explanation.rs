@@ -1,5 +1,5 @@
 use tsrs_ast::{self as ast, FunctionFlags, Kind, Node, Symbol};
-use tsrs_checker::{Checker, Type, TypeFlags};
+use tsrs_checker::{Checker, ObjectFlags, SignatureKind, Type, TypeFlags};
 use tsrs_core::P;
 use tsrslint::rule::{
     Ctx, Listener, Rule, RuleDiagnostic, RuleMessage, RuleSuggestion, RuleVisitor,
@@ -235,6 +235,10 @@ enum Narrowing {
     IsNullish,
     /// `typeof x === 'name'` (`true`) or `typeof x !== 'name'` (`false`)
     Typeof(&'static str, bool),
+    /// `x === literal` (`true`) or `x !== literal` (`false`), with the regular string or number literal type
+    Literal(P<Type>, bool),
+    /// `x instanceof Class`, with the instance type of a non-generic class
+    Instanceof(P<Type>),
 }
 
 fn is_parameter_reference(checker: &mut Checker, node: P<Node>, parameter: P<Symbol>) -> bool {
@@ -265,6 +269,61 @@ fn string_literal(node: P<Node>) -> Option<&'static str> {
 
 const TYPEOF_NAMES: &[&str] = &["string", "number", "bigint", "boolean", "symbol"];
 
+/// The regular literal type of a string, template or (possibly negated) number literal.
+fn literal_type(checker: &mut Checker, node: P<Node>) -> Option<P<Type>> {
+    let node = skip_parens(node);
+    let is_literal = match node.kind() {
+        Kind::StringLiteral | Kind::NoSubstitutionTemplateLiteral | Kind::NumericLiteral => true,
+        Kind::PrefixUnaryExpression => {
+            let unary = node.as_prefix_unary_expression();
+            unary.operator == Kind::MinusToken
+                && skip_parens(unary.operand).kind() == Kind::NumericLiteral
+        }
+        _ => false,
+    };
+    if !is_literal {
+        return None;
+    }
+    let t = checker.get_type_at_location(node);
+    if !t
+        .flags()
+        .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
+        || t.flags().intersects(TypeFlags::EnumLiteral)
+    {
+        return None;
+    }
+    Some(t.as_literal_type().regular_type().unwrap_or(t))
+}
+
+/// Whether `t` is the instance type of a class declared without type parameters: the class's own declared type,
+/// not an instantiation.
+fn is_plain_class_type(checker: &mut Checker, t: P<Type>) -> bool {
+    if !t.flags().intersects(TypeFlags::Object) || !t.object_flags().contains(ObjectFlags::Class) {
+        return false;
+    }
+    t.symbol().is_some_and(|symbol| {
+        checker
+            .get_local_type_parameters_of_class_or_interface_or_type_alias_exported(symbol)
+            .is_empty()
+            && checker.get_declared_type_of_symbol_exported(symbol) == t
+    })
+}
+
+/// The instance type `x instanceof right` narrows to, when `right` is a non-generic class without a static
+/// `[Symbol.hasInstance]` (which would narrow by its own predicate).
+fn instanceof_candidate(checker: &mut Checker, right: P<Node>) -> Option<P<Type>> {
+    let constructor = checker.get_type_at_location(skip_parens(right));
+    if checker
+        .get_properties_of_type_exported(constructor)
+        .iter()
+        .any(|property| property.name().contains("@hasInstance@"))
+    {
+        return None;
+    }
+    let instance = checker.get_type_of_property_of_type_exported(constructor, "prototype")?;
+    is_plain_class_type(checker, instance).then_some(instance)
+}
+
 /// The narrowing of a single comparison of the parameter (in either operand order).
 fn comparison_narrowing(
     checker: &mut Checker,
@@ -274,6 +333,12 @@ fn comparison_narrowing(
     let binary = expression.as_binary_expression();
     let operator = binary.operator_token().kind();
     let (left, right) = (binary.left(), binary.right());
+    if operator == Kind::InstanceOfKeyword {
+        if !is_parameter_reference(checker, left, parameter) {
+            return None;
+        }
+        return instanceof_candidate(checker, right).map(Narrowing::Instanceof);
+    }
     for (subject, other) in [(left, right), (right, left)] {
         if is_parameter_reference(checker, subject, parameter) {
             let is_null = skip_parens(other).kind() == Kind::NullKeyword;
@@ -287,6 +352,12 @@ fn comparison_narrowing(
                 Kind::EqualsEqualsEqualsToken if is_null => Some(Narrowing::IsNull),
                 Kind::EqualsEqualsEqualsToken if is_undefined => Some(Narrowing::IsUndefined),
                 Kind::EqualsEqualsToken if is_null || is_undefined => Some(Narrowing::IsNullish),
+                Kind::EqualsEqualsEqualsToken => {
+                    literal_type(checker, other).map(|t| Narrowing::Literal(t, true))
+                }
+                Kind::ExclamationEqualsEqualsToken => {
+                    literal_type(checker, other).map(|t| Narrowing::Literal(t, false))
+                }
                 _ => None,
             };
         }
@@ -311,8 +382,9 @@ fn comparison_narrowing(
     None
 }
 
-/// The narrowings the returned expression applies to the parameter when it is true: all of them for a comparison
-/// or an `&&` chain of `!==`/`!=` null checks, any of them for an `||` chain of `===`/`==` null checks.
+/// The narrowings the returned expression applies to the parameter when it is true: all of them for an `&&` chain
+/// of negative checks (`!==`/`!=` null, `!==` literal, `typeof !==`), any of them for a single comparison or an `||`
+/// chain of positive checks (`===`/`==` null, `===` literal, `typeof ===`).
 struct Condition {
     narrowings: Vec<Narrowing>,
     any: bool,
@@ -348,7 +420,7 @@ fn condition(
         _ => {
             return Some(Condition {
                 narrowings: vec![comparison_narrowing(checker, expression, parameter)?],
-                any: false,
+                any: true,
             })
         }
     };
@@ -363,12 +435,20 @@ fn condition(
         let fits = if any {
             matches!(
                 narrowing,
-                Narrowing::IsNull | Narrowing::IsUndefined | Narrowing::IsNullish
+                Narrowing::IsNull
+                    | Narrowing::IsUndefined
+                    | Narrowing::IsNullish
+                    | Narrowing::Typeof(_, true)
+                    | Narrowing::Literal(_, true)
             )
         } else {
             matches!(
                 narrowing,
-                Narrowing::NotNull | Narrowing::NotUndefined | Narrowing::NotNullish
+                Narrowing::NotNull
+                    | Narrowing::NotUndefined
+                    | Narrowing::NotNullish
+                    | Narrowing::Typeof(_, false)
+                    | Narrowing::Literal(_, false)
             )
         };
         if !fits {
@@ -422,49 +502,192 @@ fn typeof_type(checker: &Checker, name: &str) -> P<Type> {
     }
 }
 
-/// Whether constituent `t` passes `narrowing`, or `None` when TypeScript would narrow it to something else (e.g.
-/// `{}` to `string` for `typeof x === 'string'`).
-fn passes(checker: &mut Checker, t: P<Type>, narrowing: Narrowing) -> Option<bool> {
+/// What a narrowing does to one constituent of the parameter's type when it holds.
+#[derive(Clone, Copy)]
+enum Outcome {
+    Keep,
+    Drop,
+    /// The constituent becomes this type, e.g. `string` becomes `'a'` for `x === 'a'`.
+    Replace(P<Type>),
+}
+
+fn kept_if(condition: bool) -> Outcome {
+    if condition {
+        Outcome::Keep
+    } else {
+        Outcome::Drop
+    }
+}
+
+fn is_unit_literal(t: P<Type>) -> bool {
+    t.flags().intersects(
+        TypeFlags::StringLiteral
+            | TypeFlags::NumberLiteral
+            | TypeFlags::BigIntLiteral
+            | TypeFlags::BooleanLiteral,
+    )
+}
+
+/// Whether class instance type `t` is `target` or extends it, through the base classes.
+fn derives_from(checker: &mut Checker, t: P<Type>, target: P<Type>) -> bool {
+    if t == target {
+        return true;
+    }
+    if !is_plain_class_type(checker, t) {
+        return false;
+    }
+    let bases = checker.get_base_types_exported(t);
+    bases
+        .iter()
+        .any(|&base| derives_from(checker, base, target))
+}
+
+/// What `narrowing` does to constituent `t`, or `None` when TypeScript would narrow it in a way this doesn't model
+/// (e.g. `{}` to `string` for `typeof x === 'string'`), or when a constituent kept by a negative check could still
+/// pass the positive one, so TypeScript infers no predicate (`string` for `x !== 'a'`).
+fn outcome(checker: &mut Checker, t: P<Type>, narrowing: Narrowing) -> Option<Outcome> {
     let flags = t.flags();
     match narrowing {
-        Narrowing::NotNull => Some(!flags.intersects(TypeFlags::Null)),
-        Narrowing::NotUndefined => Some(!flags.intersects(TypeFlags::Undefined)),
-        Narrowing::NotNullish => Some(!flags.intersects(TypeFlags::Null | TypeFlags::Undefined)),
-        Narrowing::IsNull => Some(flags.intersects(TypeFlags::Null)),
-        Narrowing::IsUndefined => Some(flags.intersects(TypeFlags::Undefined)),
-        Narrowing::IsNullish => Some(flags.intersects(TypeFlags::Null | TypeFlags::Undefined)),
+        Narrowing::NotNull => Some(kept_if(!flags.intersects(TypeFlags::Null))),
+        Narrowing::NotUndefined => Some(kept_if(!flags.intersects(TypeFlags::Undefined))),
+        Narrowing::NotNullish => Some(kept_if(
+            !flags.intersects(TypeFlags::Null | TypeFlags::Undefined),
+        )),
+        Narrowing::IsNull => Some(kept_if(flags.intersects(TypeFlags::Null))),
+        Narrowing::IsUndefined => Some(kept_if(flags.intersects(TypeFlags::Undefined))),
+        Narrowing::IsNullish => Some(kept_if(
+            flags.intersects(TypeFlags::Null | TypeFlags::Undefined),
+        )),
         Narrowing::Typeof(name, equals) => {
             if flags.intersects(TypeFlags::Object | TypeFlags::NonPrimitive) {
                 let implied = typeof_type(checker, name);
                 if checker.is_type_assignable_to(implied, t) {
                     return None;
                 }
-                return Some(!equals);
+                return Some(kept_if(!equals));
             }
-            Some(flags.intersects(typeof_flags(name)) == equals)
+            Some(kept_if(flags.intersects(typeof_flags(name)) == equals))
+        }
+        Narrowing::Literal(literal, equals) => {
+            if flags.intersects(TypeFlags::EnumLike) {
+                return None;
+            }
+            if is_unit_literal(t) {
+                return Some(kept_if(checker.is_type_identical_to(t, literal) == equals));
+            }
+            if flags.intersects(TypeFlags::Object | TypeFlags::NonPrimitive) {
+                if checker.is_type_assignable_to(literal, t) {
+                    return None;
+                }
+                return Some(kept_if(!equals));
+            }
+            let same_primitive = (flags.intersects(TypeFlags::String)
+                && literal.flags().intersects(TypeFlags::StringLiteral))
+                || (flags.intersects(TypeFlags::Number)
+                    && literal.flags().intersects(TypeFlags::NumberLiteral));
+            match (same_primitive, equals) {
+                (true, true) => Some(Outcome::Replace(literal)),
+                (true, false) => None,
+                (false, equals) => Some(kept_if(!equals)),
+            }
+        }
+        Narrowing::Instanceof(candidate) => {
+            if !flags.intersects(TypeFlags::Object | TypeFlags::NonPrimitive) {
+                return Some(Outcome::Drop);
+            }
+            if !is_plain_class_type(checker, t) {
+                return None;
+            }
+            if derives_from(checker, t, candidate) {
+                return Some(Outcome::Keep);
+            }
+            if derives_from(checker, candidate, t) {
+                return Some(Outcome::Replace(candidate));
+            }
+            Some(Outcome::Drop)
         }
     }
 }
 
-/// What `unknown` narrows to when `condition` holds: the `typeof` type, or `null`/`undefined` for positive null
-/// checks.
+/// What `unknown` narrows to when `condition` holds: the `typeof` type, the literal, the class instance type, or
+/// `null`/`undefined` for positive null checks.
 fn narrowed_unknown(checker: &mut Checker, condition: &Condition) -> Option<P<Type>> {
-    if let [Narrowing::Typeof(name, true)] = condition.narrowings.as_slice() {
-        return Some(typeof_type(checker, name));
+    if !condition.any {
+        return None;
     }
     let mut types = Vec::new();
     for narrowing in &condition.narrowings {
-        match narrowing {
+        match *narrowing {
             Narrowing::IsNull => types.push(checker.get_null_type()),
             Narrowing::IsUndefined => types.push(checker.get_undefined_type()),
             Narrowing::IsNullish => {
                 types.push(checker.get_null_type());
                 types.push(checker.get_undefined_type());
             }
+            Narrowing::Typeof(name, true) => types.push(typeof_type(checker, name)),
+            Narrowing::Literal(literal, true) => types.push(literal),
+            Narrowing::Instanceof(candidate) => types.push(candidate),
             _ => return None,
         }
     }
     Some(checker.get_union_type_exported(&types))
+}
+
+/// Whether `condition` removes exactly `null` and `undefined`: `!= null`, or `!== null && !== undefined`.
+fn removes_null_and_undefined(condition: &Condition) -> bool {
+    let (mut null, mut undefined) = (false, false);
+    for narrowing in &condition.narrowings {
+        match narrowing {
+            Narrowing::NotNull => null = true,
+            Narrowing::NotUndefined => undefined = true,
+            Narrowing::NotNullish => (null, undefined) = (true, true),
+            _ => return false,
+        }
+    }
+    let single = condition.narrowings.len() == 1;
+    null && undefined && (single || !condition.any)
+}
+
+/// Whether `t` is the empty object type `{}`.
+fn is_empty_object_type(checker: &mut Checker, t: P<Type>) -> bool {
+    t.flags().intersects(TypeFlags::Object)
+        && !t
+            .object_flags()
+            .intersects(ObjectFlags::Class | ObjectFlags::Reference)
+        && checker.get_properties_of_type_exported(t).is_empty()
+        && checker
+            .get_signatures_of_type_exported(t, SignatureKind::Call)
+            .is_empty()
+        && checker
+            .get_signatures_of_type_exported(t, SignatureKind::Construct)
+            .is_empty()
+        && checker.get_index_infos_of_type_exported(t).is_empty()
+}
+
+/// Whether TypeScript infers `predicate_type` for an unconstrained type parameter narrowed by `condition`: removing
+/// `null` and `undefined` from `T` gives `T & {}`, which is what `NonNullable<T>` is.
+fn infers_non_nullable_type_parameter(
+    checker: &mut Checker,
+    declared: P<Type>,
+    condition: &Condition,
+    predicate_type: P<Type>,
+) -> bool {
+    if !declared.flags().intersects(TypeFlags::TypeParameter)
+        || checker
+            .get_constraint_of_type_parameter_exported(declared)
+            .is_some()
+        || !removes_null_and_undefined(condition)
+        || !predicate_type.flags().intersects(TypeFlags::Intersection)
+    {
+        return false;
+    }
+    match predicate_type.types() {
+        &[first, second] => {
+            (first == declared && is_empty_object_type(checker, second))
+                || (second == declared && is_empty_object_type(checker, first))
+        }
+        _ => false,
+    }
 }
 
 /// The type of the parameter when `condition` holds, when TypeScript would infer a predicate for it: something was
@@ -485,30 +708,40 @@ fn narrowed_type(
     } else {
         vec![declared]
     };
-    let mut kept = Vec::with_capacity(constituents.len());
+    let mut narrowed = Vec::with_capacity(constituents.len());
+    let mut changed = false;
     for t in constituents.iter().copied() {
         if !has_definite_facts(t) {
             return None;
         }
-        let mut passing = 0;
+        let mut kept = false;
+        let mut dropped = 0;
+        let mut replacements = Vec::new();
         for &narrowing in &condition.narrowings {
-            if passes(checker, t, narrowing)? {
-                passing += 1;
+            match outcome(checker, t, narrowing)? {
+                Outcome::Keep => kept = true,
+                Outcome::Drop => dropped += 1,
+                Outcome::Replace(replacement) => replacements.push(replacement),
             }
         }
         let keep = if condition.any {
-            passing > 0
+            kept
         } else {
-            passing == condition.narrowings.len()
+            dropped == 0 && replacements.is_empty()
         };
         if keep {
-            kept.push(t);
+            narrowed.push(t);
+            continue;
+        }
+        changed = true;
+        if condition.any {
+            narrowed.extend(replacements);
         }
     }
-    if kept.is_empty() || kept.len() == constituents.len() {
+    if !changed || narrowed.is_empty() {
         return None;
     }
-    Some(checker.get_union_type_exported(&kept))
+    Some(checker.get_union_type_exported(&narrowed))
 }
 
 /// Whether TypeScript would infer `predicate` itself if the annotation were removed, like its
@@ -551,10 +784,13 @@ fn is_inferable(checker: &mut Checker, function: P<Node>, predicate: P<Node>) ->
         return false;
     };
     let declared = checker.get_type_of_symbol(symbol);
+    let predicate_type = checker.get_type_from_type_node_exported(predicate_type);
+    if declared.flags().intersects(TypeFlags::TypeParameter) {
+        return infers_non_nullable_type_parameter(checker, declared, &condition, predicate_type);
+    }
     let Some(narrowed) = narrowed_type(checker, declared, &condition) else {
         return false;
     };
-    let predicate_type = checker.get_type_from_type_node_exported(predicate_type);
     checker.is_type_identical_to(narrowed, predicate_type)
 }
 
