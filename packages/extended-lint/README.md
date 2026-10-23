@@ -31,8 +31,9 @@ Rules are being migrated to [`@ls-stack/fast-lint`](../fast-lint), where these n
 `no-redundant-function-params`, `react-no-module-level-single-use-values`, `require-reads-to-var-prop`,
 `prefer-react-hook-alternative`, `sort-react-components-and-styles`, `use-types-directly-above-usage` and
 `react-compiler-extra`. The `rules-of-hooks` and `exhaustive-deps` forks were removed; use `eslint-plugin-react-hooks`
-(or oxlint's built-in rules) instead. `collapse-simple-objs-in-one-line` and `prefer-single-line-if` were removed.
+(or oxlint's built-in rules) instead. `collapse-simple-objs-in-one-line`, `prefer-single-line-if`,
+`react-compiler-migration`, `template-indent`, `no-unnecessary-describe` and `no-data-attributes-on-components` were
+removed.
 
-Remaining rules: `no-data-attributes-on-components`, `no-restricted-comments`, `no-unnecessary-async-on-jsx-props`,
-`no-unnecessary-describe`, `no-unused-obj-props`, `react-compiler-migration`, `require-usage-explanation`,
-`template-indent` and `use-top-level-regex`.
+Remaining rules: `no-restricted-comments`, `no-unnecessary-async-on-jsx-props`, `no-unused-obj-props`,
+`require-usage-explanation` and `use-top-level-regex`.
