@@ -345,3 +345,18 @@ test('void whose value is discarded in sequences and for', async () => {
     "
   `)
 })
+
+test('void with comments outside its argument has no suggestion', async () => {
+  const { result } = await invalid(dedent`
+    declare function getString(): string
+
+    void /* keep */ getString()
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryVoid', line: 3 }
+    "
+  `)
+  expect(result.messages[0]?.suggestions).toBeUndefined()
+})

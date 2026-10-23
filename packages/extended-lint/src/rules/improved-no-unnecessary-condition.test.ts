@@ -248,7 +248,7 @@ test('always false typeof check with !== operator', async () => {
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
+    - { messageId: 'alwaysFalseNegatedTypeofCondition', line: 2 }
     "
   `)
 })
@@ -312,7 +312,7 @@ test('always false typeof check with not operator in ternary expression', async 
 
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
-    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
+    - { messageId: 'alwaysFalseNegatedTypeofCondition', line: 2 }
     "
   `)
 })
@@ -1494,7 +1494,7 @@ test('typeof with repeated outcomes', async () => {
   expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
     "
     - { messageId: 'unnecessaryTypeofCondition', line: 2 }
-    - { messageId: 'alwaysFalseTypeofCondition', line: 3 }
+    - { messageId: 'alwaysFalseNegatedTypeofCondition', line: 3 }
     - { messageId: 'unnecessaryTypeofCondition', line: 5 }
     "
   `)
@@ -1568,5 +1568,81 @@ test('in check of __proto__ is ignored', async () => {
   await valid(dedent`
     declare const o: { a: number }
     if ('__proto__' in o) {}
+  `)
+})
+
+test('reads through index signatures may be undefined', async () => {
+  await valid(dedent`
+    declare const items: string[]
+    declare const cache: Record<string, { a: number }>
+    declare const nested: string[][]
+    declare const i: number
+    declare const key: string
+
+    if (typeof items[i] === 'undefined') {}
+    if (typeof items[i] !== 'undefined') {}
+    if (typeof cache[key] === 'object') {}
+    if (typeof cache.entry === 'undefined') {}
+    if (Array.isArray(nested[i])) {}
+  `)
+})
+
+test('reads of declared properties are still checked', async () => {
+  const { result } = await invalid(dedent`
+    declare const items: string[]
+    declare const pair: [string, number]
+    declare const i: number
+
+    const a = typeof items[i] === 'number'
+    const b = typeof pair[0] === 'undefined'
+  `)
+
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - messageId: 'alwaysFalseTypeofCondition'
+      msg: 'This condition will always be false. The type of "items[i]" is "string | undefined" so the condition has no overlap with "number".'
+      line: 5
+    - messageId: 'alwaysFalseTypeofCondition'
+      msg: 'This condition will always be false. The type of "pair[0]" is "string" so the condition has no overlap with "undefined".'
+      line: 6
+    "
+  `)
+})
+
+test('typeof new.target is ignored', async () => {
+  await valid(dedent`
+    export function F() {
+      if (typeof new.target === 'undefined') return
+    }
+  `)
+})
+
+test('always true string check in an optional chain is ignored', async () => {
+  const { result } = await invalid(dedent`
+    declare const o: { b: 'abc' } | undefined
+
+    if (o?.b.startsWith('a')) {}
+    if (o?.b.startsWith('x')) {}
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'alwaysFalseStartsWithCondition', line: 4 }
+    "
+  `)
+})
+
+test('negated typeof of the only possible type', async () => {
+  const { result } = await invalid(dedent`
+    declare const r: void
+    const a = typeof r !== 'undefined'
+  `)
+
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - messageId: 'alwaysFalseNegatedTypeofCondition'
+      msg: 'This condition will always be false. The type of "r" is always "undefined".'
+      line: 2
+    "
   `)
 })

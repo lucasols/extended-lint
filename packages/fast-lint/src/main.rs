@@ -32,7 +32,7 @@ Options:
       --quiet               Report errors only
       --max-warnings <n>    Fail when there are more than n warnings (-1: no limit)
       --timing              Print program and lint times to stderr
-      --no-color            Disable colors
+      --color, --no-color   Force or disable colors
   -h, --help                Print this help
   -v, --version             Print the version
 ";
@@ -73,10 +73,28 @@ fn parse_args(raw: Vec<String>) -> Result<Parsed, String> {
     };
     let mut iter = raw.into_iter();
     while let Some(arg) = iter.next() {
+        if arg == "--" {
+            args.paths.extend(iter.by_ref());
+            break;
+        }
         let (name, inline_value) = match arg.split_once('=') {
             Some((n, v)) if n.starts_with("--") => (n.to_string(), Some(v.to_string())),
             _ => (arg.clone(), None),
         };
+        if inline_value.is_some()
+            && matches!(
+                name.as_str(),
+                "--help"
+                    | "--version"
+                    | "--fix"
+                    | "--quiet"
+                    | "--timing"
+                    | "--color"
+                    | "--no-color"
+            )
+        {
+            return Err(format!("{name} doesn't take a value"));
+        }
         let mut value = |flag: &str| -> Result<String, String> {
             inline_value
                 .clone()
@@ -101,6 +119,7 @@ fn parse_args(raw: Vec<String>) -> Result<Parsed, String> {
                 args.max_warnings = usize::try_from(max).ok();
             }
             "--timing" => args.timing = true,
+            "--color" => args.color = true,
             "--no-color" => args.color = false,
             _ if name.starts_with('-') && name.len() > 1 => {
                 return Err(format!("unknown option {name}\n\n{HELP}"))
@@ -113,10 +132,18 @@ fn parse_args(raw: Vec<String>) -> Result<Parsed, String> {
 
 fn canonical(path: &str) -> Option<String> {
     let canonical = std::fs::canonicalize(path).ok()?;
-    let canonical = canonical.to_string_lossy();
-    Some(tspath::normalize_path(
-        canonical.strip_prefix(r"\\?\").unwrap_or(&canonical),
-    ))
+    Some(tspath::normalize_path(&without_verbatim_prefix(
+        &canonical.to_string_lossy(),
+    )))
+}
+
+/// Windows' `canonicalize` gives verbatim paths: `\\?\C:\dir` for `C:\dir` and `\\?\UNC\server\share` for
+/// `\\server\share`.
+fn without_verbatim_prefix(path: &str) -> String {
+    if let Some(unc) = path.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{unc}");
+    }
+    path.strip_prefix(r"\\?\").unwrap_or(path).to_string()
 }
 
 /// The absolute, normalized form of `path` with the symlinks of its directory resolved, so it compares equal to the
@@ -168,16 +195,45 @@ fn path_arg(cwd: &str, path: &str) -> Vec<String> {
     forms
 }
 
-/// Writes fixed text back, keeping a UTF-8 BOM. The linter only fixes UTF-8 files.
+/// Writes fixed text back, keeping a UTF-8 BOM. The linter only fixes UTF-8 files. The text goes to a temporary file
+/// next to the target (a symlink's target), which then replaces it: an interrupted write never truncates the source.
 fn write_fixed(path: &str, text: &str) -> Result<(), String> {
     const BOM: &[u8] = b"\xEF\xBB\xBF";
-    let original = std::fs::read(path).map_err(|e| format!("failed to read {path}: {e}"))?;
+    let target = std::fs::canonicalize(path).map_err(|e| format!("failed to read {path}: {e}"))?;
+    let permissions = std::fs::metadata(&target)
+        .map_err(|e| format!("failed to read {path}: {e}"))?
+        .permissions();
+    if permissions.readonly() {
+        return Err(format!("failed to write {path}: the file is read-only"));
+    }
+    let original = std::fs::read(&target).map_err(|e| format!("failed to read {path}: {e}"))?;
     let mut bytes = Vec::with_capacity(text.len() + BOM.len());
     if original.starts_with(BOM) {
         bytes.extend_from_slice(BOM);
     }
     bytes.extend_from_slice(text.as_bytes());
-    std::fs::write(path, bytes).map_err(|e| format!("failed to write {path}: {e}"))
+    let file_name = target
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let temp = target.with_file_name(format!(".{file_name}.fast-lint-{}.tmp", std::process::id()));
+    let result = std::fs::write(&temp, bytes)
+        .and_then(|()| std::fs::set_permissions(&temp, permissions))
+        .and_then(|()| std::fs::rename(&temp, &target));
+    result.map_err(|e| {
+        let _ = std::fs::remove_file(&temp);
+        format!("failed to write {path}: {e}")
+    })
+}
+
+/// A tsconfig path; a directory means its `tsconfig.json`, like `tsc -p`.
+fn project_path(base: &str, path: &str) -> String {
+    let resolved = absolute(base, path);
+    if std::path::Path::new(&resolved).is_dir() {
+        tspath::combine_paths(&resolved, &["tsconfig.json"])
+    } else {
+        resolved
+    }
 }
 
 /// The config and the directory its relative paths resolve from.
@@ -211,9 +267,16 @@ fn run(args: Args) -> Result<ExitCode, String> {
     let (config, root) = load_config(&args, &cwd)?;
 
     let projects: Vec<String> = if !args.projects.is_empty() {
-        args.projects.iter().map(|p| absolute(&cwd, p)).collect()
+        args.projects
+            .iter()
+            .map(|p| project_path(&cwd, p))
+            .collect()
     } else if !config.projects.is_empty() {
-        config.projects.iter().map(|p| absolute(&root, p)).collect()
+        config
+            .projects
+            .iter()
+            .map(|p| project_path(&root, p))
+            .collect()
     } else {
         vec![absolute(&root, "tsconfig.json")]
     };
@@ -290,6 +353,13 @@ fn run(args: Args) -> Result<ExitCode, String> {
 }
 
 fn main() -> ExitCode {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        default_hook(info);
+        if let Some(file) = linter::current_file() {
+            eprintln!("fast-lint: crashed while linting {file}");
+        }
+    }));
     let raw: Vec<String> = std::env::args().skip(1).collect();
     let args = match parse_args(raw) {
         Ok(Parsed::Run(args)) => args,
@@ -319,5 +389,39 @@ fn main() -> ExitCode {
             eprintln!("fast-lint: {e}");
             ExitCode::from(2)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_args, without_verbatim_prefix, Parsed};
+
+    #[test]
+    fn verbatim_prefixes_are_removed() {
+        assert_eq!(without_verbatim_prefix(r"\\?\C:\dir"), r"C:\dir");
+        assert_eq!(
+            without_verbatim_prefix(r"\\?\UNC\server\share\dir"),
+            r"\\server\share\dir"
+        );
+        assert_eq!(without_verbatim_prefix("/home/dir"), "/home/dir");
+    }
+
+    fn parse(args: &[&str]) -> Result<Vec<String>, String> {
+        match parse_args(args.iter().map(ToString::to_string).collect())? {
+            Parsed::Run(args) => Ok(args.paths),
+            Parsed::Exit(_) => Err("exit".to_string()),
+        }
+    }
+
+    #[test]
+    fn flags_reject_inline_values_and_double_dash_ends_options() {
+        assert_eq!(
+            parse(&["--fix=false"]),
+            Err("--fix doesn't take a value".to_string())
+        );
+        assert_eq!(
+            parse(&["--color", "--", "--fix", "src"]),
+            Ok(vec!["--fix".to_string(), "src".to_string()])
+        );
     }
 }

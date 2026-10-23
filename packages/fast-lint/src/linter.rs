@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -9,7 +10,7 @@ use tsrs_core::tspath::{self, Path};
 use tsrs_core::{Tristate, P};
 use tsrs_vfs::{bundled, cachedvfs, osvfs, FS};
 use tsrslint::linter::{lint_files, Options};
-use tsrslint::rule::{ReportedDiagnostic, Rule, RuleFix, RuleSuggestion};
+use tsrslint::rule::{Ctx, ReportedDiagnostic, Rule, RuleFix, RuleSuggestion, RuleVisitor};
 use tsrslint::tsconfig::{ExtendedConfigCache, ParseHost, TsConfigResolver};
 
 use crate::config::{Config, EnabledRule, Severity};
@@ -351,7 +352,7 @@ fn select_files(
         }
         let relative = relative_path(&opts.root, file_name);
         let skipped = tspath::is_declaration_file_name(file_name)
-            || file_name.contains("/node_modules/")
+            || relative.split('/').any(|segment| segment == "node_modules")
             || config.is_ignored(&relative);
         for (p, state) in opts.paths.iter().zip(selection.paths.iter_mut()) {
             if is_under(file_name, p) {
@@ -412,6 +413,35 @@ fn parsing_error(file: P<SourceFile>) -> FileResult {
     }
 }
 
+thread_local! {
+    /// The file this thread is linting, for the panic hook to name it.
+    static CURRENT_FILE: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+/// The file the current thread is linting, if any.
+pub fn current_file() -> Option<String> {
+    CURRENT_FILE.with(|file| file.borrow().clone())
+}
+
+/// A rule that records the file it is created for, so a panic in a rule or the checker names the file.
+struct Tracked(&'static dyn Rule);
+
+impl Rule for Tracked {
+    fn name(&self) -> &'static str {
+        self.0.name()
+    }
+    fn create_visitor(&'static self, ctx: &mut Ctx) -> Box<dyn RuleVisitor> {
+        CURRENT_FILE.with(|file| {
+            let name = ctx.file.file_name();
+            let mut file = file.borrow_mut();
+            if file.as_deref() != Some(name) {
+                *file = Some(name.to_string());
+            }
+        });
+        self.0.create_visitor(ctx)
+    }
+}
+
 fn create_rules(rules: &[EnabledRule]) -> Vec<&'static dyn Rule> {
     rules
         .iter()
@@ -422,7 +452,7 @@ fn create_rules(rules: &[EnabledRule]) -> Vec<&'static dyn Rule> {
                 .and_then(|o| serde_json::from_str(o).ok());
             crate::rules::create_rule(r.name, options.as_ref())
                 .ok()
-                .map(|rule| -> &'static dyn Rule { Box::leak(rule) })
+                .map(|rule| -> &'static dyn Rule { Box::leak(Box::new(Tracked(Box::leak(rule)))) })
         })
         .collect()
 }
@@ -525,12 +555,12 @@ fn lint_group(
     results
 }
 
-/// A replacement applied to the text: the original byte range and the length of its new text.
-#[derive(Clone, Copy)]
+/// A replacement applied to the text: the original byte range and its new text.
 struct Edit {
     pos: u32,
     end: u32,
     len: u32,
+    text: String,
 }
 
 /// Maps an offset of the original text to the fixed text. `None` when it falls strictly inside a replaced range.
@@ -546,6 +576,38 @@ fn map_offset(edits: &[Edit], offset: u32) -> Option<u32> {
         delta += i64::from(edit.len) - i64::from(edit.end - edit.pos);
     }
     u32::try_from(i64::from(offset) + delta).ok()
+}
+
+/// Maps a diagnostic's range to the fixed text. A range inside a replaced range is found in the replacement text,
+/// which keeps it when an enclosing call or operator was removed (`String(Number(o))` fixed to `Number(o)`), else it
+/// collapses to the replacement's start.
+fn map_range(text: &str, edits: &[Edit], pos: u32, end: u32) -> (u32, u32) {
+    if let (Some(mapped_pos), Some(mapped_end)) = (map_offset(edits, pos), map_offset(edits, end)) {
+        return (mapped_pos, mapped_end.max(mapped_pos));
+    }
+    let Some(edit) = edits.iter().find(|e| e.pos <= pos && pos < e.end) else {
+        let mapped_pos = map_offset(edits, pos).unwrap_or(0);
+        return (mapped_pos, mapped_pos);
+    };
+    let start = map_offset(edits, edit.pos).unwrap_or(0);
+    let original = text
+        .get(pos as usize..end as usize)
+        .filter(|original| !original.is_empty() && end <= edit.end);
+    let relative = i64::from(pos - edit.pos);
+    let found = original.and_then(|original| {
+        edit.text
+            .match_indices(original)
+            .map(|(index, _)| index)
+            .min_by_key(|&index| (i64::try_from(index).unwrap_or(i64::MAX) - relative).abs())
+            .map(|index| (index, original.len()))
+    });
+    match found {
+        Some((index, len)) => {
+            let mapped_pos = start + u32::try_from(index).unwrap_or(0);
+            (mapped_pos, mapped_pos + u32::try_from(len).unwrap_or(0))
+        }
+        None => (start, start),
+    }
 }
 
 /// Moves fixes to the fixed text. `None` when one overlaps or encloses an applied edit: its text was computed from the
@@ -617,6 +679,7 @@ fn apply_fixes(text: &str, diagnostics: &mut Vec<Diagnostic>, errors_only: bool)
                 pos: u32::try_from(f.pos).unwrap_or(0),
                 end: u32::try_from(f.end).unwrap_or(0),
                 len: u32::try_from(f.text.len()).unwrap_or(u32::MAX),
+                text: f.text.clone(),
             });
         }
         if let Some(a) = applied.get_mut(i) {
@@ -634,13 +697,7 @@ fn apply_fixes(text: &str, diagnostics: &mut Vec<Diagnostic>, errors_only: bool)
 
     let starts = line_starts(&out);
     for d in diagnostics.iter_mut() {
-        let pos = map_offset(&edits, d.pos).unwrap_or_else(|| {
-            edits
-                .iter()
-                .find(|e| e.pos < d.pos && d.pos < e.end)
-                .map_or(0, |e| map_offset(&edits, e.pos).unwrap_or(0))
-        });
-        let end = map_offset(&edits, d.end).unwrap_or(pos).max(pos);
+        let (pos, end) = map_range(text, &edits, d.pos, d.end);
         d.pos = pos;
         d.end = end;
         (d.line, d.column) = text_line_col(&out, &starts, pos);

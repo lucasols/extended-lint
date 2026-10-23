@@ -906,3 +906,69 @@ fn asi_guard_ignores_jsdoc_tokens() {
     ;-n
     ");
 }
+
+#[test]
+fn conversion_hooks_that_may_give_a_number_are_valid() {
+    valid(
+        RULE,
+        indoc! {"
+            declare const toPrimitiveKey: unique symbol
+            declare const toPrimitiveNull: { [Symbol.toPrimitive]: null; valueOf(): number }
+            declare const toPrimitiveOptional: { [Symbol.toPrimitive]?(): symbol; valueOf(): number }
+            declare const valueOfNull: { valueOf(): null }
+            declare const valueOfBranded: { valueOf(): number & { __brand: 'n' } }
+            declare const userSymbolKey: { [toPrimitiveKey](): object; valueOf(): number }
+            declare class Box<T> {
+              valueOf(): T
+            }
+
+            function boxed<T extends number>(box: Box<T>) {
+              return Number(box)
+            }
+            const a = Number(toPrimitiveNull)
+            const b = Number(toPrimitiveOptional)
+            const c = Number(valueOfNull)
+            const d = Number(valueOfBranded)
+            const e = Number(userSymbolKey)
+        "},
+    );
+}
+
+#[test]
+fn conversion_hooks_that_never_give_a_number_are_invalid() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const toPrimitiveKey: unique symbol
+            declare const toStringNumber: { toString: number }
+            declare const toStringObject: { toString(): object }
+            declare const userSymbolOnly: { [toPrimitiveKey](): number }
+
+            const a = Number(toStringNumber)
+            const b = Number(toStringObject)
+            const c = Number(userSymbolOnly)
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @r###"
+    - { messageId: 'nanNumberCasting', line: 6 }
+    - { messageId: 'nanNumberCasting', line: 7 }
+    - { messageId: 'nanNumberCasting', line: 8 }
+    "###);
+}
+
+#[test]
+fn unnecessary_cast_fix_keeps_in_operators_of_a_for_initializer() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const z: { a?: number }
+            for (var q = Number('a' in z ? 1 : 2); ; ) break
+        "},
+    );
+
+    assert_snapshot!(result.output, @r###"
+    declare const z: { a?: number }
+    for (var q = ('a' in z ? 1 : 2); ; ) break
+    "###);
+}

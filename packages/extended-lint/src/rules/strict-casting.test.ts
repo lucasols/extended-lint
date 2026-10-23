@@ -849,3 +849,59 @@ test('ASI guard ignores JSDoc tokens', async () => {
     ;-n"
   `)
 })
+
+test('conversion hooks that may give a number are valid', async () => {
+  await valid(dedent`
+    declare const toPrimitiveKey: unique symbol
+    declare const toPrimitiveNull: { [Symbol.toPrimitive]: null; valueOf(): number }
+    declare const toPrimitiveOptional: { [Symbol.toPrimitive]?(): symbol; valueOf(): number }
+    declare const valueOfNull: { valueOf(): null }
+    declare const valueOfBranded: { valueOf(): number & { __brand: 'n' } }
+    declare const userSymbolKey: { [toPrimitiveKey](): object; valueOf(): number }
+    declare class Box<T> {
+      valueOf(): T
+    }
+
+    function boxed<T extends number>(box: Box<T>) {
+      return Number(box)
+    }
+    const a = Number(toPrimitiveNull)
+    const b = Number(toPrimitiveOptional)
+    const c = Number(valueOfNull)
+    const d = Number(valueOfBranded)
+    const e = Number(userSymbolKey)
+  `)
+})
+
+test('conversion hooks that never give a number are invalid', async () => {
+  const { result } = await invalid(dedent`
+    declare const toPrimitiveKey: unique symbol
+    declare const toStringNumber: { toString: number }
+    declare const toStringObject: { toString(): object }
+    declare const userSymbolOnly: { [toPrimitiveKey](): number }
+
+    const a = Number(toStringNumber)
+    const b = Number(toStringObject)
+    const c = Number(userSymbolOnly)
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'nanNumberCasting', line: 6 }
+    - { messageId: 'nanNumberCasting', line: 7 }
+    - { messageId: 'nanNumberCasting', line: 8 }
+    "
+  `)
+})
+
+test('unnecessary cast fix keeps in operators of a for initializer', async () => {
+  const { result } = await invalid(dedent`
+    declare const z: { a?: number }
+    for (var q = Number('a' in z ? 1 : 2); ; ) break
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const z: { a?: number }
+    for (var q = ('a' in z ? 1 : 2); ; ) break"
+  `)
+})

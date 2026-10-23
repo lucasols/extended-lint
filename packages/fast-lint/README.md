@@ -24,6 +24,8 @@ fast-lint src/feature          # only files under these paths
 fast-lint --fix                # apply autofixes (strict-casting's unnecessary casts)
 fast-lint --format json        # stylish (default), compact or json, in ESLint's formats
 fast-lint --max-warnings 0 --timing   # --max-warnings -1: no limit
+fast-lint -p packages/app      # a tsconfig, or a directory with a tsconfig.json
+fast-lint --color -- -odd-name.ts     # force colors; `--` ends the options
 ```
 
 A solution-style tsconfig (empty `files` plus `references`) lints its referenced projects; a file in several
@@ -32,7 +34,8 @@ projects is linted once.
 Paths are printed relative to the current directory. A file with a syntax error gets a single `Parsing error`
 instead of rule diagnostics. `--quiet` hides warnings and doesn't apply their fixes; like ESLint, it skips `warn` rules
 entirely unless `--max-warnings` is given, in which case warnings still count. `--format json` prints ESLint's JSON
-result shape, listing only files with problems or fixes.
+result shape, listing only files with problems or fixes, with the file's `source` when it has problems and wasn't
+fixed.
 
 Exit code: `0` clean, `1` errors (or more warnings than `--max-warnings`), `2` fatal error: a tsconfig with a missing
 `files` entry or `extends` target, no files to lint, a path argument that matches no project file, a directory
@@ -70,8 +73,9 @@ Overrides apply in order, like ESLint flat config blocks: a severity-only entry 
 block. Globs are relative to the config file's directory (`../` for files outside it). Global `ignores` follow ESLint's
 semantics: a pattern matching a directory (`src/gen`, `**/out`, `dist/`, `dist/**`) ignores everything in it, and
 `!pattern` un-ignores files ignored by earlier patterns, but not files inside an ignored directory: to keep a file of
-an ignored directory, ignore its contents with `dir/**/*` instead. Rule names may carry a plugin prefix
-(`@ls-stack/strict-casting`).
+an ignored directory, ignore its contents with `dir/**/*` instead. An override's `ignores` also accept `!pattern`,
+applied in order. Of the extglobs, only `@(a|b)` is supported (write the others with `{a,b}` or several globs). Rule
+names may carry a plugin prefix (`@ls-stack/strict-casting`), but not both forms of one rule in one block.
 
 A script config's default export must be the config object, or a promise of it.
 
@@ -81,7 +85,8 @@ A script config's default export must be the config object, or a promise of it.
 `oxlint-` and `fast-lint-` forms) are honored, with or without a rule list and a `-- description`, so existing
 directives such as `// eslint-disable-next-line @ls-stack/improved-no-unnecessary-condition` keep working. They are
 parsed like ESLint does: the comment text must start with the directive, `disable` and `enable` need a block comment
-(`/* */`), and a multi-line `disable-next-line` block comment applies to the line after the comment ends.
+(`/* */`), and a multi-line `disable-next-line` block comment applies to the line after the comment ends. Inline
+config comments (`/* eslint rule: "off" */`) are ignored, and unused directives aren't reported.
 
 ### Running alongside ESLint
 
@@ -95,6 +100,8 @@ reporting directives that are unused for the remaining ESLint rules.
 ## Differences from ESLint
 
 - `--fix` applies one pass of non-overlapping fixes (ESLint repeats up to 10 passes).
+- `improved-no-unnecessary-condition` reports nothing in a project without `strictNullChecks` (or `strict`), where
+  every type may be nullish.
 - Types come from tsrs (TypeScript 7.1-dev semantics); printed types in messages can differ slightly from TS 5.x.
 - Prebuilt binaries ship for macOS (arm64, x64), Linux (x64, arm64; glibc >= 2.17, not musl/Alpine) and Windows
   x64 (also used on Windows arm64, through emulation). Elsewhere, set `FAST_LINT_BINARY` to a `cargo build --release`

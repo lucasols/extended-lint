@@ -1,6 +1,8 @@
 import {
   AST_NODE_TYPES,
+  AST_TOKEN_TYPES,
   ESLintUtils,
+  TSESLint,
   TSESTree,
 } from '@typescript-eslint/utils'
 import * as ts from 'typescript'
@@ -52,15 +54,57 @@ function isNumericLiteralMemberObject(
   )
 }
 
+const forInitializerBoundaries = new Set<AST_NODE_TYPES>([
+  AST_NODE_TYPES.ArrowFunctionExpression,
+  AST_NODE_TYPES.FunctionExpression,
+  AST_NODE_TYPES.ClassBody,
+])
+
+function isInForInitializer(node: TSESTree.Node): boolean {
+  let current = node
+
+  for (;;) {
+    const parent = current.parent
+    if (!parent) return false
+
+    if (parent.type === AST_NODE_TYPES.ForStatement) {
+      return parent.init === current
+    }
+
+    if (
+      forInitializerBoundaries.has(parent.type) ||
+      parent.type.endsWith('Statement')
+    ) {
+      return false
+    }
+
+    current = parent
+  }
+}
+
+function containsInOperator(
+  arg: TSESTree.Expression,
+  sourceCode: TSESLint.SourceCode,
+): boolean {
+  return sourceCode
+    .getTokens(arg)
+    .some((token) => token.type === AST_TOKEN_TYPES.Keyword && token.value === 'in')
+}
+
 function unnecessaryFixNeedsParens(
   arg: TSESTree.Expression,
   node: TSESTree.CallExpression,
+  sourceCode: TSESLint.SourceCode,
 ): boolean {
   if (isNumericLiteralMemberObject(arg, node)) return true
 
   if (simpleArgTypes.has(arg.type)) return false
 
   if (arg.type === AST_NODE_TYPES.SequenceExpression) return true
+
+  if (containsInOperator(arg, sourceCode) && isInForInitializer(node)) {
+    return true
+  }
 
   const parent = node.parent
 
@@ -89,8 +133,16 @@ const primitiveTypeFlags =
   ts.TypeFlags.BooleanLike |
   ts.TypeFlags.EnumLike
 
-const convertiblePrimitiveTypeFlags =
-  primitiveTypeFlags | ts.TypeFlags.Any | ts.TypeFlags.Unknown
+const numberishTypeFlags =
+  primitiveTypeFlags |
+  ts.TypeFlags.Null |
+  ts.TypeFlags.Any |
+  ts.TypeFlags.Unknown
+
+type PrimitiveHook = {
+  mayReturnNumber: boolean
+  mayBeAbsent: boolean
+}
 
 type Options = z.infer<typeof optionsSchema>
 
@@ -203,15 +255,64 @@ export const strictCasting = createExtendedLintRule<
       )
     }
 
-    function methodReturnsPrimitive(method: ts.Symbol, tsNode: ts.Node): boolean {
+    function mayBeNumberish(type: ts.Type): boolean {
+      if (type.isUnion()) return type.types.some(mayBeNumberish)
+
+      if (type.flags & numberishTypeFlags) return true
+
+      if (type.isIntersection()) {
+        return type.types.some((part) => (part.flags & primitiveTypeFlags) !== 0)
+      }
+
+      if (type.flags & ts.TypeFlags.Instantiable) {
+        const constraint = checker.getBaseConstraintOfType(type)
+
+        return !constraint || (constraint !== type && mayBeNumberish(constraint))
+      }
+
+      return false
+    }
+
+    function getPrimitiveHook(
+      method: ts.Symbol,
+      tsNode: ts.Node,
+    ): PrimitiveHook | undefined {
       const methodType = checker.getTypeOfSymbolAtLocation(method, tsNode)
+      const parts = methodType.isUnion() ? methodType.types : [methodType]
+      const presentParts = parts.filter(
+        (part) => !(part.flags & nullishTypeFlags),
+      )
 
-      return methodType.getCallSignatures().some((signature) => {
-        const returnType = signature.getReturnType()
-        const parts = returnType.isUnion() ? returnType.types : [returnType]
+      if (presentParts.length === 0) return undefined
 
-        return parts.some((part) => part.flags & convertiblePrimitiveTypeFlags)
-      })
+      return {
+        mayBeAbsent:
+          (method.flags & ts.SymbolFlags.Optional) !== 0 ||
+          presentParts.length < parts.length,
+        mayReturnNumber: presentParts.some(
+          (part) =>
+            (part.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) !== 0 ||
+            part
+              .getCallSignatures()
+              .some((signature) => mayBeNumberish(signature.getReturnType())),
+        ),
+      }
+    }
+
+    function isWellKnownToPrimitive(property: ts.Symbol): boolean {
+      if (!property.getName().startsWith('__@toPrimitive@')) return false
+
+      return (
+        property.declarations?.some((declaration) => {
+          const name = ts.getNameOfDeclaration(declaration)
+
+          if (!name || !ts.isComputedPropertyName(name)) return false
+
+          const symbol = checker.getSymbolAtLocation(name.expression)
+
+          return symbol?.declarations?.some(isDefaultLibDeclaration) ?? false
+        }) ?? false
+      )
     }
 
     function mayConvertToNumber(type: ts.Type, tsNode: ts.Node): boolean {
@@ -227,21 +328,32 @@ export const strictCasting = createExtendedLintRule<
       const apparentType = checker.getApparentType(type)
       const toPrimitive = apparentType
         .getProperties()
-        .find((property) => property.getName().startsWith('__@toPrimitive@'))
+        .find(isWellKnownToPrimitive)
+      const toPrimitiveHook =
+        toPrimitive && getPrimitiveHook(toPrimitive, tsNode)
 
-      if (toPrimitive) return methodReturnsPrimitive(toPrimitive, tsNode)
+      if (toPrimitiveHook) {
+        if (toPrimitiveHook.mayReturnNumber) return true
+        if (!toPrimitiveHook.mayBeAbsent) return false
+      }
 
       const valueOf = apparentType.getProperty('valueOf')
 
-      if (valueOf && methodReturnsPrimitive(valueOf, tsNode)) return true
+      if (valueOf && getPrimitiveHook(valueOf, tsNode)?.mayReturnNumber) {
+        return true
+      }
 
       const toString = apparentType.getProperty('toString')
 
-      return (
-        toString?.declarations?.some(
+      if (
+        !toString?.declarations?.some(
           (declaration) => !isDefaultLibDeclaration(declaration),
-        ) ?? false
-      )
+        )
+      ) {
+        return false
+      }
+
+      return getPrimitiveHook(toString, tsNode)?.mayReturnNumber ?? false
     }
 
     function hasCommentsOutsideArg(
@@ -314,7 +426,9 @@ export const strictCasting = createExtendedLintRule<
             node,
             getReplacementAt(
               node,
-              unnecessaryFixNeedsParens(arg, node) ? `(${argText})` : argText,
+              unnecessaryFixNeedsParens(arg, node, context.sourceCode)
+                ? `(${argText})`
+                : argText,
               context.sourceCode,
             ),
           )

@@ -370,7 +370,7 @@ fn json_output_has_the_eslint_result_shape() {
         .expect("lint");
 
     let json = render(Format::Json, &project.root(), &output.files, false);
-    assert_snapshot!(json.replace(&project.root(), "<root>"), @r###"[{"filePath":"<root>/src/a.ts","messages":[{"ruleId":"strict-casting","severity":2,"message":"Unnecessary String() cast of a value that is already of type string","line":1,"column":33,"messageId":"unnecessaryCasting","endLine":1,"endColumn":42,"fix":{"range":[32,41],"text":"s"}}],"suppressedMessages":[],"errorCount":1,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":1,"fixableWarningCount":0,"usedDeprecatedRules":[]}]"###);
+    assert_snapshot!(json.replace(&project.root(), "<root>"), @r###"[{"filePath":"<root>/src/a.ts","messages":[{"ruleId":"strict-casting","severity":2,"message":"Unnecessary String() cast of a value that is already of type string","line":1,"column":33,"messageId":"unnecessaryCasting","endLine":1,"endColumn":42,"fix":{"range":[32,41],"text":"s"}}],"suppressedMessages":[],"errorCount":1,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":1,"fixableWarningCount":0,"source":"export const a = (s: string) => String(s)\n","usedDeprecatedRules":[]}]"###);
 }
 
 #[test]
@@ -819,4 +819,111 @@ fn fix_drops_suggestions_that_enclose_an_applied_fix() {
         .find(|d| d.rule == "no-unnecessary-void-on-promise")
         .expect("the void diagnostic");
     assert!(void_diagnostic.suggestions.is_empty());
+}
+
+#[test]
+fn unnecessary_condition_needs_strict_null_checks() {
+    let project = Project::new(
+        "loose",
+        &[
+            (
+                "tsconfig.json",
+                r#"{ "compilerOptions": { "strict": false }, "include": ["src"] }"#,
+            ),
+            (
+                "tsconfig.strict.json",
+                r#"{ "compilerOptions": { "strict": false, "strictNullChecks": true }, "include": ["src"] }"#,
+            ),
+            (
+                "src/a.ts",
+                "declare const s: string\nexport const x = typeof s === 'number'\n",
+            ),
+        ],
+    );
+
+    let loose = project
+        .lint(ALL_RULES, &["tsconfig.json"], &[], false)
+        .expect("lint");
+    let strict = project
+        .lint(ALL_RULES, &["tsconfig.strict.json"], &[], false)
+        .expect("lint");
+
+    assert_snapshot!(summary(&project, &loose), @"");
+    assert_snapshot!(summary(&project, &strict), @"src/a.ts:2:18 improved-no-unnecessary-condition error");
+}
+
+#[test]
+fn projects_inside_a_node_modules_directory_are_linted() {
+    let project = Project::new(
+        "in-node-modules",
+        &[
+            ("node_modules/pkg/tsconfig.json", TSCONFIG),
+            ("node_modules/pkg/fast-lint.config.json", ALL_RULES),
+            (
+                "node_modules/pkg/src/a.ts",
+                "export const a = (s: string) => String(s)\n",
+            ),
+        ],
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_fast-lint"))
+        .args(["--format", "compact", "-p", "tsconfig.json"])
+        .current_dir(project.root.join("node_modules/pkg"))
+        .output()
+        .expect("run fast-lint");
+
+    assert_snapshot!(String::from_utf8_lossy(&output.stdout), @r###"
+    src/a.ts: line 1, col 33, Error - Unnecessary String() cast of a value that is already of type string (strict-casting)
+
+    1 problem
+    "###);
+}
+
+#[test]
+fn project_flag_accepts_a_directory() {
+    let project = Project::new(
+        "project-dir",
+        &[
+            ("app/tsconfig.json", TSCONFIG),
+            ("fast-lint.config.json", ALL_RULES),
+            (
+                "app/src/a.ts",
+                "export const a = (s: string) => String(s)\n",
+            ),
+        ],
+    );
+
+    let (code, stdout) = project.cli(&["--format", "compact", "-p", "app"]);
+
+    assert_eq!(code, 1);
+    assert_snapshot!(stdout, @r###"
+    app/src/a.ts: line 1, col 33, Error - Unnecessary String() cast of a value that is already of type string (strict-casting)
+
+    1 problem
+    "###);
+}
+
+#[test]
+fn fix_maps_problems_inside_a_fixed_range_to_their_new_position() {
+    let project = Project::new(
+        "fix-nested",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            (
+                "src/a.ts",
+                "declare const o: { a: string }\nexport const x = String(\n  String(Number(o)),\n)\n",
+            ),
+        ],
+    );
+
+    let output = project
+        .lint(ALL_RULES, &["tsconfig.json"], &[], true)
+        .expect("lint");
+
+    let file = output.files.first().expect("a file result");
+    assert_snapshot!(file.fixed_text.as_deref().unwrap_or_default(), @r###"
+    declare const o: { a: string }
+    export const x = String(Number(o))
+    "###);
+    assert_snapshot!(summary(&project, &output), @"src/a.ts:2:25 strict-casting error");
 }

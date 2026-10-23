@@ -155,10 +155,16 @@ fn comment_value(text: &str, (start, end, is_block): Comment) -> Option<&str> {
     }
 }
 
+/// JavaScript's whitespace (`\s`, what ESLint's directive parsing uses): Unicode `White_Space` and U+FEFF, but not
+/// U+0085.
+fn is_js_whitespace(c: char) -> bool {
+    c == '\u{FEFF}' || (c != '\u{85}' && c.is_whitespace())
+}
+
 /// The directive part of a comment value, before a `--` description separator surrounded by whitespace.
 fn directive_part(value: &str) -> &str {
     for (i, c) in value.char_indices() {
-        if !c.is_whitespace() {
+        if !is_js_whitespace(c) {
             continue;
         }
         let rest = value.get(i + c.len_utf8()..).unwrap_or_default();
@@ -167,19 +173,20 @@ fn directive_part(value: &str) -> &str {
             && rest
                 .get(dashes..)
                 .and_then(|after| after.chars().next())
-                .is_some_and(char::is_whitespace)
+                .is_some_and(is_js_whitespace)
         {
-            return value.get(..i).unwrap_or(value).trim();
+            return value
+                .get(..i)
+                .unwrap_or(value)
+                .trim_matches(is_js_whitespace);
         }
     }
-    value.trim()
+    value.trim_matches(is_js_whitespace)
 }
 
 /// The directive label: lowercase words joined by single hyphens, followed by whitespace or the end.
 fn label_of(directive: &str) -> Option<&str> {
-    let end = directive
-        .find(|c: char| c.is_whitespace())
-        .unwrap_or(directive.len());
+    let end = directive.find(is_js_whitespace).unwrap_or(directive.len());
     let label = directive.get(..end)?;
     let valid = label
         .split('-')
@@ -210,7 +217,7 @@ fn parse_directive(text: &str, comment: Comment, line_starts: &[usize]) -> Optio
         .get(label.len()..)?
         .split(',')
         .map(|r| {
-            let r = r.trim();
+            let r = r.trim_matches(is_js_whitespace);
             let unquoted = ['"', '\'']
                 .iter()
                 .find_map(|&q| r.strip_prefix(q).and_then(|r| r.strip_suffix(q)))
@@ -360,6 +367,13 @@ mod tests {
         let suppressions = parse(text);
         assert!(suppressions.is_suppressed("strict-casting", 43, 2));
         assert!(!suppressions.is_suppressed("strict-casting", 53, 3));
+    }
+
+    #[test]
+    fn directive_whitespace_is_javascript_whitespace() {
+        let text = "//\u{FEFF}eslint-disable-next-line strict-casting\nString(a)\n//\u{85}eslint-disable-next-line strict-casting\nString(b)\n";
+        assert!(suppressed(text, "strict-casting", 2));
+        assert!(!suppressed(text, "strict-casting", 4));
     }
 
     #[test]

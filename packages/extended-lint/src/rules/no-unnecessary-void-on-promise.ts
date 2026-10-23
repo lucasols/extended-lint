@@ -93,6 +93,14 @@ export const noUnnecessaryVoidOnPromise = createExtendedLintRule<
           const sourceCode = context.sourceCode
           const argumentText = sourceCode.getText(node.argument)
 
+          if (
+            sourceCode.getCommentsInside(node).length >
+            sourceCode.getCommentsInside(node.argument).length
+          ) {
+            context.report({ node, messageId: 'unnecessaryVoid' })
+            return
+          }
+
           context.report({
             node,
             messageId: 'unnecessaryVoid',

@@ -345,3 +345,18 @@ fn void_whose_value_is_discarded_in_sequences_and_for() {
     - { messageId: 'unnecessaryVoid', line: 5 }
     ");
 }
+
+#[test]
+fn void_with_comments_outside_its_argument_has_no_suggestion() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare function getString(): string
+
+            void /* keep */ getString()
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @"- { messageId: 'unnecessaryVoid', line: 3 }");
+    assert!(result.diagnostics.iter().all(|d| d.suggestions.is_empty()));
+}

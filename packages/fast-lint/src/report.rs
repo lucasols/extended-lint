@@ -230,33 +230,44 @@ struct JsonFile<'a> {
     warning_count: usize,
     fixable_error_count: usize,
     fixable_warning_count: usize,
+    /// The original text, for files with problems and no `output`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     output: Option<&'a str>,
     used_deprecated_rules: [(); 0],
 }
 
 /// Converts byte offsets of a file's text to the UTF-16 indices ESLint uses for fix ranges.
-struct Utf16Offsets<'a> {
-    /// `None` for ASCII text, where both are the same.
-    text: Option<&'a str>,
+struct Utf16Offsets {
+    /// For each non-ASCII character: the byte offset after it and how many more bytes than UTF-16 units the text up
+    /// to there has. Empty for ASCII text, where both are the same.
+    shifts: Vec<(usize, usize)>,
 }
 
-impl Utf16Offsets<'_> {
-    fn new(text: &str) -> Utf16Offsets<'_> {
-        Utf16Offsets {
-            text: (!text.is_ascii()).then_some(text),
+impl Utf16Offsets {
+    fn new(text: &str) -> Utf16Offsets {
+        let mut shifts = Vec::new();
+        if !text.is_ascii() {
+            let mut shift = 0;
+            for (index, c) in text.char_indices().filter(|(_, c)| !c.is_ascii()) {
+                shift += c.len_utf8() - c.len_utf16();
+                shifts.push((index + c.len_utf8(), shift));
+            }
         }
+        Utf16Offsets { shifts }
     }
 
     fn get(&self, offset: i32) -> i32 {
-        let Some(text) = self.text else {
+        let Ok(bytes) = usize::try_from(offset) else {
             return offset;
         };
-        let offset = usize::try_from(offset).unwrap_or(0);
-        let units = text
-            .get(..offset)
-            .map_or(0, |prefix| prefix.encode_utf16().count());
-        i32::try_from(units).unwrap_or(i32::MAX)
+        let before = self.shifts.partition_point(|&(end, _)| end <= bytes);
+        let shift = before
+            .checked_sub(1)
+            .and_then(|i| self.shifts.get(i))
+            .map_or(0, |&(_, shift)| shift);
+        i32::try_from(bytes - shift).unwrap_or(i32::MAX)
     }
 }
 
@@ -332,6 +343,7 @@ fn json(files: &[FileResult]) -> String {
                 warning_count: counts.warnings,
                 fixable_error_count: counts.fixable_errors,
                 fixable_warning_count: counts.fixable_warnings,
+                source: (f.fixed_text.is_none() && !f.diagnostics.is_empty()).then_some(f.source),
                 output: f.fixed_text.as_deref(),
                 used_deprecated_rules: [],
             }

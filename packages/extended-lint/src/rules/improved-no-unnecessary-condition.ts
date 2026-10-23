@@ -56,6 +56,7 @@ export const improvedNoUnnecessaryCondition = {
     [Options],
     | 'unnecessaryTypeofCondition'
     | 'alwaysFalseTypeofCondition'
+    | 'alwaysFalseNegatedTypeofCondition'
     | 'unnecessaryStartsWithCondition'
     | 'alwaysFalseStartsWithCondition'
     | 'unnecessaryEndsWithCondition'
@@ -80,6 +81,8 @@ export const improvedNoUnnecessaryCondition = {
           'This condition is unnecessary. The type of "{{name}}" is always "{{type}}".',
         alwaysFalseTypeofCondition:
           'This condition will always be false. The type of "{{name}}" is "{{actualType}}" so the condition has no overlap with "{{conditionType}}".',
+        alwaysFalseNegatedTypeofCondition:
+          'This condition will always be false. The type of "{{name}}" is always "{{type}}".',
         unnecessaryStartsWithCondition:
           'This startsWith check is unnecessary as it always evaluates to true.',
         alwaysFalseStartsWithCondition:
@@ -116,6 +119,15 @@ export const improvedNoUnnecessaryCondition = {
       if (!checker || !parserServices.program) {
         throw new Error('TypeScript services or program not available')
       }
+
+      const compilerOptions = parserServices.program.getCompilerOptions()
+
+      if (!(compilerOptions.strictNullChecks ?? compilerOptions.strict)) {
+        return {}
+      }
+
+      const noUncheckedIndexedAccess =
+        compilerOptions.noUncheckedIndexedAccess ?? false
 
       function isTypeofExpression(
         node: TSESTree.Node,
@@ -264,6 +276,71 @@ export const improvedNoUnnecessaryCondition = {
         return null
       }
 
+      function skipParentheses(expression: ts.Node): ts.Node {
+        let current = expression
+        while (ts.isParenthesizedExpression(current)) {
+          current = current.expression
+        }
+        return current
+      }
+
+      function getLiteralKey(argument: ts.Node): string | undefined {
+        if (ts.isStringLiteralLike(argument) || ts.isNumericLiteral(argument)) {
+          return argument.text
+        }
+
+        const keyType = checker?.getTypeAtLocation(argument)
+        return keyType?.isStringLiteral() ? keyType.value : undefined
+      }
+
+      function isPossiblyMissingElement(expression: ts.Node): boolean {
+        if (noUncheckedIndexedAccess || !checker) return false
+
+        const access = skipParentheses(expression)
+        let objectExpression: ts.Expression
+        let key: string | undefined
+
+        if (ts.isElementAccessExpression(access)) {
+          objectExpression = access.expression
+          key = getLiteralKey(skipParentheses(access.argumentExpression))
+        } else if (ts.isPropertyAccessExpression(access)) {
+          objectExpression = access.expression
+          key = access.name.text
+        } else {
+          return false
+        }
+
+        const objectType = checker.getTypeAtLocation(objectExpression)
+
+        return (objectType.isUnion() ? objectType.types : [objectType]).some(
+          (part) => {
+            if (
+              part.flags &
+              (ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Void)
+            ) {
+              return false
+            }
+
+            const apparent = checker.getApparentType(part)
+
+            if (key !== undefined && checker.getPropertyOfType(apparent, key)) {
+              return false
+            }
+
+            return checker.getIndexInfosOfType(apparent).length > 0
+          },
+        )
+      }
+
+      function isNewTarget(expression: ts.Expression): boolean {
+        const operand = skipParentheses(expression)
+
+        return (
+          ts.isMetaProperty(operand) &&
+          operand.keywordToken === ts.SyntaxKind.NewKeyword
+        )
+      }
+
       function getTypeofOperandType(
         node: TSESTree.Expression,
       ): TypeofValue[] | null {
@@ -273,6 +350,8 @@ export const improvedNoUnnecessaryCondition = {
         const tsNode = parserServices.esTreeNodeToTSNodeMap.get(
           node,
         ) as ts.TypeOfExpression
+
+        if (isNewTarget(tsNode.expression)) return null
 
         const type = checker.getTypeAtLocation(tsNode.expression)
 
@@ -294,6 +373,10 @@ export const improvedNoUnnecessaryCondition = {
           for (const value of partTypeofValues) {
             possibleTypeofValues.add(value)
           }
+        }
+
+        if (isPossiblyMissingElement(tsNode.expression)) {
+          possibleTypeofValues.add('undefined')
         }
 
         return [...possibleTypeofValues]
@@ -380,11 +463,10 @@ export const improvedNoUnnecessaryCondition = {
             // typeof x !== 'string' where x is always string
             context.report({
               node,
-              messageId: 'alwaysFalseTypeofCondition',
+              messageId: 'alwaysFalseNegatedTypeofCondition',
               data: {
                 name: getNodeText(typeOfNode, context),
-                actualType: getActualType(possibleTypeofValues),
-                conditionType,
+                type: conditionType,
               },
             })
           }
@@ -686,6 +768,8 @@ export const improvedNoUnnecessaryCondition = {
         const evaluation = evaluateArrayIsArray(type)
 
         if (evaluation === 'alwaysTrue') {
+          if (isPossiblyMissingElement(tsExpression)) return
+
           context.report({
             node,
             messageId: 'unnecessaryArrayIsArrayCondition',
@@ -695,6 +779,47 @@ export const improvedNoUnnecessaryCondition = {
             node,
             messageId: 'alwaysFalseArrayIsArrayCondition',
           })
+        }
+      }
+
+      function isPossiblyNullish(node: TSESTree.Node): boolean {
+        if (!checker) return true
+
+        const type = checker.getTypeAtLocation(
+          parserServices.esTreeNodeToTSNodeMap.get(node),
+        )
+
+        return (type.isUnion() ? type.types : [type]).some(
+          (part) =>
+            (part.flags &
+              (ts.TypeFlags.Null |
+                ts.TypeFlags.Undefined |
+                ts.TypeFlags.Void |
+                ts.TypeFlags.Any |
+                ts.TypeFlags.Unknown)) !==
+            0,
+        )
+      }
+
+      function mayShortCircuit(node: TSESTree.CallExpression): boolean {
+        let current: TSESTree.Node = node
+
+        for (;;) {
+          if (current.type === AST_NODE_TYPES.MemberExpression) {
+            if (current.optional && isPossiblyNullish(current.object)) {
+              return true
+            }
+            current = current.object
+          } else if (current.type === AST_NODE_TYPES.CallExpression) {
+            if (current.optional && isPossiblyNullish(current.callee)) {
+              return true
+            }
+            current = current.callee
+          } else if (current.type === AST_NODE_TYPES.TSNonNullExpression) {
+            current = current.expression
+          } else {
+            return false
+          }
         }
       }
 
@@ -752,6 +877,8 @@ export const improvedNoUnnecessaryCondition = {
         }
 
         if (trues > 0 && falses === 0) {
+          if (mayShortCircuit(node)) return
+
           const id =
             method === 'startsWith'
               ? 'unnecessaryStartsWithCondition'

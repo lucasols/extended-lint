@@ -1,11 +1,12 @@
 use rustc_hash::FxHashMap;
-use tsrs_ast::{self as ast, Kind, Node, Symbol};
+use tsrs_ast::{self as ast, Kind, Node, Symbol, SymbolFlags};
 use tsrs_checker::{Checker, SignatureKind, Type, TypeFlags};
 use tsrs_core::P;
 use tsrslint::rule::{Ctx, Listener, Rule, RuleMessage, RuleSuggestion, RuleVisitor};
+use tsrslint::utils::is_symbol_flag_set;
 
 use crate::utils::{
-    comment_at, estree_parent, is_default_lib_declaration, is_default_lib_symbol,
+    estree_parent, has_comments_outside, is_default_lib_declaration, is_default_lib_symbol,
     is_in_optional_chain, node_text, replacement_at, skip_parens,
 };
 
@@ -155,6 +156,39 @@ fn is_numeric_literal_member_object(arg: P<Node>, node: P<Node>) -> bool {
         })
 }
 
+/// Whether `node` contains an `in` operator: unparenthesized in a `for` initializer, it would read as a `for...in`.
+fn contains_in_operator(node: P<Node>) -> bool {
+    if ast::is_binary_expression(node)
+        && node.as_binary_expression().operator_token.kind() == Kind::InKeyword
+    {
+        return true;
+    }
+    let mut found = false;
+    node.for_each_child(&mut |child| {
+        found = contains_in_operator(child);
+        found
+    });
+    found
+}
+
+/// Whether `node` is part of a `for` statement's initializer.
+fn is_in_for_initializer(node: P<Node>) -> bool {
+    let mut current = node;
+    while let Some(parent) = current.parent() {
+        if ast::is_for_statement(parent) {
+            return parent.as_for_statement().initializer() == Some(current);
+        }
+        if ast::is_statement(parent)
+            || ast::is_function_like(Some(parent))
+            || ast::is_class_like(parent)
+        {
+            return false;
+        }
+        current = parent;
+    }
+    false
+}
+
 fn unnecessary_fix_needs_parens(arg: P<Node>, node: P<Node>) -> bool {
     if is_numeric_literal_member_object(arg, node) {
         return true;
@@ -163,6 +197,9 @@ fn unnecessary_fix_needs_parens(arg: P<Node>, node: P<Node>) -> bool {
         return false;
     }
     if ast::is_comma_expression(arg) {
+        return true;
+    }
+    if contains_in_operator(arg) && is_in_for_initializer(node) {
         return true;
     }
     if is_in_optional_chain(node) {
@@ -224,14 +261,22 @@ fn resolve_union_parts(checker: &mut Checker, t: P<Type>) -> Option<Vec<P<Type>>
     Some(parts)
 }
 
-/// Return types that `Number()` may turn into a number when `[Symbol.toPrimitive]` or `valueOf` returns them.
-const CONVERTIBLE_PRIMITIVE_FLAGS: TypeFlags = TypeFlags::StringLike
+/// Primitives that `Number()` may turn into a number (`null` gives 0), and types that may hold one.
+const NUMBERISH_FLAGS: TypeFlags = TypeFlags::StringLike
     .union(TypeFlags::NumberLike)
     .union(TypeFlags::BigIntLike)
     .union(TypeFlags::BooleanLike)
     .union(TypeFlags::EnumLike)
+    .union(TypeFlags::Null)
     .union(TypeFlags::Any)
     .union(TypeFlags::Unknown);
+
+/// Primitives that a branded intersection (`string & { __brand: 'id' }`) holds.
+const PRIMITIVE_FLAGS: TypeFlags = TypeFlags::StringLike
+    .union(TypeFlags::NumberLike)
+    .union(TypeFlags::BigIntLike)
+    .union(TypeFlags::BooleanLike)
+    .union(TypeFlags::EnumLike);
 
 /// `{}` (also `NonNullable<unknown>` and the constraint of `T extends {}`): any value but `null` and `undefined`.
 fn is_empty_object_type(checker: &mut Checker, t: P<Type>) -> bool {
@@ -245,21 +290,88 @@ fn is_empty_object_type(checker: &mut Checker, t: P<Type>) -> bool {
             .is_empty()
 }
 
+/// Whether a value of type `t` may be a primitive that `Number()` turns into a number: type parameters and other
+/// instantiable types by their constraint.
+fn may_be_numberish(checker: &mut Checker, t: P<Type>) -> bool {
+    let flags = t.flags();
+    if flags.intersects(TypeFlags::Union) {
+        return t
+            .types()
+            .iter()
+            .any(|&part| may_be_numberish(checker, part));
+    }
+    if flags.intersects(NUMBERISH_FLAGS) {
+        return true;
+    }
+    if flags.intersects(TypeFlags::Intersection) {
+        return t
+            .types()
+            .iter()
+            .any(|part| part.flags().intersects(PRIMITIVE_FLAGS));
+    }
+    if flags.intersects(TypeFlags::Instantiable) {
+        return match checker.get_base_constraint_of_type(t) {
+            Some(constraint) => constraint != t && may_be_numberish(checker, constraint),
+            None => true,
+        };
+    }
+    false
+}
+
+/// A conversion method of an object (`[Symbol.toPrimitive]`, `valueOf`, `toString`).
+struct PrimitiveHook {
+    /// A call may return a primitive that converts to a number.
+    may_return_number: bool,
+    /// The method may be missing (optional, `null` or `undefined`), so conversion falls back to the next method.
+    may_be_absent: bool,
+}
+
+/// `None` when the method is always missing (typed `null` or `undefined`).
+fn primitive_hook(
+    checker: &mut Checker,
+    method: P<Symbol>,
+    location: P<Node>,
+) -> Option<PrimitiveHook> {
+    let method_type = checker.get_type_of_symbol_at_location(method, Some(location))?;
+    let parts: &[P<Type>] = if method_type.flags().intersects(TypeFlags::Union) {
+        method_type.types()
+    } else {
+        std::slice::from_ref(&method_type)
+    };
+    let present: Vec<P<Type>> = parts
+        .iter()
+        .copied()
+        .filter(|part| !part.flags().intersects(NULLISH_FLAGS))
+        .collect();
+    if present.is_empty() {
+        return None;
+    }
+    let may_return_number = present.iter().any(|&part| {
+        if part.flags().intersects(TypeFlags::Any | TypeFlags::Unknown) {
+            return true;
+        }
+        let signatures = checker.get_signatures_of_type(part, SignatureKind::Call);
+        signatures.iter().any(|&signature| {
+            let return_type = checker.get_return_type_of_signature(signature);
+            may_be_numberish(checker, return_type)
+        })
+    });
+    Some(PrimitiveHook {
+        may_return_number,
+        may_be_absent: is_symbol_flag_set(Some(method), SymbolFlags::Optional)
+            || present.len() < parts.len(),
+    })
+}
+
 /// Whether `Number()` of an object type can give a number, following `ToPrimitive`: a branded primitive
-/// (`string & { __brand: 'id' }`), `{}` or `Object` (which hold primitives too), an object whose
-/// `[Symbol.toPrimitive]` or `valueOf` returns a primitive, or one with its own `toString` (the default ones give
-/// `"[object Object]"`, a function's source and so on).
+/// (`string & { __brand: 'id' }`), `{}` or `Object` (which hold primitives too), or an object whose
+/// `[Symbol.toPrimitive]`, `valueOf` or own `toString` (the default ones give `"[object Object]"`, a function's source
+/// and so on) may return a number-like primitive. A `[Symbol.toPrimitive]` that is always there decides alone.
 fn may_convert_to_number(ctx: &mut Ctx, t: P<Type>, location: P<Node>) -> bool {
     if t.flags().intersects(TypeFlags::Intersection)
-        && t.types().iter().any(|part| {
-            part.flags().intersects(
-                TypeFlags::StringLike
-                    | TypeFlags::NumberLike
-                    | TypeFlags::BigIntLike
-                    | TypeFlags::BooleanLike
-                    | TypeFlags::EnumLike,
-            )
-        })
+        && t.types()
+            .iter()
+            .any(|part| part.flags().intersects(PRIMITIVE_FLAGS))
     {
         return true;
     }
@@ -270,63 +382,37 @@ fn may_convert_to_number(ctx: &mut Ctx, t: P<Type>, location: P<Node>) -> bool {
     let to_primitive = ctx
         .checker
         .get_property_name_for_known_symbol_name("toPrimitive");
-    if let Some(symbol) = ctx
+    if let Some(hook) = ctx
         .checker
         .get_property_of_type(apparent_type, &to_primitive)
+        .and_then(|symbol| primitive_hook(ctx.checker, symbol, location))
     {
-        return method_returns_primitive(ctx.checker, symbol, location);
-    }
-    if let Some(symbol) = ctx.checker.get_property_of_type(apparent_type, "valueOf") {
-        if method_returns_primitive(ctx.checker, symbol, location) {
+        if hook.may_return_number {
             return true;
         }
+        if !hook.may_be_absent {
+            return false;
+        }
     }
-    ctx.checker
-        .get_property_of_type(apparent_type, "toString")
-        .is_some_and(|symbol| {
-            symbol
-                .declarations()
-                .iter()
-                .any(|&declaration| !is_default_lib_declaration(ctx.program, declaration))
-        })
-}
-
-fn method_returns_primitive(checker: &mut Checker, method: P<Symbol>, location: P<Node>) -> bool {
-    let Some(method_type) = checker.get_type_of_symbol_at_location(method, Some(location)) else {
+    if ctx
+        .checker
+        .get_property_of_type(apparent_type, "valueOf")
+        .and_then(|symbol| primitive_hook(ctx.checker, symbol, location))
+        .is_some_and(|hook| hook.may_return_number)
+    {
+        return true;
+    }
+    let Some(to_string) = ctx.checker.get_property_of_type(apparent_type, "toString") else {
         return false;
     };
-    let signatures = checker.get_signatures_of_type(method_type, SignatureKind::Call);
-    signatures.iter().any(|&signature| {
-        let return_type = checker.get_return_type_of_signature(signature);
-        let parts: &[P<Type>] = if return_type.flags().intersects(TypeFlags::Union) {
-            return_type.types()
-        } else {
-            std::slice::from_ref(&return_type)
-        };
-        parts
-            .iter()
-            .any(|part| part.flags().intersects(CONVERTIBLE_PRIMITIVE_FLAGS))
-    })
-}
-
-/// Whether the call has comments outside its argument, which removing the call would drop.
-fn has_comments_outside_arg(ctx: &Ctx, node: P<Node>, arg: P<Node>) -> bool {
-    let (node_start, node_end) = ctx.trim(node);
-    let (arg_start, arg_end) = ctx.trim(arg);
-    let text = ctx.text();
-    [(node_start, arg_start), (arg_end, node_end)]
+    if !to_string
+        .declarations()
         .iter()
-        .any(|&(start, end)| {
-            let (Ok(start), Ok(end)) = (usize::try_from(start), usize::try_from(end)) else {
-                return false;
-            };
-            let segment = text.get(start..end).unwrap_or_default();
-            ["//", "/*"].iter().any(|opener| {
-                segment.match_indices(opener).any(|(i, _)| {
-                    u32::try_from(start + i).is_ok_and(|pos| comment_at(ctx.file, pos).is_some())
-                })
-            })
-        })
+        .any(|&declaration| !is_default_lib_declaration(ctx.program, declaration))
+    {
+        return false;
+    }
+    primitive_hook(ctx.checker, to_string, location).is_some_and(|hook| hook.may_return_number)
 }
 
 /// Whether removing the cast would leave the argument with a narrower type than the cast's `string`/`number`: an enum
@@ -358,7 +444,7 @@ fn report_unnecessary(
             expected.as_str()
         ),
     );
-    if has_comments_outside_arg(ctx, node, arg) || arg_type.is_some_and(keeps_narrower_type) {
+    if has_comments_outside(ctx, node, arg) || arg_type.is_some_and(keeps_narrower_type) {
         ctx.report_node(node, message);
         return;
     }

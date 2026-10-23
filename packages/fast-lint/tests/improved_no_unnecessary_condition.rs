@@ -235,7 +235,7 @@ fn always_false_typeof_check_with_operator() {
         "},
     );
 
-    assert_snapshot!(result.errors(), @"- { messageId: 'alwaysFalseTypeofCondition', line: 2 }");
+    assert_snapshot!(result.errors(), @"- { messageId: 'alwaysFalseNegatedTypeofCondition', line: 2 }");
 }
 
 #[test]
@@ -291,7 +291,7 @@ fn always_false_typeof_check_with_not_operator_in_ternary_expression() {
         "},
     );
 
-    assert_snapshot!(result.errors(), @"- { messageId: 'alwaysFalseTypeofCondition', line: 2 }");
+    assert_snapshot!(result.errors(), @"- { messageId: 'alwaysFalseNegatedTypeofCondition', line: 2 }");
 }
 
 #[test]
@@ -1489,7 +1489,7 @@ fn typeof_with_repeated_outcomes() {
 
     assert_snapshot!(result.errors(), @r"
     - { messageId: 'unnecessaryTypeofCondition', line: 2 }
-    - { messageId: 'alwaysFalseTypeofCondition', line: 3 }
+    - { messageId: 'alwaysFalseNegatedTypeofCondition', line: 3 }
     - { messageId: 'unnecessaryTypeofCondition', line: 5 }
     ");
 }
@@ -1575,4 +1575,92 @@ fn in_check_of_proto_is_ignored() {
             if ('__proto__' in o) {}
         "},
     );
+}
+
+#[test]
+fn reads_through_index_signatures_may_be_undefined() {
+    valid(
+        RULE,
+        indoc! {"
+            declare const items: string[]
+            declare const cache: Record<string, { a: number }>
+            declare const nested: string[][]
+            declare const i: number
+            declare const key: string
+
+            if (typeof items[i] === 'undefined') {}
+            if (typeof items[i] !== 'undefined') {}
+            if (typeof cache[key] === 'object') {}
+            if (typeof cache.entry === 'undefined') {}
+            if (Array.isArray(nested[i])) {}
+        "},
+    );
+}
+
+#[test]
+fn reads_of_declared_properties_are_still_checked() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const items: string[]
+            declare const pair: [string, number]
+            declare const i: number
+
+            const a = typeof items[i] === 'number'
+            const b = typeof pair[0] === 'undefined'
+        "},
+    );
+
+    assert_snapshot!(result.errors_with_msg(), @r###"
+    - messageId: 'alwaysFalseTypeofCondition'
+      msg: 'This condition will always be false. The type of "items[i]" is "string | undefined" so the condition has no overlap with "number".'
+      line: 5
+    - messageId: 'alwaysFalseTypeofCondition'
+      msg: 'This condition will always be false. The type of "pair[0]" is "string" so the condition has no overlap with "undefined".'
+      line: 6
+    "###);
+}
+
+#[test]
+fn typeof_new_target_is_ignored() {
+    valid(
+        RULE,
+        indoc! {"
+            export function F() {
+                if (typeof new.target === 'undefined') return
+            }
+        "},
+    );
+}
+
+#[test]
+fn always_true_string_check_in_an_optional_chain_is_ignored() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const o: { b: 'abc' } | undefined
+
+            if (o?.b.startsWith('a')) {}
+            if (o?.b.startsWith('x')) {}
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @"- { messageId: 'alwaysFalseStartsWithCondition', line: 4 }");
+}
+
+#[test]
+fn negated_typeof_of_the_only_possible_type() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const r: void
+            const a = typeof r !== 'undefined'
+        "},
+    );
+
+    assert_snapshot!(result.errors_with_msg(), @r###"
+    - messageId: 'alwaysFalseNegatedTypeofCondition'
+      msg: 'This condition will always be false. The type of "r" is always "undefined".'
+      line: 2
+    "###);
 }

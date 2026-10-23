@@ -5,7 +5,7 @@ use tsrs_checker::{
     Type, TypeFlags,
 };
 use tsrs_compiler::Program;
-use tsrs_core::{jsnum, P};
+use tsrs_core::{jsnum, Tristate, P};
 use tsrslint::rule::{Ctx, Listener, Rule, RuleMessage, RuleVisitor};
 use tsrslint::utils::{get_call_signatures, is_symbol_flag_set, type_to_string, union_type_parts};
 
@@ -49,10 +49,13 @@ impl Rule for ImprovedNoUnnecessaryCondition {
     fn name(&self) -> &'static str {
         NAME
     }
-    fn create_visitor(&'static self, _ctx: &mut Ctx) -> Box<dyn RuleVisitor> {
+    fn create_visitor(&'static self, ctx: &mut Ctx) -> Box<dyn RuleVisitor> {
         Box::new(Visitor {
             rule: self,
             annotated_literals: None,
+            enabled: ctx.checker.strict_null_checks,
+            missing_elements_untyped: ctx.program.options().no_unchecked_indexed_access
+                != Tristate::True,
         })
     }
 }
@@ -64,23 +67,31 @@ type AnnotatedLiterals = FxHashMap<&'static str, Option<Vec<&'static str>>>;
 struct Visitor {
     rule: &'static ImprovedNoUnnecessaryCondition,
     annotated_literals: Option<AnnotatedLiterals>,
+    /// Off without `strictNullChecks`, where types don't say whether a value may be `null` or `undefined`.
+    enabled: bool,
+    /// Without `noUncheckedIndexedAccess`, index signature reads aren't typed as possibly `undefined`.
+    missing_elements_untyped: bool,
 }
 
 impl RuleVisitor for Visitor {
     fn listeners(&self) -> &[Listener] {
-        LISTENERS
+        if self.enabled {
+            LISTENERS
+        } else {
+            &[]
+        }
     }
     fn visit(&mut self, ctx: &mut Ctx, _l: Listener, node: P<Node>) {
         if ast::is_binary_expression(node) {
             let operator = node.as_binary_expression().operator_token.kind();
-            check_typeof_comparison(ctx, node, operator);
+            self.check_typeof_comparison(ctx, node, operator);
             check_length_comparison(ctx, node, operator);
             if operator == Kind::InKeyword {
                 self.check_in_condition(ctx, node);
             }
         } else {
             self.check_string_assertion(ctx, node);
-            check_array_is_array(ctx, node);
+            self.check_array_is_array(ctx, node);
         }
     }
 }
@@ -221,11 +232,13 @@ fn is_function_interface_type(checker: &mut Checker, program: &Program, t: P<Typ
     })
 }
 
-/// The distinct `typeof` results of the union members, in order.
+/// The distinct `typeof` results of the union members, in order, then `undefined` for an element that may be
+/// missing.
 fn typeof_values_of_operand(
     checker: &mut Checker,
     program: &Program,
     operand: P<Node>,
+    missing_elements_untyped: bool,
 ) -> Option<Vec<TypeofValue>> {
     let t = checker.get_type_at_location(operand);
     let mut values = Vec::new();
@@ -236,7 +249,63 @@ fn typeof_values_of_operand(
             }
         }
     }
+    if missing_elements_untyped
+        && !values.contains(&TypeofValue::Undefined)
+        && is_possibly_missing_element(checker, operand)
+    {
+        values.push(TypeofValue::Undefined);
+    }
     Some(values)
+}
+
+/// A string or number literal key, or a key whose type is a string literal.
+fn literal_key(checker: &mut Checker, argument: P<Node>) -> Option<&'static str> {
+    if ast::is_string_literal_like(argument) || ast::is_numeric_literal(argument) {
+        return Some(argument.text());
+    }
+    let t = checker.get_type_at_location(argument);
+    if t.flags().intersects(TypeFlags::StringLiteral) {
+        literal_string_value(t)
+    } else {
+        None
+    }
+}
+
+/// Whether `expression` reads a property through an index signature (`items[i]`, `record[key]`, `record.key`), which
+/// may be missing although the type doesn't include `undefined` (without `noUncheckedIndexedAccess`).
+fn is_possibly_missing_element(checker: &mut Checker, expression: P<Node>) -> bool {
+    let access = skip_parens(expression);
+    let (object, key) = if ast::is_element_access_expression(access) {
+        let element = access.as_element_access_expression();
+        (
+            element.expression,
+            literal_key(checker, skip_parens(element.argument_expression)),
+        )
+    } else if ast::is_property_access_expression(access) {
+        let property = access.as_property_access_expression();
+        (property.expression, Some(property.name.text()))
+    } else {
+        return false;
+    };
+    let object_type = checker.get_type_at_location(object);
+    union_type_parts(object_type).into_iter().any(|part| {
+        if part
+            .flags()
+            .intersects(TypeFlags::Null | TypeFlags::Undefined | TypeFlags::Void)
+        {
+            return false;
+        }
+        let apparent = checker.get_apparent_type(part);
+        if key.is_some_and(|key| checker.get_property_of_type(apparent, key).is_some()) {
+            return false;
+        }
+        !checker.get_index_infos_of_type(apparent).is_empty()
+    })
+}
+
+/// `new.target`, `undefined` when the function is called without `new` although typed as the function.
+fn is_new_target(node: P<Node>) -> bool {
+    ast::is_meta_property(node) && node.as_meta_property().keyword_token == Kind::NewKeyword
 }
 
 fn describe_typeof_values(values: &[TypeofValue]) -> String {
@@ -276,6 +345,13 @@ fn unnecessary_typeof_message(name: &str, t: &str) -> RuleMessage {
     )
 }
 
+fn always_false_negated_typeof_message(name: &str, t: &str) -> RuleMessage {
+    RuleMessage::new(
+        "alwaysFalseNegatedTypeofCondition",
+        format!("This condition will always be false. The type of \"{name}\" is always \"{t}\"."),
+    )
+}
+
 fn always_false_typeof_message(name: &str, actual_type: &str, condition_type: &str) -> RuleMessage {
     RuleMessage::new(
         "alwaysFalseTypeofCondition",
@@ -283,51 +359,6 @@ fn always_false_typeof_message(name: &str, actual_type: &str, condition_type: &s
             "This condition will always be false. The type of \"{name}\" is \"{actual_type}\" so the condition has no overlap with \"{condition_type}\"."
         ),
     )
-}
-
-fn check_typeof_comparison(ctx: &mut Ctx, node: P<Node>, operator: Kind) {
-    let negated = match operator {
-        Kind::EqualsEqualsEqualsToken => false,
-        Kind::ExclamationEqualsEqualsToken => true,
-        _ => return,
-    };
-    let binary = node.as_binary_expression();
-    let left = skip_parens(binary.left());
-    let right = skip_parens(binary.right());
-    let (typeof_node, compared) = if ast::is_type_of_expression(left) {
-        (left, right)
-    } else if ast::is_type_of_expression(right) {
-        (right, left)
-    } else {
-        return;
-    };
-    let Some(condition) = string_literal_text(compared).and_then(TypeofValue::parse) else {
-        return;
-    };
-    let operand = skip_parens(typeof_node.as_type_of_expression().expression());
-    let Some(possible) = typeof_values_of_operand(ctx.checker, ctx.program, operand) else {
-        return;
-    };
-    let included = possible.contains(&condition);
-    let message = match (possible.as_slice(), included, negated) {
-        ([_], true, false) => {
-            unnecessary_typeof_message(typeof_operand_name(ctx, operand), condition.as_str())
-        }
-        ([only], false, true) => {
-            unnecessary_typeof_message(typeof_operand_name(ctx, operand), only.as_str())
-        }
-        ([_], _, _) | (_, false, false) => always_false_typeof_message(
-            typeof_operand_name(ctx, operand),
-            &describe_typeof_values(&possible),
-            condition.as_str(),
-        ),
-        (_, false, true) => unnecessary_typeof_message(
-            typeof_operand_name(ctx, operand),
-            &describe_typeof_values(&possible),
-        ),
-        (_, true, _) => return,
-    };
-    ctx.report_node(node, message);
 }
 
 fn literal_string_value(t: P<Type>) -> Option<&'static str> {
@@ -493,6 +524,37 @@ fn constant_result<T>(items: &[T], mut predicate: impl FnMut(&T) -> bool) -> Opt
         .then_some(result)
 }
 
+/// Whether an optional link of the call's chain (`o?.name.startsWith('a')`) can make the whole chain `undefined`: its
+/// object may be `null` or `undefined`.
+fn may_short_circuit(checker: &mut Checker, call: P<Node>) -> bool {
+    let mut current = call;
+    while ast::is_optional_chain(current) {
+        let Some(expression) = current.expression() else {
+            return false;
+        };
+        if matches!(
+            current.kind(),
+            Kind::PropertyAccessExpression | Kind::ElementAccessExpression | Kind::CallExpression
+        ) && current.question_dot_token().is_some()
+        {
+            let t = checker.get_type_at_location(expression);
+            if union_type_parts(t).into_iter().any(|part| {
+                part.flags().intersects(
+                    TypeFlags::Null
+                        | TypeFlags::Undefined
+                        | TypeFlags::Void
+                        | TypeFlags::Any
+                        | TypeFlags::Unknown,
+                )
+            }) {
+                return true;
+            }
+        }
+        current = expression;
+    }
+    false
+}
+
 /// The non-computed member expression callee of a call, as ESTree sees it.
 fn member_callee(call: P<Node>) -> Option<P<Node>> {
     let callee = skip_parens(call.expression()?);
@@ -503,6 +565,98 @@ fn member_callee(call: P<Node>) -> Option<P<Node>> {
 }
 
 impl Visitor {
+    fn check_typeof_comparison(&self, ctx: &mut Ctx, node: P<Node>, operator: Kind) {
+        let negated = match operator {
+            Kind::EqualsEqualsEqualsToken => false,
+            Kind::ExclamationEqualsEqualsToken => true,
+            _ => return,
+        };
+        let binary = node.as_binary_expression();
+        let left = skip_parens(binary.left());
+        let right = skip_parens(binary.right());
+        let (typeof_node, compared) = if ast::is_type_of_expression(left) {
+            (left, right)
+        } else if ast::is_type_of_expression(right) {
+            (right, left)
+        } else {
+            return;
+        };
+        let Some(condition) = string_literal_text(compared).and_then(TypeofValue::parse) else {
+            return;
+        };
+        let operand = skip_parens(typeof_node.as_type_of_expression().expression());
+        if is_new_target(operand) {
+            return;
+        }
+        let Some(possible) = typeof_values_of_operand(
+            ctx.checker,
+            ctx.program,
+            operand,
+            self.missing_elements_untyped,
+        ) else {
+            return;
+        };
+        let included = possible.contains(&condition);
+        let message = match (possible.as_slice(), included, negated) {
+            ([_], true, false) => {
+                unnecessary_typeof_message(typeof_operand_name(ctx, operand), condition.as_str())
+            }
+            ([only], false, true) => {
+                unnecessary_typeof_message(typeof_operand_name(ctx, operand), only.as_str())
+            }
+            ([_], true, true) => always_false_negated_typeof_message(
+                typeof_operand_name(ctx, operand),
+                condition.as_str(),
+            ),
+            (_, false, false) => always_false_typeof_message(
+                typeof_operand_name(ctx, operand),
+                &describe_typeof_values(&possible),
+                condition.as_str(),
+            ),
+            (_, false, true) => unnecessary_typeof_message(
+                typeof_operand_name(ctx, operand),
+                &describe_typeof_values(&possible),
+            ),
+            (_, true, _) => return,
+        };
+        ctx.report_node(node, message);
+    }
+
+    fn check_array_is_array(&self, ctx: &mut Ctx, node: P<Node>) {
+        let Some(callee) = member_callee(node) else {
+            return;
+        };
+        if !is_array_is_array_callee(ctx, callee) {
+            return;
+        }
+        let Some(first) = node.arguments().first() else {
+            return;
+        };
+        if ast::is_spread_element(*first) {
+            return;
+        }
+        let argument = skip_parens(*first);
+        let t = ctx.checker.get_type_at_location(argument);
+        let message = match evaluate_array_is_array(ctx.checker, ctx.program, t) {
+            Some(true)
+                if self.missing_elements_untyped
+                    && is_possibly_missing_element(ctx.checker, argument) =>
+            {
+                return
+            }
+            Some(true) => RuleMessage::new(
+                "unnecessaryArrayIsArrayCondition",
+                "This Array.isArray check is unnecessary as it always evaluates to true.",
+            ),
+            Some(false) => RuleMessage::new(
+                "alwaysFalseArrayIsArrayCondition",
+                "This Array.isArray check will always be false.",
+            ),
+            None => return,
+        };
+        ctx.report_node(node, message);
+    }
+
     fn check_string_assertion(&mut self, ctx: &mut Ctx, node: P<Node>) {
         let Some(callee) = member_callee(node) else {
             return;
@@ -533,6 +687,9 @@ impl Visitor {
         else {
             return;
         };
+        if always_true && may_short_circuit(ctx.checker, node) {
+            return;
+        }
         ctx.report_node(node, method.message(always_true));
     }
 
@@ -696,34 +853,6 @@ fn is_array_is_array_callee(ctx: &mut Ctx, callee: P<Node>) -> bool {
             .checker
             .get_symbol_at_location_exported(object)
             .is_some_and(|symbol| is_default_lib_symbol(ctx.program, symbol))
-}
-
-fn check_array_is_array(ctx: &mut Ctx, node: P<Node>) {
-    let Some(callee) = member_callee(node) else {
-        return;
-    };
-    if !is_array_is_array_callee(ctx, callee) {
-        return;
-    }
-    let Some(first) = node.arguments().first() else {
-        return;
-    };
-    if ast::is_spread_element(*first) {
-        return;
-    }
-    let t = ctx.checker.get_type_at_location(skip_parens(*first));
-    let message = match evaluate_array_is_array(ctx.checker, ctx.program, t) {
-        Some(true) => RuleMessage::new(
-            "unnecessaryArrayIsArrayCondition",
-            "This Array.isArray check is unnecessary as it always evaluates to true.",
-        ),
-        Some(false) => RuleMessage::new(
-            "alwaysFalseArrayIsArrayCondition",
-            "This Array.isArray check will always be false.",
-        ),
-        None => return,
-    };
-    ctx.report_node(node, message);
 }
 
 fn compare_numbers(operator: Kind, left: f64, right: f64) -> Option<bool> {

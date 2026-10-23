@@ -3,7 +3,9 @@ use tsrs_checker::{Checker, SignatureKind, Type, TypeFlags};
 use tsrs_core::P;
 use tsrslint::rule::{Ctx, Listener, Rule, RuleMessage, RuleSuggestion, RuleVisitor};
 
-use crate::utils::{is_in_optional_chain, node_text, replacement_at, skip_parens};
+use crate::utils::{
+    has_comments_outside, is_in_optional_chain, node_text, replacement_at, skip_parens,
+};
 
 pub const NAME: &str = "no-unnecessary-void-on-promise";
 
@@ -98,20 +100,21 @@ impl RuleVisitor for Visitor {
         if is_promise_like(ctx.checker, t) {
             return;
         }
-        let argument_text = node_text(ctx, argument);
-        ctx.report_node_with_suggestions(
-            node,
-            RuleMessage::new(
-                "unnecessaryVoid",
-                "Unnecessary void operator on non-Promise function call",
-            ),
-            |ctx| {
-                let replacement = replacement_at(ctx, node, argument_text.to_string());
-                vec![RuleSuggestion {
-                    message: RuleMessage::new("removeVoid", "Remove void operator"),
-                    fixes: vec![ctx.fix_replace(node, replacement)],
-                }]
-            },
+        let message = RuleMessage::new(
+            "unnecessaryVoid",
+            "Unnecessary void operator on non-Promise function call",
         );
+        if has_comments_outside(ctx, node, argument) {
+            ctx.report_node(node, message);
+            return;
+        }
+        let argument_text = node_text(ctx, argument);
+        ctx.report_node_with_suggestions(node, message, |ctx| {
+            let replacement = replacement_at(ctx, node, argument_text.to_string());
+            vec![RuleSuggestion {
+                message: RuleMessage::new("removeVoid", "Remove void operator"),
+                fixes: vec![ctx.fix_replace(node, replacement)],
+            }]
+        });
     }
 }

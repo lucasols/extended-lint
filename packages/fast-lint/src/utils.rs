@@ -159,6 +159,26 @@ pub fn replacement_at(ctx: &Ctx, node: P<Node>, replacement: String) -> String {
     }
 }
 
+/// Whether `node` has comments outside its descendant `inner`, which replacing `node` with `inner`'s text would drop.
+pub fn has_comments_outside(ctx: &Ctx, node: P<Node>, inner: P<Node>) -> bool {
+    let (node_start, node_end) = ctx.trim(node);
+    let (inner_start, inner_end) = ctx.trim(inner);
+    let text = ctx.text();
+    [(node_start, inner_start), (inner_end, node_end)]
+        .iter()
+        .any(|&(start, end)| {
+            let (Ok(start), Ok(end)) = (usize::try_from(start), usize::try_from(end)) else {
+                return false;
+            };
+            let segment = text.get(start..end).unwrap_or_default();
+            ["//", "/*"].iter().any(|opener| {
+                segment.match_indices(opener).any(|(i, _)| {
+                    u32::try_from(start + i).is_ok_and(|pos| comment_at(ctx.file, pos).is_some())
+                })
+            })
+        })
+}
+
 /// The comment containing byte offset `pos`, as its byte range and whether it is a block comment. `None` when `pos`
 /// is not inside a comment: in a token (a string, template, regex or JSX text) or in whitespace.
 pub fn comment_at(file: P<SourceFile>, pos: u32) -> Option<(u32, u32, bool)> {
