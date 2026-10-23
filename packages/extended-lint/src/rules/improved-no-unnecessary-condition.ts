@@ -6,7 +6,6 @@ import {
 } from '@typescript-eslint/utils'
 import ts from 'typescript'
 import { z } from 'zod/v4'
-import { traverseAST } from '../astUtils'
 import { getJsonSchemaFromZod } from '../createRule'
 
 const createRule = ESLintUtils.RuleCreator(
@@ -42,6 +41,12 @@ const typeofValues = [
 type TypeofValue = (typeof typeofValues)[number]
 
 const validTypeofValues = new Set(typeofValues)
+
+const globalFunctionTypeNames = new Set([
+  'Function',
+  'CallableFunction',
+  'NewableFunction',
+])
 
 type Options = z.infer<typeof optionsSchema>
 
@@ -122,6 +127,13 @@ export const improvedNoUnnecessaryCondition = {
         )
       }
 
+      function isGlobalFunctionType(type: ts.Type): boolean {
+        const symbol = type.getSymbol()
+        if (!symbol || !checker) return false
+
+        return globalFunctionTypeNames.has(checker.getFullyQualifiedName(symbol))
+      }
+
       function getTypeOfFromType(type: ts.Type): TypeofValue[] | null {
         if (
           type.flags & ts.TypeFlags.Any ||
@@ -175,6 +187,8 @@ export const improvedNoUnnecessaryCondition = {
         ) {
           return ['function']
         }
+
+        if (isGlobalFunctionType(type)) return ['function']
 
         // For object types (including arrays, etc.)
         if (type.flags & ts.TypeFlags.Object) {
@@ -437,53 +451,64 @@ export const improvedNoUnnecessaryCondition = {
         )
       }
 
+      function getAnnotatedStringLiterals(
+        declarator: TSESTree.VariableDeclarator,
+      ): string[] | null | undefined {
+        if (declarator.id.type !== AST_NODE_TYPES.Identifier) return undefined
+        if (!declarator.id.typeAnnotation) return undefined
+
+        const t = declarator.id.typeAnnotation.typeAnnotation
+        if (t.type === AST_NODE_TYPES.TSUnionType) {
+          const values: string[] = []
+          for (const tt of t.types) {
+            if (
+              tt.type === AST_NODE_TYPES.TSLiteralType &&
+              tt.literal.type === AST_NODE_TYPES.Literal &&
+              typeof tt.literal.value === 'string'
+            ) {
+              values.push(tt.literal.value)
+            } else {
+              return null
+            }
+          }
+          return values
+        }
+
+        if (
+          t.type === AST_NODE_TYPES.TSLiteralType &&
+          t.literal.type === AST_NODE_TYPES.Literal &&
+          typeof t.literal.value === 'string'
+        ) {
+          return [t.literal.value]
+        }
+
+        return undefined
+      }
+
       function getStringLiteralValuesFromIdentifierAnnotation(
         id: TSESTree.Identifier,
       ): string[] | null {
-        const programNode = context.sourceCode.ast
-        let found: string[] | null = null
+        for (const statement of context.sourceCode.ast.body) {
+          const declaration =
+            statement.type === AST_NODE_TYPES.ExportNamedDeclaration
+              ? statement.declaration
+              : statement
+          if (declaration?.type !== AST_NODE_TYPES.VariableDeclaration) continue
 
-        traverseAST(
-          programNode,
-          (n) => {
+          for (const declarator of declaration.declarations) {
             if (
-              n.type === AST_NODE_TYPES.VariableDeclarator &&
-              n.id.type === AST_NODE_TYPES.Identifier &&
-              n.id.name === id.name &&
-              n.id.typeAnnotation
+              declarator.id.type !== AST_NODE_TYPES.Identifier ||
+              declarator.id.name !== id.name
             ) {
-              const t = n.id.typeAnnotation.typeAnnotation
-              if (t.type === AST_NODE_TYPES.TSUnionType) {
-                const values: string[] = []
-                for (const tt of t.types) {
-                  if (
-                    tt.type === AST_NODE_TYPES.TSLiteralType &&
-                    tt.literal.type === AST_NODE_TYPES.Literal &&
-                    typeof tt.literal.value === 'string'
-                  ) {
-                    values.push(tt.literal.value)
-                  } else {
-                    return true
-                  }
-                }
-                found = values
-                return true
-              }
-              if (
-                t.type === AST_NODE_TYPES.TSLiteralType &&
-                t.literal.type === AST_NODE_TYPES.Literal &&
-                typeof t.literal.value === 'string'
-              ) {
-                found = [t.literal.value]
-                return true
-              }
+              continue
             }
-            return false
-          },
-          context.sourceCode,
-        )
 
-        return found
+            const values = getAnnotatedStringLiterals(declarator)
+            if (values !== undefined) return values
+          }
+        }
+
+        return null
       }
 
       function isArraySymbolName(symbolName: string) {
@@ -529,6 +554,18 @@ export const improvedNoUnnecessaryCondition = {
         )
       }
 
+      function isClassOrInterfaceReference(type: ts.Type) {
+        if (!('objectFlags' in type) || typeof type.objectFlags !== 'number') {
+          return false
+        }
+        if (!(type.objectFlags & ts.ObjectFlags.Reference)) return false
+
+        const symbolFlags = type.getSymbol()?.flags ?? 0
+        return (
+          (symbolFlags & (ts.SymbolFlags.Class | ts.SymbolFlags.Interface)) !== 0
+        )
+      }
+
       function isDefinitelyNotArrayType(type: ts.Type) {
         if (!checker) return false
 
@@ -551,6 +588,7 @@ export const improvedNoUnnecessaryCondition = {
         if (
           type.flags & ts.TypeFlags.Object &&
           !type.isClassOrInterface() &&
+          !isClassOrInterfaceReference(type) &&
           !isRuntimeArrayType(type) &&
           !isEmptyObjectType(type)
         ) {
@@ -807,16 +845,7 @@ export const improvedNoUnnecessaryCondition = {
 
       function hasIndexSignatures(type: ts.ObjectType) {
         if (!checker) return true
-        const stringIndex = checker.getIndexTypeOfType(
-          type,
-          ts.IndexKind.String,
-        )
-        if (stringIndex) return true
-        const numberIndex = checker.getIndexTypeOfType(
-          type,
-          ts.IndexKind.Number,
-        )
-        return Boolean(numberIndex)
+        return checker.getIndexInfosOfType(type).length > 0
       }
 
       function getPropertyPresenceForObject(
@@ -934,7 +963,7 @@ export const improvedNoUnnecessaryCondition = {
               property: propertyName,
               type: checker.typeToString(type),
               alternative: options.alternativeForInCondition
-                ? `If this a valid condition, you can use as alternative: ${options.alternativeForInCondition}`
+                ? ` If this is a valid condition, you can use as alternative: ${options.alternativeForInCondition}`
                 : '',
             },
           })
@@ -946,7 +975,7 @@ export const improvedNoUnnecessaryCondition = {
               property: propertyName,
               type: checker.typeToString(type),
               alternative: options.alternativeForInCondition
-                ? `If this a valid condition, you can use as alternative: ${options.alternativeForInCondition}`
+                ? ` If this is a valid condition, you can use as alternative: ${options.alternativeForInCondition}`
                 : '',
             },
           })

@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use crate::config::Severity;
 use crate::linter::{Diagnostic, FileResult};
+use tsrslint::rule::RuleFix;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Format {
@@ -79,10 +80,11 @@ impl Style {
     }
 }
 
-pub fn render(format: Format, root: &str, files: &[FileResult], color: bool) -> String {
+/// Renders the results; `cwd` is what stylish and compact paths are relative to.
+pub fn render(format: Format, cwd: &str, files: &[FileResult], color: bool) -> String {
     match format {
-        Format::Stylish => stylish(root, files, &Style { color }),
-        Format::Compact => compact(root, files),
+        Format::Stylish => stylish(cwd, files, &Style { color }),
+        Format::Compact => compact(cwd, files),
         Format::Json => json(files),
     }
 }
@@ -156,10 +158,15 @@ fn compact(root: &str, files: &[FileResult]) -> String {
                 Severity::Error => "Error",
                 _ => "Warning",
             };
+            let rule = if d.rule.is_empty() {
+                String::new()
+            } else {
+                format!(" ({})", d.rule)
+            };
             let _ = writeln!(
                 out,
-                "{path}:{}:{}: {severity} - {} ({})",
-                d.line, d.column, d.message, d.rule
+                "{path}:{}:{}: {severity} - {}{rule}",
+                d.line, d.column, d.message
             );
         }
     }
@@ -167,10 +174,9 @@ fn compact(root: &str, files: &[FileResult]) -> String {
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct JsonFix<'a> {
+struct JsonFix {
     range: [i32; 2],
-    text: &'a str,
+    text: String,
 }
 
 #[derive(Serialize)]
@@ -178,29 +184,44 @@ struct JsonFix<'a> {
 struct JsonSuggestion<'a> {
     message_id: &'a str,
     desc: &'a str,
-    fixes: Vec<JsonFix<'a>>,
+    fix: JsonFix,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct JsonMessage<'a> {
-    rule_id: &'a str,
+    rule_id: Option<&'a str>,
     severity: u8,
-    message_id: &'a str,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    fatal: bool,
     message: &'a str,
     line: u32,
     column: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message_id: Option<&'a str>,
     end_line: u32,
     end_column: u32,
-    fixes: Vec<JsonFix<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fix: Option<JsonFix>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     suggestions: Vec<JsonSuggestion<'a>>,
 }
 
+/// One file of ESLint's JSON format.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct JsonFile<'a> {
     file_path: &'a str,
     messages: Vec<JsonMessage<'a>>,
+    suppressed_messages: [(); 0],
+    error_count: usize,
+    fatal_error_count: usize,
+    warning_count: usize,
+    fixable_error_count: usize,
+    fixable_warning_count: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    output: Option<&'a str>,
+    used_deprecated_rules: [(); 0],
 }
 
 /// Converts byte offsets of a file's text to the UTF-16 indices ESLint uses for fix ranges.
@@ -228,38 +249,53 @@ impl Utf16Offsets<'_> {
     }
 }
 
-fn json_fixes<'a>(text: &Utf16Offsets, fixes: &'a [tsrslint::rule::RuleFix]) -> Vec<JsonFix<'a>> {
-    fixes
-        .iter()
-        .map(|f| JsonFix {
-            range: [text.get(f.pos), text.get(f.end)],
-            text: &f.text,
-        })
-        .collect()
+/// The fixes of one diagnostic merged into a single fix, like ESLint does: from the first fix's start to the last
+/// fix's end, keeping the text between them.
+fn merged_fix(offsets: &Utf16Offsets, text: &str, fixes: &[RuleFix]) -> Option<JsonFix> {
+    let mut sorted: Vec<&RuleFix> = fixes.iter().collect();
+    sorted.sort_by_key(|f| (f.pos, f.end));
+    let (first, last) = (sorted.first()?, sorted.last()?);
+    let mut merged = String::new();
+    let mut last_end = first.pos;
+    for f in &sorted {
+        if f.pos < last_end {
+            return None;
+        }
+        merged.push_str(text.get(usize::try_from(last_end).ok()?..usize::try_from(f.pos).ok()?)?);
+        merged.push_str(&f.text);
+        last_end = f.end;
+    }
+    Some(JsonFix {
+        range: [offsets.get(first.pos), offsets.get(last.end)],
+        text: merged,
+    })
 }
 
-fn json_message<'a>(text: &Utf16Offsets, d: &'a Diagnostic) -> JsonMessage<'a> {
+fn json_message<'a>(offsets: &Utf16Offsets, text: &str, d: &'a Diagnostic) -> JsonMessage<'a> {
     JsonMessage {
-        rule_id: d.rule,
+        rule_id: (!d.rule.is_empty()).then_some(d.rule),
         severity: match d.severity {
             Severity::Error => 2,
             Severity::Warn => 1,
             Severity::Off => 0,
         },
-        message_id: d.message_id,
+        fatal: d.fatal,
         message: &d.message,
         line: d.line,
         column: d.column,
+        message_id: (!d.message_id.is_empty()).then_some(d.message_id),
         end_line: d.end_line,
         end_column: d.end_column,
-        fixes: json_fixes(text, &d.fixes),
+        fix: merged_fix(offsets, text, &d.fixes),
         suggestions: d
             .suggestions
             .iter()
-            .map(|s| JsonSuggestion {
-                message_id: s.message.id,
-                desc: &s.message.description,
-                fixes: json_fixes(text, &s.fixes),
+            .filter_map(|s| {
+                Some(JsonSuggestion {
+                    message_id: s.message.id,
+                    desc: &s.message.description,
+                    fix: merged_fix(offsets, text, &s.fixes)?,
+                })
             })
             .collect(),
     }
@@ -268,15 +304,26 @@ fn json_message<'a>(text: &Utf16Offsets, d: &'a Diagnostic) -> JsonMessage<'a> {
 fn json(files: &[FileResult]) -> String {
     let files: Vec<JsonFile> = files
         .iter()
-        .map(|f| JsonFile {
-            file_path: &f.path,
-            messages: {
-                let offsets = Utf16Offsets::new(f.text());
-                f.diagnostics
+        .map(|f| {
+            let text = f.text();
+            let offsets = Utf16Offsets::new(text);
+            let counts = count(std::slice::from_ref(f));
+            JsonFile {
+                file_path: &f.path,
+                messages: f
+                    .diagnostics
                     .iter()
-                    .map(|d| json_message(&offsets, d))
-                    .collect()
-            },
+                    .map(|d| json_message(&offsets, text, d))
+                    .collect(),
+                suppressed_messages: [],
+                error_count: counts.errors,
+                fatal_error_count: f.diagnostics.iter().filter(|d| d.fatal).count(),
+                warning_count: counts.warnings,
+                fixable_error_count: counts.fixable_errors,
+                fixable_warning_count: counts.fixable_warnings,
+                output: f.fixed_text.as_deref(),
+                used_deprecated_rules: [],
+            }
         })
         .collect();
     serde_json::to_string(&files).unwrap_or_else(|_| "[]".to_string())

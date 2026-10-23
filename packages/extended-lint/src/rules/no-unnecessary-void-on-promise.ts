@@ -45,6 +45,15 @@ export const noUnnecessaryVoidOnPromise = createExtendedLintRule<
         return type.types.some((part) => isPromiseLike(part, typeChecker))
       }
 
+      if (type.flags & ts.TypeFlags.Instantiable) {
+        const constraint = typeChecker.getBaseConstraintOfType(type)
+        return (
+          constraint !== undefined &&
+          constraint !== type &&
+          isPromiseLike(constraint, typeChecker)
+        )
+      }
+
       const thenSymbol = type.getProperty('then')
       if (!thenSymbol) return false
 

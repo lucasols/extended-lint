@@ -1416,3 +1416,68 @@ test('length comparison with literal on the left', async () => {
     "
   `)
 })
+
+test('in check message includes configured alternative', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      const obj: { a: number } = { a: 1 }
+      if ('a' in obj) {}
+    `,
+    options: [{ alternativeForInCondition: 'objectHasKey()' }],
+  })
+
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - messageId: 'unnecessaryInCondition'
+      msg: 'This in check is unnecessary. Property "a" always exists on type "{ a: number; }". If this is a valid condition, you can use as alternative: objectHasKey()'
+      line: 2
+    "
+  `)
+})
+
+test('Array.isArray on generic interfaces is valid', async () => {
+  await valid(dedent`
+    export function toArray<T>(value: Iterable<T> | ArrayLike<T>): T[] {
+      if (Array.isArray(value)) return value
+      return Array.from(value)
+    }
+  `)
+})
+
+test('typeof function on Function type', async () => {
+  await valid(dedent`
+    declare const fn: Function | undefined
+    if (typeof fn === 'function') {}
+  `)
+
+  const { result } = await invalid(dedent`
+    declare const fn: Function
+    if (typeof fn === 'object') {}
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'alwaysFalseTypeofCondition', line: 2 }
+    "
+  `)
+})
+
+test('in check with template literal index signature is valid', async () => {
+  await valid(dedent`
+    declare const attrs: { [key: \`data-\${string}\`]: string }
+    if ('data-x' in attrs) {}
+  `)
+})
+
+test('string method annotation fallback ignores nested declarations', async () => {
+  await valid(dedent`
+    function f() {
+      const status: 'idle' = 'idle'
+      return status
+    }
+
+    function g() {
+      return status.startsWith('err')
+    }
+  `)
+})

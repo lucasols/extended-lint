@@ -38,6 +38,11 @@ fn is_promise_like(checker: &mut Checker, t: P<Type>) -> bool {
     if t.flags().intersects(TypeFlags::Union) {
         return t.types().iter().any(|&part| is_promise_like(checker, part));
     }
+    if t.flags().intersects(TypeFlags::Instantiable) {
+        return checker
+            .get_base_constraint_of_type(t)
+            .is_some_and(|constraint| constraint != t && is_promise_like(checker, constraint));
+    }
     let Some(then_symbol) = checker.get_property_of_type(t, "then") else {
         return false;
     };

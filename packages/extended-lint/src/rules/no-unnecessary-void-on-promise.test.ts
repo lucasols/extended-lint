@@ -263,3 +263,53 @@ test('remove void suggestion keeps the statement apart from the previous line', 
     ;(g || f)()"
   `)
 })
+
+test('void on parenthesized call', async () => {
+  const { result } = await invalid('void (Math.max(1, 2))')
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryVoid', line: 1 }
+    "
+  `)
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`"Math.max(1, 2)"`)
+})
+
+test('void on optional call is ignored', async () => {
+  await valid(dedent`
+    const obj: { fn?: () => number } = {}
+    void obj.fn?.()
+  `)
+})
+
+test('void on call returning promise constrained type parameter', async () => {
+  await valid(dedent`
+    function run<T extends Promise<void> | void>(callback: () => T) {
+      void callback()
+    }
+  `)
+})
+
+test('remove void suggestion in braceless body', async () => {
+  const { result } = await invalid(dedent`
+    declare const cond: boolean
+    declare const h: (() => void) | undefined
+    declare function g(): void
+
+    if (cond) void (h ?? g)()
+  `)
+
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
+    "declare const cond: boolean
+    declare const h: (() => void) | undefined
+    declare function g(): void
+
+    if (cond) (h ?? g)()"
+  `)
+})
+
+test('remove void suggestion in export default', async () => {
+  const { result } = await invalid('export default void function () {}()')
+
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`"export default (function () {}())"`)
+})

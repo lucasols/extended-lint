@@ -21,17 +21,23 @@ export type NoLeakedConditionalRenderingOptions = {
   reactVersion?: string
 }
 
+type RuleOptions = {
+  'improved-no-unnecessary-condition': ImprovedNoUnnecessaryConditionOptions
+  'strict-casting': StrictCastingOptions
+  'no-unnecessary-void-on-promise': Record<string, never>
+  'no-leaked-conditional-rendering': NoLeakedConditionalRenderingOptions
+}
+
 export type RulesConfig = {
-  'improved-no-unnecessary-condition'?: RuleEntry<ImprovedNoUnnecessaryConditionOptions>
-  'strict-casting'?: RuleEntry<StrictCastingOptions>
-  'no-unnecessary-void-on-promise'?: RuleEntry<Record<string, never>>
-  'no-leaked-conditional-rendering'?: RuleEntry<NoLeakedConditionalRenderingOptions>
+  [Name in keyof RuleOptions as Name | `${string}/${Name}`]?: RuleEntry<
+    RuleOptions[Name]
+  >
 }
 
 export type Override = {
   files: string[]
   ignores?: string[]
-  rules: RulesConfig
+  rules?: RulesConfig
 }
 
 export type FastLintConfig = {

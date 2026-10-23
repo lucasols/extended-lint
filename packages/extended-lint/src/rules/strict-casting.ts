@@ -82,6 +82,13 @@ function unnecessaryFixNeedsParens(
   }
 }
 
+const primitiveTypeFlags =
+  ts.TypeFlags.StringLike |
+  ts.TypeFlags.NumberLike |
+  ts.TypeFlags.BigIntLike |
+  ts.TypeFlags.BooleanLike |
+  ts.TypeFlags.EnumLike
+
 type Options = z.infer<typeof optionsSchema>
 
 export const strictCasting = createExtendedLintRule<
@@ -169,8 +176,27 @@ export const strictCasting = createExtendedLintRule<
       return parts
     }
 
-    function hasNumericValueOf(type: ts.Type, tsNode: ts.Node): boolean {
+    function mayConvertToNumber(type: ts.Type, tsNode: ts.Node): boolean {
+      if (
+        type.isIntersection() &&
+        type.types.some((part) => part.flags & primitiveTypeFlags)
+      ) {
+        return true
+      }
+
       const apparentType = checker.getApparentType(type)
+      if (
+        apparentType
+          .getProperties()
+          .some((property) => property.getName().startsWith('__@toPrimitive@'))
+      ) {
+        return true
+      }
+
+      return hasNumericValueOf(apparentType, tsNode)
+    }
+
+    function hasNumericValueOf(apparentType: ts.Type, tsNode: ts.Node): boolean {
       const valueOfSymbol = apparentType.getProperty('valueOf')
 
       if (!valueOfSymbol) return false
@@ -376,7 +402,7 @@ export const strictCasting = createExtendedLintRule<
           const hasNaNPart = parts.some(
             (part) =>
               part.flags & (ts.TypeFlags.Object | ts.TypeFlags.Intersection) &&
-              !hasNumericValueOf(part, tsNode),
+              !mayConvertToNumber(part, tsNode),
           )
 
           if (hasNaNPart) {

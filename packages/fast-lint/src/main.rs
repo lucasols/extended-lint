@@ -113,8 +113,51 @@ fn parse_args(raw: Vec<String>) -> Result<Parsed, String> {
     Ok(Parsed::Run(args))
 }
 
+/// The absolute, normalized form of `path`, with symlinks resolved when it exists so it compares equal to the
+/// physical current directory and the file names of the programs.
 fn absolute(cwd: &str, path: &str) -> String {
-    tspath::normalize_path(&tspath::resolve_path(cwd, &[path]))
+    let resolved = tspath::normalize_path(&tspath::resolve_path(cwd, &[path]));
+    match std::fs::canonicalize(&resolved) {
+        Ok(canonical) => {
+            let canonical = canonical.to_string_lossy();
+            tspath::normalize_path(canonical.strip_prefix(r"\\?\").unwrap_or(&canonical))
+        }
+        Err(_) => resolved,
+    }
+}
+
+/// A path argument: absolute, without a trailing `/` unless it is a root.
+fn path_arg(cwd: &str, path: &str) -> String {
+    let path = absolute(cwd, path);
+    let trimmed = path.trim_end_matches('/');
+    if trimmed.len() == path.len() || tspath::get_root_length(&path) >= path.len() {
+        path
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// Writes fixed text back in the file's encoding: a UTF-8 BOM is kept. Files that aren't UTF-8 are left alone, since
+/// their text was decoded lossily.
+fn write_fixed(path: &str, text: &str) -> Result<Option<String>, String> {
+    const BOM: &[u8] = b"\xEF\xBB\xBF";
+    let original = std::fs::read(path).map_err(|e| format!("failed to read {path}: {e}"))?;
+    let has_bom = original.starts_with(BOM);
+    let body = if has_bom {
+        original.get(BOM.len()..).unwrap_or_default()
+    } else {
+        &original
+    };
+    if std::str::from_utf8(body).is_err() {
+        return Ok(Some(format!("{path}: not fixed, the file isn't UTF-8")));
+    }
+    let mut bytes = Vec::with_capacity(text.len() + BOM.len());
+    if has_bom {
+        bytes.extend_from_slice(BOM);
+    }
+    bytes.extend_from_slice(text.as_bytes());
+    std::fs::write(path, bytes).map_err(|e| format!("failed to write {path}: {e}"))?;
+    Ok(None)
 }
 
 /// The config and the directory its relative paths resolve from.
@@ -157,32 +200,39 @@ fn run(args: Args) -> Result<ExitCode, String> {
     let opts = LintOptions {
         root: root.clone(),
         projects,
-        paths: args.paths.iter().map(|p| absolute(&cwd, p)).collect(),
+        paths: args.paths.iter().map(|p| path_arg(&cwd, p)).collect(),
         fix: args.fix,
+        errors_only: args.quiet && args.max_warnings.is_none(),
+        fix_errors_only: args.quiet,
     };
 
     let mut output = linter::run(&config, &opts)?;
 
+    if args.fix {
+        for file in &mut output.files {
+            if let Some(text) = &file.fixed_text {
+                if let Some(warning) = write_fixed(&file.path, text)? {
+                    output.warnings.push(warning);
+                    file.fixed_text = None;
+                }
+            }
+        }
+    }
     let mut stderr = std::io::stderr().lock();
     for warning in &output.warnings {
         let _ = writeln!(stderr, "warning: {warning}");
     }
-    if args.fix {
-        for file in &output.files {
-            if let Some(text) = &file.fixed_text {
-                std::fs::write(&file.path, text)
-                    .map_err(|e| format!("failed to write {}: {e}", file.path))?;
-            }
-        }
-    }
+    let counts = report::count(&output.files);
     if args.quiet {
         for file in &mut output.files {
             file.diagnostics.retain(|d| d.severity == Severity::Error);
         }
     }
-    output.files.retain(|f| !f.diagnostics.is_empty());
+    output
+        .files
+        .retain(|f| !f.diagnostics.is_empty() || f.fixed_text.is_some());
 
-    let rendered = report::render(args.format, &root, &output.files, args.color);
+    let rendered = report::render(args.format, &cwd, &output.files, args.color);
     let mut stdout = std::io::stdout().lock();
     let _ = stdout.write_all(rendered.as_bytes());
     if args.format == Format::Json {
@@ -200,7 +250,6 @@ fn run(args: Args) -> Result<ExitCode, String> {
         );
     }
 
-    let counts = report::count(&output.files);
     let too_many_warnings = args.max_warnings.is_some_and(|max| counts.warnings > max);
     if counts.errors > 0 || too_many_warnings {
         if too_many_warnings && counts.errors == 0 {

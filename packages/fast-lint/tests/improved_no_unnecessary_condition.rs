@@ -1278,11 +1278,11 @@ fn in_check_message_includes_configured_alternative() {
         },
     );
 
-    assert_snapshot!(result.errors_with_msg(), @r#"
+    assert_snapshot!(result.errors_with_msg(), @r###"
     - messageId: 'unnecessaryInCondition'
-      msg: 'This in check is unnecessary. Property "a" always exists on type "{ a: number; }".If this a valid condition, you can use as alternative: objectHasKey()'
+      msg: 'This in check is unnecessary. Property "a" always exists on type "{ a: number; }". If this is a valid condition, you can use as alternative: objectHasKey()'
       line: 2
-    "#);
+    "###);
 }
 
 #[test]
@@ -1411,4 +1411,65 @@ fn length_comparison_with_literal_on_the_left() {
     - { messageId: 'unnecessaryLengthCondition', line: 3 }
     - { messageId: 'alwaysFalseLengthCondition', line: 4 }
     "###);
+}
+
+#[test]
+fn array_is_array_on_generic_interfaces_is_valid() {
+    valid(
+        RULE,
+        indoc! {"
+            export function toArray<T>(value: Iterable<T> | ArrayLike<T>): T[] {
+              if (Array.isArray(value)) return value
+              return Array.from(value)
+            }
+        "},
+    );
+}
+
+#[test]
+fn typeof_function_on_function_type() {
+    valid(
+        RULE,
+        indoc! {"
+            declare const fn: Function | undefined
+            if (typeof fn === 'function') {}
+        "},
+    );
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const fn: Function
+            if (typeof fn === 'object') {}
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @"- { messageId: 'alwaysFalseTypeofCondition', line: 2 }");
+}
+
+#[test]
+fn in_check_with_template_literal_index_signature_is_valid() {
+    valid(
+        RULE,
+        indoc! {"
+            declare const attrs: { [key: `data-${string}`]: string }
+            if ('data-x' in attrs) {}
+        "},
+    );
+}
+
+#[test]
+fn string_method_annotation_fallback_ignores_nested_declarations() {
+    valid(
+        RULE,
+        indoc! {"
+            function f() {
+              const status: 'idle' = 'idle'
+              return status
+            }
+
+            function g() {
+              return status.startsWith('err')
+            }
+        "},
+    );
 }

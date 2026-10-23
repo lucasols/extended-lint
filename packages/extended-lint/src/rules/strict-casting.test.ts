@@ -524,3 +524,224 @@ test('optional call of possibly missing cast function is ignored', async () => {
     ],
   })
 })
+
+test('parenthesized arg and callee are looked through', async () => {
+  const { result } = await invalid(dedent`
+    declare const str: string
+
+    const x = (String)((str))
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryCasting', line: 3 }
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const str: string
+
+    const x = str"
+  `)
+})
+
+test('parenthesized nullish arg suggestion', async () => {
+  const { result } = await invalid(dedent`
+    declare const a: string | null
+    declare const b: string | null
+
+    const y = String((a || b))
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'nullishStringCasting', line: 4 }
+    "
+  `)
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
+    "declare const a: string | null
+    declare const b: string | null
+
+    const y = String(((a || b) ?? ''))"
+  `)
+})
+
+test('parenthesized cast parent is looked through', async () => {
+  const { result } = await invalid(dedent`
+    declare const x: number
+    declare const y: number
+
+    const num = (Number(x + y))
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryCasting', line: 4 }
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const x: number
+    declare const y: number
+
+    const num = (x + y)"
+  `)
+})
+
+test('optional chain arg is not a simple arg', async () => {
+  const { result } = await invalid(dedent`
+    declare const obj: { value: string } | undefined
+
+    const a = String(obj?.value)
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'nullishStringCasting', line: 3 }
+    "
+  `)
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
+    "declare const obj: { value: string } | undefined
+
+    const a = String((obj?.value) ?? '')"
+  `)
+})
+
+test('optional call of cast function fix keeps parens', async () => {
+  const { result } = await invalid(dedent`
+    declare const x: number
+    declare const y: number
+
+    const num = Number?.(x + y)
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryCasting', line: 4 }
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const x: number
+    declare const y: number
+
+    const num = (x + y)"
+  `)
+})
+
+test('unnecessary cast fix parens by parent', async () => {
+  const { result } = await invalid(dedent`
+    declare const x: number
+    declare const y: number
+    declare function fn(value: number): void
+    let target = 0
+
+    target = Number(x + y)
+    fn(Number(x + y))
+    const obj = { a: Number(x + y), [Number(x + y)]: 1 }
+    const arr = [Number(x + y)]
+    const arrow = () => Number(x + y)
+    const neg = -Number(x + y)
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const x: number
+    declare const y: number
+    declare function fn(value: number): void
+    let target = 0
+
+    target = x + y
+    fn(x + y)
+    const obj = { a: x + y, [x + y]: 1 }
+    const arr = [x + y]
+    const arrow = () => x + y
+    const neg = -(x + y)"
+  `)
+})
+
+test('unnecessary cast fix in braceless bodies', async () => {
+  const { result } = await invalid(dedent`
+    declare const debug: boolean
+    declare const a: string
+    declare const b: string
+    declare const n: number
+    declare function log(value: string): void
+
+    if (debug) String(a || b).split(',').forEach(log)
+    else Number(-n).toFixed()
+    while (debug) Number(-n)
+    label: String(\`\${a}\`).trim()
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const debug: boolean
+    declare const a: string
+    declare const b: string
+    declare const n: number
+    declare function log(value: string): void
+
+    if (debug) (a || b).split(',').forEach(log)
+    else (-n).toFixed()
+    while (debug) -n
+    label: \`\${a}\`.trim()"
+  `)
+})
+
+test('unnecessary cast fix keeps directives and export default valid', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      declare const s: unknown
+
+      export function f(x = 1) {
+        String('use strict')
+        return x
+      }
+      const x = s
+      String(<string>s)
+      export default String(class {}.name)
+    `,
+    filename: 'assertion.ts',
+  })
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const s: unknown
+
+    export function f(x = 1) {
+      ('use strict')
+      return x
+    }
+    const x = s
+    ;<string>s
+    export default (class {}.name)"
+  `)
+})
+
+test('Number cast of branded primitive or toPrimitive object', async () => {
+  await valid(dedent`
+    declare const id: string & { __brand: 'id' }
+    declare const count: number & { __brand: 'count' }
+    declare const temperature: { [Symbol.toPrimitive](hint: string): number }
+
+    const a = Number(id)
+    const b = Number(count)
+    const c = Number(temperature)
+  `)
+})
+
+test('comment-like text in a type argument keeps the fix', async () => {
+  const { result } = await invalid({
+    code: dedent`
+      declare function toStr<T>(value: unknown): string
+      declare const s: string
+
+      const x = toStr<'http://x'>(s)
+    `,
+    options: [
+      { additionalCastFunctions: [{ name: 'toStr', expectedType: 'string' }] },
+    ],
+  })
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare function toStr<T>(value: unknown): string
+    declare const s: string
+
+    const x = s"
+  `)
+})

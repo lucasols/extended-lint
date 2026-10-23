@@ -39,33 +39,53 @@ pub fn create(options: Option<&serde_json::Value>) -> Result<Box<dyn Rule>, Stri
 }
 
 /// `compare(version, "18.0.0", "<")` of compare-versions, as ESLint-React does: range prefixes (`^`, `~`, `>=`, ...)
-/// are ignored, missing or wildcard parts count as 0 and a prerelease comes before its release.
+/// are ignored, missing or wildcard parts count as 0, build metadata is ignored and a prerelease comes before its
+/// release.
 fn is_before_react_18(version: &str) -> Result<bool, String> {
     let invalid = || format!("invalid reactVersion: {version:?}");
     let trimmed = version
         .trim()
         .trim_start_matches(['v', 'V', '^', '~', '<', '>', '=']);
-    let (release, prerelease) = match trimmed.split_once('-') {
-        Some((release, prerelease)) => (release, !prerelease.is_empty()),
-        None => (trimmed, false),
+    let (rest, build) = match trimmed.split_once('+') {
+        Some((rest, build)) => (rest, Some(build)),
+        None => (trimmed, None),
     };
-    let release = release.split('+').next().unwrap_or(release);
-    let mut parts = release.split('.');
-    let major: u64 = parts
-        .next()
-        .and_then(|major| major.parse().ok())
-        .ok_or_else(invalid)?;
-    let mut rest = [0u64; 2];
-    for slot in &mut rest {
-        let Some(part) = parts.next() else {
-            break;
-        };
-        *slot = match part {
-            "x" | "X" | "*" => 0,
-            _ => part.parse().map_err(|_| invalid())?,
+    let (release, prerelease) = match rest.split_once('-') {
+        Some((release, prerelease)) => (release, Some(prerelease)),
+        None => (rest, None),
+    };
+    let is_identifier_list = |list: &str| {
+        list.split('.').all(|identifier| {
+            !identifier.is_empty()
+                && identifier
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        })
+    };
+    let parts: Vec<&str> = release.split('.').collect();
+    let has_suffix = prerelease.is_some() || build.is_some();
+    if parts.len() > 4
+        || (has_suffix && parts.len() < 3)
+        || !prerelease.is_none_or(is_identifier_list)
+        || !build.is_none_or(is_identifier_list)
+    {
+        return Err(invalid());
+    }
+    let mut numbers = [0u64; 4];
+    for (i, (slot, part)) in numbers.iter_mut().zip(&parts).enumerate() {
+        *slot = match *part {
+            "x" | "X" | "*" if i > 0 => 0,
+            _ if !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()) => {
+                part.parse().map_err(|_| invalid())?
+            }
+            _ => return Err(invalid()),
         };
     }
-    Ok(major < 18 || (major == 18 && rest == [0, 0] && prerelease))
+    Ok(match numbers.cmp(&[18, 0, 0, 0]) {
+        std::cmp::Ordering::Less => true,
+        std::cmp::Ordering::Greater => false,
+        std::cmp::Ordering::Equal => prerelease.is_some(),
+    })
 }
 
 const LISTENERS: &[Listener] = &[Listener::Enter(Kind::JsxExpression)];
@@ -388,24 +408,44 @@ fn is_static_nan_string(ctx: &mut Ctx, node: P<Node>, hops: u32) -> bool {
 
 impl Visitor {
     /// The left operand of the first `&&` whose value could be rendered, following the branches React renders.
-    fn find_leaked_operand(&self, ctx: &mut Ctx, node: P<Node>, hops: u32) -> Option<P<Node>> {
+    /// `visited` holds the initializers already searched from this JSX expression: searching one again finds nothing
+    /// new, and skipping it keeps branching references (`a ? a : a`) from exploding.
+    fn find_leaked_operand(
+        &self,
+        ctx: &mut Ctx,
+        node: P<Node>,
+        hops: u32,
+        visited: &mut Vec<P<Node>>,
+    ) -> Option<P<Node>> {
         let node = skip_type_expressions(node);
         match node.kind() {
-            Kind::BinaryExpression => self.check_logical_and(ctx, node, hops),
+            Kind::BinaryExpression => self.check_logical_and(ctx, node, hops, visited),
             Kind::ConditionalExpression => {
                 let conditional = node.as_conditional_expression();
-                self.find_leaked_operand(ctx, conditional.when_true, hops)
-                    .or_else(|| self.find_leaked_operand(ctx, conditional.when_false, hops))
+                self.find_leaked_operand(ctx, conditional.when_true, hops, visited)
+                    .or_else(|| {
+                        self.find_leaked_operand(ctx, conditional.when_false, hops, visited)
+                    })
             }
             Kind::Identifier if hops < MAX_IDENTIFIER_HOPS => {
                 let initializer = variable_initializer(ctx, node)?;
-                self.find_leaked_operand(ctx, initializer, hops + 1)
+                if visited.contains(&initializer) {
+                    return None;
+                }
+                visited.push(initializer);
+                self.find_leaked_operand(ctx, initializer, hops + 1, visited)
             }
             _ => None,
         }
     }
 
-    fn check_logical_and(&self, ctx: &mut Ctx, node: P<Node>, hops: u32) -> Option<P<Node>> {
+    fn check_logical_and(
+        &self,
+        ctx: &mut Ctx,
+        node: P<Node>,
+        hops: u32,
+        visited: &mut Vec<P<Node>>,
+    ) -> Option<P<Node>> {
         let binary = node.as_binary_expression();
         if binary.operator_token.kind() != Kind::AmpersandAmpersandToken {
             return None;
@@ -413,7 +453,7 @@ impl Visitor {
         let left = skip_parens(binary.left);
         let right = binary.right.get();
         if is_logical_not(left) {
-            return self.find_leaked_operand(ctx, right, hops);
+            return self.find_leaked_operand(ctx, right, hops, visited);
         }
         if is_identifier_named(left, "NaN") || !self.is_safe_left_operand(ctx, left) {
             return Some(left);
@@ -421,7 +461,7 @@ impl Visitor {
         if is_static_nan_string(ctx, left, 0) {
             return Some(left);
         }
-        self.find_leaked_operand(ctx, right, hops)
+        self.find_leaked_operand(ctx, right, hops, visited)
     }
 
     fn is_safe_left_operand(&self, ctx: &mut Ctx, left: P<Node>) -> bool {
@@ -448,7 +488,7 @@ impl RuleVisitor for Visitor {
         let Some(expression) = jsx_expression.expression else {
             return;
         };
-        let Some(leaked) = self.find_leaked_operand(ctx, expression, 0) else {
+        let Some(leaked) = self.find_leaked_operand(ctx, expression, 0, &mut Vec::new()) else {
             return;
         };
         let value = node_text(ctx, leaked);

@@ -27,7 +27,7 @@ pub fn create(options: Option<&serde_json::Value>) -> Result<Box<dyn Rule>, Stri
     let options = super::parse_options::<Options>(options)?;
     let in_condition_alternative = match options.alternative_for_in_condition {
         Some(alternative) if !alternative.is_empty() => {
-            format!("If this a valid condition, you can use as alternative: {alternative}")
+            format!(" If this is a valid condition, you can use as alternative: {alternative}")
         }
         _ => String::new(),
     };
@@ -172,6 +172,9 @@ fn typeof_values_of_type(checker: &mut Checker, t: P<Type>) -> Option<&'static [
     {
         return Some(&[TypeofValue::Function]);
     }
+    if is_global_function_type(checker, t) {
+        return Some(&[TypeofValue::Function]);
+    }
     if flags.intersects(TypeFlags::Object) {
         if checker.get_properties_of_type(t).is_empty() {
             return Some(NON_NULLISH_TYPEOFS);
@@ -185,6 +188,16 @@ fn typeof_values_of_type(checker: &mut Checker, t: P<Type>) -> Option<&'static [
         return Some(&[TypeofValue::Never]);
     }
     None
+}
+
+/// `Function`, `CallableFunction` and `NewableFunction` have no signatures but are functions.
+fn is_global_function_type(checker: &mut Checker, t: P<Type>) -> bool {
+    t.symbol().is_some_and(|symbol| {
+        matches!(
+            checker.get_fully_qualified_name_exported(symbol).as_str(),
+            "Function" | "CallableFunction" | "NewableFunction"
+        )
+    })
 }
 
 /// Every `typeof` result of each union member, in order and with repetitions (`boolean` gives two).
@@ -351,6 +364,7 @@ fn literal_type_string(type_node: P<Node>) -> Option<&'static str> {
     string_literal_text(type_node.as_literal_type_node().literal())
 }
 
+/// The annotated literals of the file's top-level variables.
 fn collect_annotated_literals(node: P<Node>, found: &mut AnnotatedLiterals) {
     if ast::is_variable_declaration(node)
         && node.parent().is_some_and(ast::is_variable_declaration_list)
@@ -361,11 +375,17 @@ fn collect_annotated_literals(node: P<Node>, found: &mut AnnotatedLiterals) {
                 found.insert(name.text(), values);
             }
         }
+        return;
     }
-    node.for_each_child(&mut |child| {
-        collect_annotated_literals(child, found);
-        false
-    });
+    if ast::is_source_file(node)
+        || ast::is_variable_statement(node)
+        || ast::is_variable_declaration_list(node)
+    {
+        node.for_each_child(&mut |child| {
+            collect_annotated_literals(child, found);
+            false
+        });
+    }
 }
 
 /// Whether `identifier` refers to something declared in this file, whose type the checker already gave.
@@ -488,8 +508,8 @@ impl Visitor {
     }
 
     /// Fallback for identifiers that resolve to no declaration of this file (a script's `const status: 'a'` clashing
-    /// with the DOM's global `status: string`): the type annotation of the first variable declared with that name
-    /// anywhere in the file.
+    /// with the DOM's global `status: string`): the type annotation of the first top-level variable declared with that
+    /// name.
     fn annotated_literals_of(
         &mut self,
         ctx: &mut Ctx,
@@ -600,8 +620,16 @@ fn is_definitely_not_array_type(checker: &mut Checker, t: P<Type>) -> bool {
     }
     flags.intersects(TypeFlags::Object)
         && !t.object_flags().intersects(ObjectFlags::ClassOrInterface)
+        && !is_class_or_interface_reference(t)
         && !is_runtime_array_type(checker, t)
         && !is_empty_object_type(checker, t)
+}
+
+/// An instantiated generic class or interface (`Iterable<T>`, `ArrayLike<T>`), which an array may implement, like the
+/// non-generic ones.
+fn is_class_or_interface_reference(t: P<Type>) -> bool {
+    t.object_flags().intersects(ObjectFlags::Reference)
+        && is_symbol_flag_set(t.symbol(), SymbolFlags::Class | SymbolFlags::Interface)
 }
 
 /// `Some(result)` when `Array.isArray` always gives `result` for a value of type `t`.
@@ -759,7 +787,7 @@ fn property_presence_in_object(
     t: P<Type>,
     property: &str,
 ) -> PropertyPresence {
-    if checker.get_string_index_type(t).is_some() || checker.get_number_index_type(t).is_some() {
+    if !checker.get_index_infos_of_type(t).is_empty() {
         return PropertyPresence::Unknown;
     }
     if checker.get_properties_of_type(t).is_empty() {

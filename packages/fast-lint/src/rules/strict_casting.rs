@@ -4,7 +4,9 @@ use tsrs_checker::{Checker, SignatureKind, Type, TypeFlags};
 use tsrs_core::P;
 use tsrslint::rule::{Ctx, Listener, Rule, RuleMessage, RuleSuggestion, RuleVisitor};
 
-use crate::utils::{estree_parent, is_in_optional_chain, node_text, replacement_at, skip_parens};
+use crate::utils::{
+    comment_at, estree_parent, is_in_optional_chain, node_text, replacement_at, skip_parens,
+};
 
 pub const NAME: &str = "strict-casting";
 
@@ -221,8 +223,34 @@ fn resolve_union_parts(checker: &mut Checker, t: P<Type>) -> Option<Vec<P<Type>>
     Some(parts)
 }
 
-fn has_numeric_value_of(checker: &mut Checker, t: P<Type>, location: P<Node>) -> bool {
+/// Whether `Number()` of an object type can give a number: a branded primitive (`string & { __brand: 'id' }`), an
+/// object with `[Symbol.toPrimitive]` or a `valueOf` returning a number.
+fn may_convert_to_number(checker: &mut Checker, t: P<Type>, location: P<Node>) -> bool {
+    if t.flags().intersects(TypeFlags::Intersection)
+        && t.types().iter().any(|part| {
+            part.flags().intersects(
+                TypeFlags::StringLike
+                    | TypeFlags::NumberLike
+                    | TypeFlags::BigIntLike
+                    | TypeFlags::BooleanLike
+                    | TypeFlags::EnumLike,
+            )
+        })
+    {
+        return true;
+    }
     let apparent_type = checker.get_apparent_type(t);
+    let to_primitive = checker.get_property_name_for_known_symbol_name("toPrimitive");
+    if checker
+        .get_property_of_type(apparent_type, &to_primitive)
+        .is_some()
+    {
+        return true;
+    }
+    has_numeric_value_of(checker, apparent_type, location)
+}
+
+fn has_numeric_value_of(checker: &mut Checker, apparent_type: P<Type>, location: P<Node>) -> bool {
     let Some(value_of_symbol) = checker.get_property_of_type(apparent_type, "valueOf") else {
         return false;
     };
@@ -245,13 +273,19 @@ fn has_comments_outside_arg(ctx: &Ctx, node: P<Node>, arg: P<Node>) -> bool {
     let (node_start, node_end) = ctx.trim(node);
     let (arg_start, arg_end) = ctx.trim(arg);
     let text = ctx.text();
-    let segment = |start: i32, end: i32| {
-        text.get(usize::try_from(start).unwrap_or(0)..usize::try_from(end).unwrap_or(0))
-            .unwrap_or_default()
-    };
-    [segment(node_start, arg_start), segment(arg_end, node_end)]
+    [(node_start, arg_start), (arg_end, node_end)]
         .iter()
-        .any(|s| s.contains("//") || s.contains("/*"))
+        .any(|&(start, end)| {
+            let (Ok(start), Ok(end)) = (usize::try_from(start), usize::try_from(end)) else {
+                return false;
+            };
+            let segment = text.get(start..end).unwrap_or_default();
+            ["//", "/*"].iter().any(|opener| {
+                segment.match_indices(opener).any(|(i, _)| {
+                    u32::try_from(start + i).is_ok_and(|pos| comment_at(ctx.file, pos).is_some())
+                })
+            })
+        })
 }
 
 fn report_unnecessary(
@@ -434,7 +468,7 @@ impl StrictCasting {
         let has_nan_part = parts.iter().any(|&p| {
             p.flags()
                 .intersects(TypeFlags::Object | TypeFlags::Intersection)
-                && !has_numeric_value_of(ctx.checker, p, arg)
+                && !may_convert_to_number(ctx.checker, p, arg)
         });
         if !has_nan_part {
             return false;

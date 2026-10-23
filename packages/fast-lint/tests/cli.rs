@@ -1,5 +1,6 @@
 use std::fmt::Write as _;
 use std::path::PathBuf;
+use std::process::Command;
 
 use fast_lint::config::Config;
 use fast_lint::linter::{run, LintOptions, LintOutput};
@@ -32,6 +33,17 @@ impl Project {
         format!("{}/{relative}", self.root())
     }
 
+    fn options(&self, projects: &[&str], paths: &[&str], fix: bool) -> LintOptions {
+        LintOptions {
+            root: self.root(),
+            projects: projects.iter().map(|p| self.path(p)).collect(),
+            paths: paths.iter().map(|p| self.path(p)).collect(),
+            fix,
+            errors_only: false,
+            fix_errors_only: false,
+        }
+    }
+
     fn lint(
         &self,
         config: &str,
@@ -40,13 +52,21 @@ impl Project {
         fix: bool,
     ) -> Result<LintOutput, String> {
         let config = Config::from_json(config)?;
-        let opts = LintOptions {
-            root: self.root(),
-            projects: projects.iter().map(|p| self.path(p)).collect(),
-            paths: paths.iter().map(|p| self.path(p)).collect(),
-            fix,
-        };
-        run(&config, &opts)
+        run(&config, &self.options(projects, paths, fix))
+    }
+
+    /// Runs the fast-lint binary in the project directory: exit code and stdout.
+    fn cli(&self, args: &[&str]) -> (i32, String) {
+        let output = Command::new(env!("CARGO_BIN_EXE_fast-lint"))
+            .args(args)
+            .arg("--no-color")
+            .current_dir(&self.root)
+            .output()
+            .expect("run fast-lint");
+        (
+            output.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&output.stdout).into_owned(),
+        )
     }
 }
 
@@ -332,5 +352,285 @@ fn json_fix_ranges_are_utf16_offsets() {
 
     let json = render(Format::Json, &project.root(), &output.files, false);
     let value: serde_json::Value = serde_json::from_str(&json).expect("valid json");
-    assert_snapshot!(value[0]["messages"][0]["fixes"].to_string(), @r###"[{"range":[51,60],"text":"s"}]"###);
+    assert_snapshot!(value[0]["messages"][0]["fix"].to_string(), @r###"{"range":[51,60],"text":"s"}"###);
+}
+
+#[test]
+fn json_output_has_the_eslint_result_shape() {
+    let project = Project::new(
+        "json-shape",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            ("src/a.ts", "export const a = (s: string) => String(s)\n"),
+        ],
+    );
+
+    let output = project
+        .lint(ALL_RULES, &["tsconfig.json"], &[], false)
+        .expect("lint");
+
+    let json = render(Format::Json, &project.root(), &output.files, false);
+    assert_snapshot!(json.replace(&project.root(), "<root>"), @r###"[{"filePath":"<root>/src/a.ts","messages":[{"ruleId":"strict-casting","severity":2,"message":"Unnecessary String() cast of a value that is already of type string","line":1,"column":33,"messageId":"unnecessaryCasting","endLine":1,"endColumn":42,"fix":{"range":[32,41],"text":"s"}}],"suppressedMessages":[],"errorCount":1,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":1,"fixableWarningCount":0,"usedDeprecatedRules":[]}]"###);
+}
+
+#[test]
+fn trailing_slash_path_argument_selects_the_directory() {
+    let project = Project::new(
+        "trailing-slash",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            ("src/a.ts", "export const a = (s: string) => String(s)\n"),
+        ],
+    );
+
+    let (code, stdout) = project.cli(&["--format", "compact", "src/"]);
+    assert_eq!(code, 1);
+    assert_snapshot!(stdout, @"src/a.ts:1:33: Error - Unnecessary String() cast of a value that is already of type string (strict-casting)");
+
+    let (code, _) = project.cli(&["--format", "compact", "./"]);
+    assert_eq!(code, 1);
+}
+
+#[test]
+fn explicit_declaration_file_argument_is_skipped() {
+    let project = Project::new(
+        "declaration-arg",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            ("src/env.d.ts", "declare const env: string\n"),
+            ("src/a.ts", "export const a = (s: string) => String(s)\n"),
+        ],
+    );
+
+    let output = project
+        .lint(
+            ALL_RULES,
+            &["tsconfig.json"],
+            &["src/env.d.ts", "src/a.ts"],
+            false,
+        )
+        .expect("lint");
+
+    assert_snapshot!(output.warnings.join("\n"), @"src/env.d.ts: file ignored: it matches `ignores`, is a declaration file or is in node_modules");
+    assert_snapshot!(summary(&project, &output), @"src/a.ts:1:33 strict-casting error");
+}
+
+#[test]
+fn explicit_ignored_file_argument_is_a_warning() {
+    let project = Project::new(
+        "ignored-arg",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            (
+                "src/gen/c.ts",
+                "export const c = (s: string) => String(s)\n",
+            ),
+        ],
+    );
+
+    let output = project
+        .lint(
+            r#"{ "ignores": ["src/gen"] }"#,
+            &["tsconfig.json"],
+            &["src/gen/c.ts"],
+            false,
+        )
+        .expect("lint");
+
+    assert!(output.files.is_empty());
+    assert_snapshot!(output.warnings.join("\n"), @"src/gen/c.ts: file ignored: it matches `ignores`, is a declaration file or is in node_modules");
+
+    let error = project
+        .lint(
+            r#"{ "ignores": ["src/gen"] }"#,
+            &["tsconfig.json"],
+            &["src/gen"],
+            false,
+        )
+        .err()
+        .expect("an ignored directory argument should fail");
+    assert_snapshot!(error, @"all files matched by src/gen are ignored");
+}
+
+#[test]
+fn ignores_match_directories_and_support_negation() {
+    let project = Project::new(
+        "ignores",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            (
+                "src/gen/a.ts",
+                "export const a = (s: string) => String(s)\n",
+            ),
+            (
+                "src/gen/b.ts",
+                "export const b = (s: string) => String(s)\n",
+            ),
+            (
+                "src/out/c.ts",
+                "export const c = (s: string) => String(s)\n",
+            ),
+            (
+                "src/lib/d.ts",
+                "export const d = (s: string) => String(s)\n",
+            ),
+            (
+                "src/lib/e.ts",
+                "export const e = (s: string) => String(s)\n",
+            ),
+        ],
+    );
+    let config = r#"{
+        "ignores": ["src/gen", "**/out", "src/lib/**", "!src/lib/e.ts"],
+        "rules": { "strict-casting": "error" }
+    }"#;
+
+    let output = project
+        .lint(config, &["tsconfig.json"], &[], false)
+        .expect("lint");
+
+    assert_snapshot!(summary(&project, &output), @"src/lib/e.ts:1:33 strict-casting error");
+}
+
+#[test]
+fn globs_match_files_outside_the_config_directory() {
+    let project = Project::new(
+        "outside-config",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            ("src/a.ts", "export const a = (s: string) => String(s)\n"),
+            ("src/b.ts", "export const b = (s: string) => String(s)\n"),
+        ],
+    );
+    let config = Config::from_json(
+        r#"{
+            "ignores": ["../src/b.ts"],
+            "rules": { "strict-casting": "warn" },
+            "overrides": [{ "files": ["../src/**"], "rules": { "strict-casting": "error" } }]
+        }"#,
+    )
+    .expect("config");
+    let mut options = project.options(&["tsconfig.json"], &[], false);
+    options.root = project.path("config");
+
+    let output = run(&config, &options).expect("lint");
+
+    assert_snapshot!(summary(&project, &output), @"src/a.ts:1:33 strict-casting error");
+}
+
+#[test]
+fn parsing_errors_are_reported() {
+    let project = Project::new(
+        "parse-error",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            (
+                "src/a.ts",
+                "const broken: = ;\nexport const a = (s: string) => String(s)\n",
+            ),
+        ],
+    );
+
+    let output = project
+        .lint(ALL_RULES, &["tsconfig.json"], &[], false)
+        .expect("lint");
+
+    let compact = render(Format::Compact, &project.root(), &output.files, false);
+    assert_snapshot!(compact, @"src/a.ts:1:15: Error - Parsing error: Type expected.");
+}
+
+#[test]
+fn directives_follow_eslint_comment_rules() {
+    let project = Project::new(
+        "directive-comments",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            (
+                "src/a.ts",
+                "// add /* eslint-disable */ at the top to silence this\nexport const a = (s: string) => String(s)\n/* eslint-disable-next-line\n   strict-casting */\nexport const b = (s: string) => String(s)\n// eslint-disable strict-casting\nexport const c = (s: string) => String(s)\n",
+            ),
+        ],
+    );
+
+    let output = project
+        .lint(ALL_RULES, &["tsconfig.json"], &[], false)
+        .expect("lint");
+
+    assert_snapshot!(summary(&project, &output), @r###"
+    src/a.ts:2:33 strict-casting error
+    src/a.ts:7:33 strict-casting error
+    "###);
+}
+
+#[test]
+fn quiet_counts_warnings_for_max_warnings_and_fixes_only_errors() {
+    let project = Project::new(
+        "quiet",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            (
+                "fast-lint.config.json",
+                r#"{ "rules": { "strict-casting": "warn" } }"#,
+            ),
+            ("src/a.ts", "export const a = (s: string) => String(s)\n"),
+        ],
+    );
+
+    let (code, stdout) = project.cli(&["--quiet", "--max-warnings", "0"]);
+    assert_eq!((code, stdout.as_str()), (1, ""));
+
+    let (code, stdout) = project.cli(&["--quiet", "--fix"]);
+    assert_eq!((code, stdout.as_str()), (0, ""));
+    assert_eq!(
+        std::fs::read_to_string(project.path("src/a.ts")).expect("read"),
+        "export const a = (s: string) => String(s)\n"
+    );
+}
+
+#[test]
+fn fix_keeps_the_utf8_bom() {
+    let project = Project::new(
+        "bom",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            (
+                "src/a.ts",
+                "\u{FEFF}export const a = (s: string) => String(s)\n",
+            ),
+        ],
+    );
+
+    let (code, _) = project.cli(&["--fix"]);
+    assert_eq!(code, 0);
+    assert_eq!(
+        std::fs::read_to_string(project.path("src/a.ts")).expect("read"),
+        "\u{FEFF}export const a = (s: string) => s\n"
+    );
+}
+
+#[test]
+fn printed_paths_are_relative_to_the_current_directory() {
+    let project = Project::new(
+        "cwd-paths",
+        &[
+            ("tsconfig.json", TSCONFIG),
+            ("fast-lint.config.json", ALL_RULES),
+            ("src/a.ts", "export const a = (s: string) => String(s)\n"),
+        ],
+    );
+
+    let output = Command::new(env!("CARGO_BIN_EXE_fast-lint"))
+        .args([
+            "--format",
+            "compact",
+            "-c",
+            "../fast-lint.config.json",
+            "-p",
+            "../tsconfig.json",
+        ])
+        .current_dir(project.root.join("src"))
+        .output()
+        .expect("run fast-lint");
+
+    assert_snapshot!(String::from_utf8_lossy(&output.stdout), @"a.ts:1:33: Error - Unnecessary String() cast of a value that is already of type string (strict-casting)");
 }

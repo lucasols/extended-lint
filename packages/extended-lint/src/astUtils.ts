@@ -138,6 +138,7 @@ export function traverseAST(
 type LeadingPosition =
   | { type: 'statement'; statement: TSESTree.ExpressionStatement }
   | { type: 'arrowBody' }
+  | { type: 'exportDefault' }
 
 function getLeadingPosition(
   node: TSESTree.Node,
@@ -156,6 +157,12 @@ function getLeadingPosition(
       return { type: 'arrowBody' }
     }
 
+    if (parent.type === AST_NODE_TYPES.ExportDefaultDeclaration) {
+      if (parent.declaration !== current) return null
+      if (sourceCode.getTokenBefore(current)?.value === '(') return null
+      return { type: 'exportDefault' }
+    }
+
     if (parent.range[0] !== start) return null
 
     if (parent.type === AST_NODE_TYPES.ExpressionStatement) {
@@ -167,7 +174,33 @@ function getLeadingPosition(
 }
 
 const statementKeywordStart = /^(?:function|class|async)(?![\w$])/
-const asiHazardStart = /^[([`+\-/]/
+const asiHazardStart = /^[([`+\-/<]/
+const stringLiteralStart = /^['"]/
+
+const statementListParents = new Set<AST_NODE_TYPES>([
+  AST_NODE_TYPES.Program,
+  AST_NODE_TYPES.BlockStatement,
+  AST_NODE_TYPES.StaticBlock,
+  AST_NODE_TYPES.SwitchCase,
+  AST_NODE_TYPES.TSModuleBlock,
+])
+
+function needsParens(
+  node: TSESTree.Node,
+  replacement: string,
+  position: LeadingPosition,
+): boolean {
+  if (position.type === 'arrowBody') return replacement.startsWith('{')
+  if (position.type === 'exportDefault') {
+    return statementKeywordStart.test(replacement)
+  }
+
+  return (
+    replacement.startsWith('{') ||
+    statementKeywordStart.test(replacement) ||
+    (position.statement.expression === node && stringLiteralStart.test(replacement))
+  )
+}
 
 export function getReplacementAt(
   node: TSESTree.Node,
@@ -177,13 +210,13 @@ export function getReplacementAt(
   const position = getLeadingPosition(node, sourceCode)
   if (!position) return replacement
 
-  const startsLikeStatement =
-    replacement.startsWith('{') ||
-    (position.type === 'statement' && statementKeywordStart.test(replacement))
-
-  const text = startsLikeStatement ? `(${replacement})` : replacement
+  const text = needsParens(node, replacement, position)
+    ? `(${replacement})`
+    : replacement
 
   if (position.type !== 'statement' || !asiHazardStart.test(text)) return text
+
+  if (!statementListParents.has(position.statement.parent.type)) return text
 
   const previous = sourceCode.getTokenBefore(position.statement)
   if (!previous || previous.value === ';' || previous.value === '{') {

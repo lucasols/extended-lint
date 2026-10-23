@@ -1,4 +1,4 @@
-use globset::{Glob, GlobBuilder, GlobSet, GlobSetBuilder};
+use globset::{Glob, GlobBuilder, GlobMatcher, GlobSet, GlobSetBuilder};
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
@@ -86,10 +86,75 @@ pub struct EnabledRule {
     pub options: Option<String>,
 }
 
+/// One pattern of the global `ignores`.
+struct IgnorePattern {
+    matcher: GlobMatcher,
+    /// `!pattern`: un-ignores what earlier patterns ignored.
+    negated: bool,
+    /// `dir/`: matches directories only.
+    directory_only: bool,
+}
+
+/// Global ignores with ESLint flat config semantics: a pattern matching a directory ignores everything in it, and
+/// `!` patterns, applied in order, un-ignore files (but not files in an ignored directory).
+struct Ignores {
+    patterns: Vec<IgnorePattern>,
+}
+
+impl Ignores {
+    fn new(patterns: &[String]) -> Result<Ignores, String> {
+        let patterns = patterns
+            .iter()
+            .map(|raw| {
+                let (negated, pattern) = match raw.strip_prefix('!') {
+                    Some(pattern) => (true, pattern),
+                    None => (false, raw.as_str()),
+                };
+                let pattern = pattern.strip_prefix("./").unwrap_or(pattern);
+                let (directory_only, pattern) = match pattern.strip_suffix('/') {
+                    Some(dir) => (true, dir),
+                    None => (false, pattern),
+                };
+                let matcher = GlobBuilder::new(pattern)
+                    .literal_separator(true)
+                    .build()
+                    .map_err(|e| format!("invalid glob \"{raw}\": {e}"))?
+                    .compile_matcher();
+                Ok(IgnorePattern {
+                    matcher,
+                    negated,
+                    directory_only,
+                })
+            })
+            .collect::<Result<_, String>>()?;
+        Ok(Ignores { patterns })
+    }
+
+    fn matches(&self, path: &str, is_directory: bool) -> bool {
+        let mut ignored = false;
+        for pattern in &self.patterns {
+            if (is_directory || !pattern.directory_only) && pattern.matcher.is_match(path) {
+                ignored = !pattern.negated;
+            }
+        }
+        ignored
+    }
+
+    fn is_ignored(&self, relative_path: &str) -> bool {
+        let is_ignored_directory = |dir: &str| {
+            !dir.is_empty() && dir != ".." && !dir.ends_with("/..") && self.matches(dir, true)
+        };
+        relative_path
+            .match_indices('/')
+            .any(|(i, _)| relative_path.get(..i).is_some_and(is_ignored_directory))
+            || self.matches(relative_path, false)
+    }
+}
+
 pub struct Config {
     /// tsconfig paths, relative to the config directory.
     pub projects: Vec<String>,
-    ignores: Option<GlobSet>,
+    ignores: Option<Ignores>,
     blocks: Vec<Block>,
 }
 
@@ -119,7 +184,7 @@ impl Config {
         Ok(Config {
             projects: raw.projects,
             ignores: (!raw.ignores.is_empty())
-                .then(|| build_glob_set(&raw.ignores))
+                .then(|| Ignores::new(&raw.ignores))
                 .transpose()?,
             blocks,
         })
@@ -149,10 +214,11 @@ impl Config {
         }
     }
 
+    /// Whether the global `ignores` exclude a file (path relative to the config directory, `/`-separated).
     pub fn is_ignored(&self, relative_path: &str) -> bool {
         self.ignores
             .as_ref()
-            .is_some_and(|set| set.is_match(relative_path))
+            .is_some_and(|ignores| ignores.is_ignored(relative_path))
     }
 
     /// The rules enabled for a file (path relative to the config directory, `/`-separated), sorted by name.

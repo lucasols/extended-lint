@@ -267,3 +267,41 @@ fn remove_void_suggestion_keeps_the_statement_apart_from_the_previous_line() {
     ;(g || f)()
     "###);
 }
+
+#[test]
+fn void_on_call_returning_promise_constrained_type_parameter() {
+    valid(
+        RULE,
+        indoc! {"
+            function run<T extends Promise<void> | void>(callback: () => T) {
+              void callback()
+            }
+        "},
+    );
+}
+
+#[test]
+fn remove_void_suggestion_in_braceless_body_and_export_default() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const cond: boolean
+            declare const h: (() => void) | undefined
+            declare function g(): void
+
+            if (cond) void (h ?? g)()
+        "},
+    );
+
+    assert_snapshot!(result.suggestion_output(0), @r###"
+    declare const cond: boolean
+    declare const h: (() => void) | undefined
+    declare function g(): void
+
+    if (cond) (h ?? g)()
+    "###);
+
+    let result = invalid(RULE, "export default void function () {}()");
+
+    assert_snapshot!(result.suggestion_output(0), @"export default (function () {}())");
+}

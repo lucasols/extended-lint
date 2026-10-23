@@ -684,3 +684,107 @@ fn optional_call_of_possibly_missing_cast_function_is_ignored() {
         },
     );
 }
+
+#[test]
+fn unnecessary_cast_fix_in_braceless_bodies() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const debug: boolean
+            declare const a: string
+            declare const b: string
+            declare const n: number
+            declare function log(value: string): void
+
+            if (debug) String(a || b).split(',').forEach(log)
+            else Number(-n).toFixed()
+            while (debug) Number(-n)
+            label: String(`${a}`).trim()
+        "},
+    );
+
+    assert_snapshot!(result.output, @r###"
+    declare const debug: boolean
+    declare const a: string
+    declare const b: string
+    declare const n: number
+    declare function log(value: string): void
+
+    if (debug) (a || b).split(',').forEach(log)
+    else (-n).toFixed()
+    while (debug) -n
+    label: `${a}`.trim()
+    "###);
+}
+
+#[test]
+fn unnecessary_cast_fix_keeps_directives_and_export_default_valid() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const s: unknown
+
+            export function f(x = 1) {
+              String('use strict')
+              return x
+            }
+            const x = s
+            String(<string>s)
+            export default String(class {}.name)
+        "},
+    );
+
+    assert_snapshot!(result.output, @r###"
+    declare const s: unknown
+
+    export function f(x = 1) {
+      ('use strict')
+      return x
+    }
+    const x = s
+    ;<string>s
+    export default (class {}.name)
+    "###);
+}
+
+#[test]
+fn number_cast_of_branded_primitive_or_to_primitive_object() {
+    valid(
+        RULE,
+        indoc! {"
+            declare const id: string & { __brand: 'id' }
+            declare const count: number & { __brand: 'count' }
+            declare const temperature: { [Symbol.toPrimitive](hint: string): number }
+
+            const a = Number(id)
+            const b = Number(count)
+            const c = Number(temperature)
+        "},
+    );
+}
+
+#[test]
+fn comment_like_text_in_a_type_argument_keeps_the_fix() {
+    let result = invalid(
+        RULE,
+        Case {
+            code: indoc! {"
+                declare function toStr<T>(value: unknown): string
+                declare const s: string
+
+                const x = toStr<'http://x'>(s)
+            "},
+            options: Some(json!({
+                "additionalCastFunctions": [{ "name": "toStr", "expectedType": "string" }]
+            })),
+            filename: None,
+        },
+    );
+
+    assert_snapshot!(result.output, @r###"
+    declare function toStr<T>(value: unknown): string
+    declare const s: string
+
+    const x = s
+    "###);
+}
