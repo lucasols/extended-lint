@@ -154,6 +154,11 @@ pub fn lint(rule_name: &str, case: &Case) -> LintResult {
         fast_lint::rules::create_rule(rule_name, case.options.as_ref())
             .unwrap_or_else(|e| panic!("{e}")),
     );
+    lint_rule(rule, case)
+}
+
+/// Lints `case` with an already created rule, e.g. a test-only rule exercising a helper.
+pub fn lint_rule(rule: &'static dyn Rule, case: &Case) -> LintResult {
     let file_name = case.filename.unwrap_or_else(|| {
         if case.code.contains("</") || case.code.contains("/>") {
             "react.tsx"

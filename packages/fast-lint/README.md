@@ -13,6 +13,40 @@ only these rules run, against one shared program per tsconfig. Type-aware rules 
 | `strict-casting` | moved from `@ls-stack/extended-lint` (see below) |
 | `no-unnecessary-void-on-promise` | moved from `@ls-stack/extended-lint` |
 | `no-leaked-conditional-rendering` | port of `@eslint-react/no-leaked-conditional-rendering` (v2.3.13); option `reactVersion` (default `"19.0.0"`, also used for `""` and `"detect"`: the installed version isn't read) |
+| `no-duplicate-key` | port of `@eslint-react/no-duplicate-key` (v2.3.13, see below) |
+| `no-restricted-syntax` | ESLint's `no-restricted-syntax` merged with `@ls-stack/advanced-no-restricted-syntax` (moved from `@ls-stack/extended-lint`; see below) |
+| `naming-convention` | new, replaces `no-restricted-syntax` naming selectors (see below) |
+| `no-default-export` | moved from `@ls-stack/extended-lint` |
+| `no-reexport` | moved from `@ls-stack/extended-lint` |
+| `no-relative-imports` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-sync-dynamic-import` | moved from `@ls-stack/extended-lint` |
+| `no-leaked-text-in-jsx` | moved from `@ls-stack/extended-lint` |
+| `no-static-style-prop` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-non-camel-case-functions` | moved from `@ls-stack/extended-lint` (see below) |
+| `prefer-named-functions` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-call-with-explicit-generics` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-call-with-inferred-generics` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-unnecessary-typing` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-type-guards` | moved from `@ls-stack/extended-lint` (see below) |
+| `use-state-setter-naming` | moved from `@ls-stack/extended-lint` (see below) |
+| `require-lazy-execution` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-unnecessary-iife` | moved from `@ls-stack/extended-lint` (see below) |
+| `require-description` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-write-only-ref` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-commented-out-code` | moved from `@ls-stack/extended-lint` (see below) |
+| `react-single-export` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-unused-optional-args` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-unused-type-props-in-args` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-unused-t-state-field` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-unused-selected-values` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-optional-root-props` | moved from `@ls-stack/extended-lint` (see below) |
+| `no-redundant-function-params` | moved from `@ls-stack/extended-lint` (see below) |
+| `react-no-module-level-single-use-values` | moved from `@ls-stack/extended-lint` (see below) |
+| `require-reads-to-var-prop` | moved from `@ls-stack/extended-lint` (see below) |
+| `prefer-react-hook-alternative` | moved from `@ls-stack/extended-lint` (see below) |
+| `sort-react-components-and-styles` | moved from `@ls-stack/extended-lint` (see below) |
+| `use-types-directly-above-usage` | moved from `@ls-stack/extended-lint` (see below) |
+| `react-compiler-extra` | moved from `@ls-stack/extended-lint` (see below) |
 
 Options are the same as the former ESLint rules' (see `lib/index.d.ts`). Rule names may carry a plugin prefix, so
 existing `@ls-stack/strict-casting` configs and disable comments keep working.
@@ -69,6 +103,592 @@ type Options = [
 
 For `String(obj)` producing `"[object Object]"`, use `@typescript-eslint/no-base-to-string`, which covers that case well.
 
+### `no-duplicate-key`
+
+Port of `@eslint-react/no-duplicate-key` (v2.3.13), with the same message (`A key must be unique. 'key="1"' is
+duplicated.`, `noDuplicateKey`), no options and the same quirks:
+
+- Keys of sibling elements (children of one JSX element or fragment, or items of one array literal) are compared by
+  value, and only string literals compare equal: `key="a"` and `key='a'` are duplicates, `key={1}` twice or
+  `key={"a"}` twice are not.
+- A group is reported when its last key duplicates an earlier one, and then every key of the group is reported:
+  `[<a key="x" />, <b key="y" />, <c key="x" />]` reports all three, `[<a key="x" />, <b key="x" />, <c key="y" />]`
+  none.
+- An element returned by the callback of a `.map()` call (or a method ending with `Map`, e.g. `flatMap`) is reported
+  when its key is a string literal. Only the last such key per call counts.
+- Files without `key=` are skipped.
+
+### `no-restricted-syntax`
+
+Reports code matching [ESQuery](https://github.com/estools/esquery) selectors over an ESTree view of the TS AST, plus
+the function-call and per-file checks of the former `@ls-stack/advanced-no-restricted-syntax`.
+`advanced-no-restricted-syntax` (with any plugin prefix) is an alias of this rule, in configs and in disable comments,
+and so is `eslint-core/no-restricted-syntax` and any other `<prefix>/no-restricted-syntax`. One config block can't
+set both names.
+
+```ts
+type Options = [
+  {
+    /** ESLint's `no-restricted-syntax` entries, plus an optional fix */
+    disallow?: {
+      selector: string
+      message: string
+      /** Replacement text, or a JS regex replacement of the matched text (`$1`, `$<name>`, `$&`...) */
+      replace?: string | { regex: string; with: string }
+      /** default: 'suggestion' */
+      replaceType?: 'suggestion' | 'autofix'
+    }[]
+    /** Calls of `fn` (also through import and `const` aliases), optionally only with these literal arguments */
+    disallowFnCalls?: {
+      fn: string
+      withArgs?: { atIndex: number; value: string | number | boolean }[]
+      message: string
+      /** Autofix replacing the whole call */
+      replaceWith?: string
+      /** Files to skip */
+      ignoreRegex?: string
+    }[]
+    /**
+     * Requirements for files whose name matches `includeRegex`. `$1`, `$1_lowercase`, `$1_capitalize` and
+     * `$1_uncapitalize` in the values below are its capture groups.
+     */
+    mustMatchSyntax?: {
+      includeRegex: string
+      excludeRegex?: string
+      /** At least one call of each `anyCall` list, with these literal arguments */
+      mustCallFn?: {
+        anyCall: { fn: string; withArgs: { atIndex: number; literal: string | number | boolean }[] }[]
+        message?: string
+      }[]
+      /** At least one node matching the selector */
+      mustMatchSelector?: { selector: string; message: string }[]
+      /** An export named `name`; type defaults to 'any' */
+      mustHaveExport?: { name: string; type?: 'function' | 'variable' | 'any'; message: string }[]
+    }[]
+  },
+]
+```
+
+ESLint's array form (`['error', { selector, message }, ...]`) isn't accepted: put the entries in `disallow`. Since an
+override that sets options replaces all of them, spread the base options into overrides that add `mustMatchSyntax`,
+and turn off one group of checks for some files by setting only the other groups, instead of `'off'`.
+
+Supported selector syntax: node types (`CallExpression`, `*`), attributes (`[attr]`, `[a.b.c="x"]`, `!=`, `=/regex/`,
+`!=/regex/`, `=type(string)`, `<`, `<=`, `>`, `>=`), field selectors (`.id`), `:not(...)`, `:matches(...)`/`:is(...)`,
+`:function`, the descendant (` `) and child (`>`) combinators and comma lists. Like ESQuery, type names ignore case,
+`=` compares the value as a string and regexes only match strings.
+
+These are config errors, reported when the config is loaded:
+
+- sibling combinators (`~`, `+`), subject indicators (`!`), `:has`, `:first-child`, `:last-child`, `:nth-child`,
+  `:nth-last-child`, `:statement`, `:expression`, `:declaration`, `:pattern`
+- node types and fields the ESTree view doesn't model (see `src/esquery/estree.rs`), and fields set on types that
+  don't have them (`Identifier[callee.name="x"]`)
+- regexes using JS-only syntax (lookarounds, backreferences)
+- selectors whose matched node isn't narrowed to node types (`*`, `:not(Identifier)`; `[name="x"]` alone is fine:
+  it narrows to the types with a `name` field)
+
+Selectors are compiled once and indexed by the node type they match: only the TS node kinds that can produce those
+types are visited, `Identifier[name="x"]` and `Literal[value="x"]` are hash lookups, and the left side of a descendant
+or child combinator is checked only on matching nodes, walking up through ancestors of the possible kinds.
+
+Differences from ESLint:
+
+- `TSTypeAnnotation` isn't modeled, so `returnType` and the `typeAnnotation` of identifiers, parameters and
+  properties are config errors (a type alias's or an `as` expression's `typeAnnotation` works).
+- A shorthand property's key and value are one node, reported once (ESLint reports both).
+- `JSXEmptyExpression`, `MetaProperty.meta`, abstract and `accessor` class members aren't modeled; `TSEnumDeclaration`
+  has `members` directly.
+- Several `disallow` entries with the same selector each report (the ESLint plugin kept only the last).
+
+### `naming-convention`
+
+Reports declared names: type names (classes, interfaces, type aliases, enums and type parameters) matching `/^[a-z]|_/`,
+and values (variables, functions, parameters and destructured names) starting with `__`. Each check's regex and
+message can be changed, and each can be turned off with `false`.
+
+```ts
+type Check = boolean | { /** Rust regex the name must not match */ disallow?: string; message?: string }
+
+type Options = [
+  {
+    /** default: { disallow: '^[a-z]|_', message: 'Type names must be PascalCase' } */
+    typeNames?: Check
+    /** default: { disallow: '^__', message: 'Variable, function and parameter names must not start with `__`' } */
+    values?: Check
+  },
+]
+```
+
+It replaces these `no-restricted-syntax` selectors, so `eslint-core/naming-convention` disable comments keep working:
+
+```ts
+':matches(ClassDeclaration, ClassExpression, TSInterfaceDeclaration, TSTypeAliasDeclaration, TSEnumDeclaration) > Identifier.id[name=/^[a-z]|_/], TSTypeParameter > Identifier.name[name=/^[a-z]|_/]'
+':matches(VariableDeclarator > Identifier.id, :function > Identifier.id, :function > Identifier.params, ObjectPattern > Property > Identifier.value, ArrayPattern > Identifier, AssignmentPattern > Identifier.left, RestElement > Identifier.argument, TSParameterProperty > Identifier.parameter)[name=/^__/]'
+```
+
+### `no-default-export`
+
+Disallows `export default` (declarations, expressions and `export { x as default }`), use named exports instead.
+`export =` is allowed.
+
+### `no-reexport`
+
+Disallows re-exports: `export ... from`, `export { local }` lists, and exporting an imported binding directly
+(`export const x = imported`, `export const y = imported.prop`, `export default imported`,
+`export type T = ImportedType`). Use direct exports only.
+
+### `no-relative-imports`
+
+Disallows relative imports (`./` or `../`) and auto-fixes them to the matching alias.
+
+```ts
+type Options = [
+  {
+    /** Path aliases, the first whose `replacement` (relative to `rootDir`) contains the import wins */
+    aliases: { find: string; replacement: string }[]
+    /** Directory the replacements are relative to (default: the current working directory) */
+    rootDir?: string
+    /** Allow relative imports that match no alias (default: false) */
+    allowNotFoundAliases?: boolean
+  },
+]
+```
+
+```ts
+// aliases: [{ find: '@src', replacement: '/src' }], file: src/components/Component.ts
+import { Button } from './Button' // fixed to '@src/components/Button'
+```
+
+### `no-sync-dynamic-import`
+
+Disallows synchronous `import()` usage (including `import('./x').Type` type imports) and `require()` /
+`require.resolve()`. `await import()`, `import().then()`, `() => import()` and `Promise.all([import()])` are allowed.
+
+### `no-leaked-text-in-jsx`
+
+Reports JSX text that looks like leaked code: `,`, `;`, `[`, `]`, `(`, `)`, or text containing `&&`, `||` or ending
+with `? (`. Wrap it in an expression container (`{','}`) if it is intended.
+
+### `no-static-style-prop`
+
+Disallows static `style` props (string literals, or object/array literals with only literal values), use CSS instead.
+Option `customMessage` is appended to the error message.
+
+### `no-non-camel-case-functions`
+
+Function declarations must be named in camelCase (an optional `$` prefix is allowed). Functions with an explicit
+`JSX.Element` return type (or a union containing it) are skipped, so React components can keep PascalCase names.
+Arrow functions and function expressions aren't checked. No options.
+
+### `prefer-named-functions`
+
+Reports `const fn = () => {}` declarations without a type annotation and suggests converting them to
+`function fn() {}`. Arrow functions with an implicit return are allowed unless `disallowArrowFnWithImplicitReturns` is
+set.
+
+```ts
+type Options = [
+  {
+    /** Names matching this regex are allowed to be arrow functions */
+    ignoreRegex?: string
+    /** Also report arrow functions with an implicit return (default: false) */
+    disallowArrowFnWithImplicitReturns?: boolean
+  },
+]
+```
+
+### `no-call-with-explicit-generics`
+
+Disallows explicit type arguments on calls to the configured functions, so their generics are inferred. Entries can be
+a function name (`useForm`), a method (`api.fetch`) or a wildcard method (`*.fetch`), optionally with a custom
+message.
+
+```ts
+type Options = [{ functions: (string | { name: string; message: string })[] }]
+```
+
+### `no-call-with-inferred-generics`
+
+Requires the configured functions to be called with explicit type arguments, and can forbid `any`, `unknown`,
+`typeof` or specific type names in them.
+
+```ts
+type Options = [
+  {
+    functions: {
+      name: string
+      /** Minimum number of type arguments (default: 1) */
+      minGenerics?: number
+      /** Skip the `any`/`unknown`/`typeof` checks unless `disallowTypes` is set */
+      allowAny?: boolean
+      /** Type names to report as `any`, replaces the global `disallowTypes` */
+      disallowTypes?: string[]
+      /** Report `typeof x` type arguments, also through local type aliases */
+      disallowTypeOf?: boolean
+      /** Report `unknown` type arguments */
+      disallowUnknown?: boolean
+    }[]
+    /** Type names to report as `any` for every function */
+    disallowTypes?: string[]
+  },
+]
+```
+
+Bad:
+
+```ts
+// ["error", { functions: [{ name: "foo" }] }]
+foo('bar') // missing generic
+foo<any>('bar') // 'any' in generics
+```
+
+Good:
+
+```ts
+foo<string>('bar')
+```
+
+### `no-unnecessary-typing`
+
+Reports type annotations on callback parameters passed as the first argument of array methods, where the type is
+inferred, and removes them (auto-fixable).
+
+```ts
+type Options = [
+  {
+    /** Method names to check, or 'array' for find, filter, map, forEach, some, every, reduce, findIndex and sort (default) */
+    methods?: string[] | 'array'
+  },
+]
+```
+
+### `no-type-guards`
+
+Disallows type predicates (`value is T`) on function declarations, arrow functions and class methods outside
+`*.typeGuards.ts(x)` / `*.type-guards.ts(x)` files. Assertion signatures (`asserts value is T`) are allowed.
+
+```ts
+type Options = [
+  {
+    /** Custom messages for type guards in `.find()`/`.filter()` callbacks */
+    alternativeMsgs?: { inArrayFind?: string; inArrayFilter?: string }
+  },
+]
+```
+
+### `use-state-setter-naming`
+
+Requires the setter of `const [value, setter] = useState(...)` (or `React.useState`) to be named `set` + the
+capitalized value name. A suggestion renames the setter.
+
+```ts
+const [count, setCount] = useState(0) // ok
+const [records, setGroups] = useState([]) // Error: expected "setRecords"
+```
+
+Option `ignorePrefixes` (default `[]`): prefixes stripped from both names before comparing, so with `['_']`
+`const [_value, _setValue]` and `const [_value, setValue]` are accepted.
+
+### `require-lazy-execution`
+
+Reports calls (and tagged templates) of the configured functions at module level: they must run inside a function,
+method, getter, setter or constructor. A call's name is its identifier or the property of a member callee
+(`i18n.__()` matches `__`).
+
+```ts
+// require-lazy-execution: ["error", { functions: ["__"] }]
+const label = __('Save') // Error
+const getLabel = () => __('Save') // ok
+```
+
+Option `functions` (default `[]`). The ESLint rule's `selectors` option (ESQuery selectors) is not supported: a
+config using it is rejected, list the function names in `functions` instead.
+
+### `no-unnecessary-iife`
+
+Reports a zero-argument, non-async IIFE without parameters whose body only returns an expression, and autofixes it
+to that expression (`(() => { return a.b })()` becomes `a.b`). An IIFE with more statements is reported only when
+`return (() => { ... })()` is the whole body of a function, and the fix moves the IIFE body into that function. An
+IIFE containing comments is not reported.
+
+### `require-description`
+
+Requires a description (after ` -- `) on directive comments: `eslint-*`, `oxlint-*` and `fast-lint-*` disable/enable
+comments, plus `/* eslint */`, `/* eslint-env */`, `/* global(s) */` and `/* exported */`.
+
+```ts
+// fast-lint-disable-next-line strict-casting -- the value is checked above
+```
+
+Option `ignore`: directive kinds to skip, e.g. `['eslint']` (see `RequireDescriptionDirective` in
+`lib/index.d.ts`).
+
+### `no-write-only-ref`
+
+Reports a `useRef` (imported from `react`, or any `X.useRef`) ref whose variable is never used except in `ref={...}`
+JSX props: it is written by React but never read.
+
+### `no-commented-out-code`
+
+Reports comments that look like commented-out code. Line comments are matched against code patterns (`const `,
+`return `, `if (`, `=>`, `foo.bar(`, ...); block comments only against JSX/HTML tags. JSDoc tags, directives
+(`eslint-disable`, `@ts-`, `prettier-ignore`), URLs, descriptive `Header: text` comments and inline code in backticks
+surrounded by prose are ignored.
+
+Bad:
+
+```ts
+// function foo() {
+//   // ...
+// }
+```
+
+Good:
+
+```ts
+// TODO: re-enable once the API is stable
+// function foo() {
+//   // ...
+// }
+```
+
+Comments starting with `INFO:`, `TODO:`, `DOCS:`, `FIX:`, `FIXME:`, `HACK:`, `NOTE:`, `WARNING:`, `WARN:`, `BUG:`,
+`ISSUE:`, `TEMP:`, `TEMPORARY:`, `XXX:`, `REVIEW:`, `eslint`, `cspell:` or `spell-checker:` are allowed. The rule is
+heuristic: it can miss commented code.
+
+### `react-single-export`
+
+In React component files (by default `*.tsx`), a file that exports a component (a PascalCase function, arrow,
+`memo`/`forwardRef` call, or a HOC returning JSX) may have no other value export, so fast refresh keeps working. The
+first other value export is reported; type-only exports are allowed.
+
+```ts
+type Options = [{ /** File name suffixes checked (default: ['tsx']) */ extensions?: string[] }]
+```
+
+### `no-unused-optional-args`
+
+Reports optional parameters of non-exported functions that no call passes, and optional props of an object parameter
+(or of an `FC<{ ... }>` component's props) that no call or JSX usage provides. Functions passed as an argument,
+returned, or used as a JSX attribute value are skipped, as are functions called with spread arguments or JSX spread
+attributes.
+
+```ts
+function f(a?: string, b?: string) {} // Error: Optional parameter 'b' is never used
+f('x')
+```
+
+Options:
+
+```ts
+type Options = [
+  {
+    /** Regex of parameter names to ignore */
+    ignoreArgsMatching?: string
+  },
+]
+```
+
+### `no-unused-type-props-in-args`
+
+Reports properties of a destructured parameter's object type that aren't destructured, in functions, arrow functions
+and `FC<Props>` components. Auto-fixable: the missing properties are added to the destructuring pattern. Types
+referenced more than once are ignored, as are exported types referenced from a function's parameters when
+`alwaysCheckFunctionOptionTypes` is `false`.
+
+```ts
+function foo({ a }: { a: string; b: string }) {} // Error: 'b' is defined but never used
+const Foo: FC<{ a: string; b: string }> = ({ a }) => null // Error: 'b' is defined but never used
+```
+
+Options:
+
+```ts
+type Options = [
+  {
+    /** Regexes of FC prop type names that are checked even when referenced more than once */
+    forceCheckOnFCPropTypesWithName?: string[]
+    /** Check exported types used in function parameters (default: true) */
+    alwaysCheckFunctionOptionTypes?: boolean
+  },
+]
+```
+
+### `no-unused-t-state-field`
+
+In `.tsx`/`.jsx` files importing `t-state-form`, reports fields declared in the first `useForm({ initialConfig })` that
+are never read through the `formFields` of the following `useFormState(...)`. Returning `formFields` skips the check.
+
+### `no-unused-selected-values`
+
+Reports values a configured selector hook selects but the caller never uses, either by destructuring the result or by
+reading its properties.
+
+```ts
+// selectors: [{ name: 'useSelector' }]
+const { a } = useSelector((state) => ({ a: state.a, b: state.b })) // Error: "b" is not being used
+```
+
+Options:
+
+```ts
+type Options = [
+  {
+    selectors: {
+      /** Name of the selector function (or method) */
+      name: string
+      /** Property of an options object argument holding the selector function */
+      selectorProp?: string
+      /** Index of the argument holding the selector (default: 0) */
+      selectorArgPos?: number
+      /** Property of the result holding the selected values */
+      returnProp?: string
+    }[]
+  },
+]
+```
+
+### `no-optional-root-props`
+
+Disallows optional properties (`prop?: T`) at the root of a local, non-exported type alias or interface that is
+referenced only once, as the parameter type of a function that is itself used once (and not exported), or as the
+props of a non-exported `FC<...>` component used once (and not wrapped in `memo`). Inline `FC<{ ... }>` props are
+checked the same way. Suggests `prop: undefined | T` instead, so every caller has to pass the prop explicitly.
+
+```ts
+type Props = { a?: number } // Error: optional property "a"
+
+function test(arg: Props) {}
+
+console.log(test)
+```
+
+### `no-redundant-function-params`
+
+Reports calls passing arguments equal to the configured defaults of a function (matched by its name, or by the
+property name of a member call), with an autofix that removes trailing redundant arguments and redundant properties
+of object arguments. Only literals, arrays of literals and object literals with literal values are compared.
+
+```ts
+// { functions: [{ name: 'inline', defaults: [{ align: 'center', justify: 'left' }] }] }
+inline({ align: 'center' }) // Error, fixed to `inline()`
+inline({ align: 'center', justify: 'right' }) // Error, fixed to `inline({ justify: 'right' })`
+```
+
+Options: `{ functions: { name: string; defaults: unknown[] }[] }`. The fix removes the arguments between the call's
+own parentheses, so `fn<T>(a)` and `fn?.(a)` are fixed correctly (the ESLint rule broke them).
+
+### `react-no-module-level-single-use-values`
+
+In `.tsx`/`.jsx` files, reports module-level non-exported variables holding allocated data (array, object and class
+expressions, `new Set`/`new Map`) or strings of 80+ characters that are only used inside one top-level React component
+(a PascalCase function, or a PascalCase variable holding a function, possibly wrapped in `memo`/`forwardRef`): moving
+them inside the component frees their memory when it isn't rendered. Aliases (`a`, `a.b`), functions, regexes and
+other class instantiations are ignored.
+
+Options: `{ ignoreConstCaseVarRegex?: string }`: CONSTANT_CASE variables whose name matches the regex are ignored.
+
+### `require-reads-to-var-prop`
+
+Requires reading some properties of the value returned by a call, either through member access (`result.data`) or
+destructuring (`const { data } = result`). Passing the variable itself anywhere (`fn(result)`, `{ result }`) counts
+as reading every property.
+
+```ts
+// { varsToCheck: [{ fromFnCall: 'useActionFn', prop: 'call' }] }
+const onConfirm = useActionFn(fn) // Error: "useActionFn" requires reads to the prop "call".
+console.log(onConfirm.isInProgress)
+```
+
+Options: `{ varsToCheck: { fromFnCall?: string; selector?: string; prop: string | string[]; errorMsg?: string }[] }`.
+`fromFnCall` is a function name (`useQuery`), `*.method` or `object.method`. `selector` only supports
+`VariableDeclarator` with attribute filters (`VariableDeclarator[init.callee.name="createTest"]`, `!=`, `[path]`,
+over `type`, `name`, `id`, `init`, `callee`, `object`, `property`, `computed`, `optional`, `arguments`, `argument`,
+`expression` and `value`); other selectors are a config error.
+
+### `prefer-react-hook-alternative`
+
+Flags calls to configured functions made directly inside React components and hooks (PascalCase or `use*` functions,
+`memo`/`forwardRef` callbacks, including callbacks passed to hooks and JSX props), with a suggestion to use the hook
+alternative instead.
+
+```ts
+type Options = [
+  {
+    disallowedFunctions: {
+      /** Function name, matched on the callee or on the member property (`obj.name()`) */
+      name: string
+      /** Allow calls with arguments other than `undefined` */
+      allowUsingWithArgs?: boolean
+      /** Hook to use instead, offered as a suggestion */
+      hookAlternative?: string
+      /** Custom message, replaces `use <hookAlternative> instead` */
+      message?: string
+      /** Allow calls inside these functions (by declared name or call name), even when nested */
+      allowUseInside?: string[]
+    }[]
+  },
+]
+```
+
+### `sort-react-components-and-styles`
+
+In `.tsx` files, places the main component before the other components (auto-fixable), and each `styled`/`css`
+style above the first component or style that uses it.
+
+The main component is the one selected by `mainComponentSelector`, else the one whose name matches
+`mainComponentRegex` (falling back to the exported components when none matches), else the exported ones.
+
+```ts
+type Options = [
+  {
+    /** Regex (Rust `regex` syntax, no look-around) matched against the component names */
+    mainComponentRegex?: string
+    /**
+     * Selector of the main component's declaration. Only `VariableDeclarator`, `FunctionDeclaration` or
+     * `ClassDeclaration`, optionally followed by `[id.name='Name']`, are supported
+     */
+    mainComponentSelector?: string
+  },
+]
+```
+
+### `use-types-directly-above-usage`
+
+Requires top-level type aliases and interfaces to be placed directly above their first usage (auto-fixable).
+
+```ts
+type Options = [
+  {
+    /** Only check usages in these contexts (default: all usages) */
+    checkOnly?: ('function-args' | 'FC' | 'generic-args-at-fn-calls')[]
+    /** Accepted for compatibility, unused */
+    checkTypesFromSelectors?: string[]
+  },
+]
+```
+
+### `react-compiler-extra`
+
+Extra checks for code optimized by the React compiler:
+
+- object methods (`{ method() {} }`) in objects passed to or returned from hooks should be arrow functions
+  (auto-fixable unless the method uses `this`)
+- React components and hooks should create JSX, call hooks or use the `"use memo"` directive (with a suggestion to
+  add it)
+- functions calling hooks must be components or hooks, and functions using `"use memo"` must be named like one
+- functions starting with the `"use no memo"` directive are skipped
+
+```ts
+type Options = [
+  {
+    /** Only run in files with an `eslint react-compiler/react-compiler: ["error"` comment (default: false) */
+    runOnlyWithEnableCompilerDirective?: boolean
+  },
+]
+```
+
 ## Usage
 
 ```sh
@@ -100,7 +720,9 @@ that isn't UTF-8 (its problems are still reported).
 ## Config
 
 `fast-lint.config.ts` (or `.mts`/`.mjs`/`.js`, evaluated by the Node launcher) or `fast-lint.config.json`, in the
-current directory or passed with `--config`. Without a config every rule runs as `error` with default options.
+current directory or passed with `--config`. Without a config the type-aware rules (`improved-no-unnecessary-condition`,
+`strict-casting`, `no-unnecessary-void-on-promise` and `no-leaked-conditional-rendering`) run as `error` with default
+options; every other rule only runs when configured.
 
 ```ts
 import { defineConfig } from '@ls-stack/fast-lint'
@@ -130,7 +752,8 @@ semantics: a pattern matching a directory (`src/gen`, `**/out`, `dist/`, `dist/*
 `!pattern` un-ignores files ignored by earlier patterns, but not files inside an ignored directory: to keep a file of
 an ignored directory, ignore its contents with `dir/**/*` instead. An override's `ignores` also accept `!pattern`,
 applied in order. Of the extglobs, only `@(a|b)` is supported (write the others with `{a,b}` or several globs). Rule
-names may carry a plugin prefix (`@ls-stack/strict-casting`), but not both forms of one rule in one block.
+names may carry a plugin prefix (`@ls-stack/strict-casting`), but one block can't name a rule twice (two prefixes, or
+`no-restricted-syntax` and its alias `advanced-no-restricted-syntax`).
 
 A script config's default export must be the config object, or a promise of it.
 
@@ -138,7 +761,10 @@ A script config's default export must be the config object, or a promise of it.
 
 `eslint-disable`, `eslint-enable`, `eslint-disable-line` and `eslint-disable-next-line` comments (and their
 `oxlint-` and `fast-lint-` forms) are honored, with or without a rule list and a `-- description`, so existing
-directives such as `// eslint-disable-next-line @ls-stack/improved-no-unnecessary-condition` keep working. They are
+directives such as `// eslint-disable-next-line @ls-stack/improved-no-unnecessary-condition` keep working. Rule names
+are matched without their prefix, so `eslint-core/no-restricted-syntax` and `eslint-core/naming-convention` (or
+`no-restricted-syntax` meant for ESLint core) disable these rules, and so does the former name
+`@ls-stack/advanced-no-restricted-syntax`. They are
 parsed like ESLint does: the comment text must start with the directive, `disable` and `enable` need a block comment
 (`/* */`), and a multi-line `disable-next-line` block comment applies to the line after the comment ends. Inline
 config comments (`/* eslint rule: "off" */`) are ignored.
@@ -164,10 +790,15 @@ reporting directives that are unused for the remaining ESLint rules.
 - `--fix` applies one pass of non-overlapping fixes (ESLint repeats up to 10 passes).
 - `improved-no-unnecessary-condition` reports nothing in a project without `strictNullChecks` (or `strict`), where
   every type may be nullish.
+- `no-leaked-text-in-jsx` matches the raw JSX text, so HTML entities (`&amp;&amp;`) are not decoded.
 - Types come from tsrs (TypeScript 7.1-dev semantics); printed types in messages can differ slightly from TS 5.x.
 - Prebuilt binaries ship for macOS (arm64, x64), Linux (x64, arm64; glibc >= 2.17, not musl/Alpine) and Windows
   x64 (also used on Windows arm64, through emulation). Elsewhere, set `FAST_LINT_BINARY` to a `cargo build --release`
   binary. The launcher prints the package version for `--version`; the binary itself prints the crate version.
+- The regex options of `no-unused-optional-args` (`ignoreArgsMatching`) and `no-unused-type-props-in-args`
+  (`forceCheckOnFCPropTypesWithName`) use Rust `regex` syntax, without lookaround or backreferences.
+- The regex options of `no-unused-optional-args` (`ignoreArgsMatching`) and `no-unused-type-props-in-args`
+  (`forceCheckOnFCPropTypesWithName`) use Rust `regex` syntax, without lookaround or backreferences.
 
 ## Development
 

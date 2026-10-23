@@ -185,7 +185,7 @@ The rules will be used in large codebases, so performance should be a priority.
 
 # Code maintainability and readability
 
-Extract and reuse common utility functions in @packages/extended-lint/src/astUtils.ts
+Extract and reuse common utility functions in `packages/fast-lint/src/utils.rs`
 
 # Fixing @typescript-eslint/no-unnecessary-condition
 
@@ -224,7 +224,19 @@ Rules must be migrated to `packages/fast-lint` (see its README); the ESLint plug
   3. Add its options type to `lib/index.d.ts` and document it in the fast-lint README.
   4. Delete the TS rule, its tests, its `rules.ts` entry and its README section, plus helpers only it used.
 - Already migrated: `improved-no-unnecessary-condition`, `strict-casting` (also replaces the removed
-  `no-unnecessary-casting`), `no-unnecessary-void-on-promise`.
+  `no-unnecessary-casting`), `no-unnecessary-void-on-promise`, `no-restricted-syntax` (the former
+  `advanced-no-restricted-syntax`, merged with ESLint's `no-restricted-syntax`; the old name is an alias),
+  `no-default-export`, `no-reexport`, `no-relative-imports`, `no-sync-dynamic-import`, `no-leaked-text-in-jsx`,
+  `no-static-style-prop`, `no-non-camel-case-functions`, `prefer-named-functions`, `no-call-with-explicit-generics`,
+  `no-call-with-inferred-generics`, `no-unnecessary-typing`, `no-type-guards`, `use-state-setter-naming`,
+  `require-lazy-execution`, `no-unnecessary-iife`, `require-description`, `no-write-only-ref`,
+  `no-commented-out-code`, `react-single-export`, `no-unused-optional-args`, `no-unused-type-props-in-args`,
+  `no-unused-t-state-field`, `no-unused-selected-values`, `no-optional-root-props`, `no-redundant-function-params`,
+  `react-no-module-level-single-use-values`, `require-reads-to-var-prop`, `prefer-react-hook-alternative`,
+  `sort-react-components-and-styles`, `use-types-directly-above-usage`, `react-compiler-extra`.
+- New in fast-lint: `naming-convention` (replaces an ESLint core `no-restricted-syntax` config with naming selectors).
+- ESLint scope analysis (references, declared variables): use `src/scope.rs` (`ReferenceIndex`, `declared_names`,
+  `resolve_reference`) instead of rule-specific symbol walks.
 - Rule names may carry a plugin prefix (`@ls-stack/<rule>`), so existing configs and disable comments keep working.
 - Tests: `packages/fast-lint/tests/<rule_name>.rs`, via `tests/common/mod.rs` (`valid`, `invalid`, insta snapshots)
 - Run: `cargo test --test <rule_name>` and `cargo clippy --all-targets` inside `packages/fast-lint`

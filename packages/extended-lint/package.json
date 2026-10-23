@@ -38,6 +38,7 @@
     "@types/node": "^24.3.0",
     "@typescript-eslint/parser": "^8.40.0",
     "@typescript-eslint/rule-tester": "^8.40.0",
+    "@typescript-eslint/utils": "^8.40.0",
     "@vitest/ui": "^3.2.4",
     "eslint": "^9.33.0",
     "eslint-vitest-rule-tester": "^2.2.1",
@@ -50,16 +51,15 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@typescript-eslint/scope-manager": "^8.40.0",
     "@typescript-eslint/types": "^8.40.0",
-    "@typescript-eslint/utils": "^8.40.0",
-    "escape-string-regexp": "^5.0.0",
-    "espree": "^10.4.0",
-    "esutils": "^2.0.3",
     "zod": "^4.0.17"
   },
   "peerDependencies": {
-    "eslint": "^9.33.0",
-    "typescript": "^5.9.2"
+    "eslint": "^9.33.0"
+  },
+  "peerDependenciesMeta": {
+    "eslint": {
+      "optional": true
+    }
   }
 }

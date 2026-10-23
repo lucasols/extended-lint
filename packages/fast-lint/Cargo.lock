@@ -127,6 +127,7 @@ dependencies = [
  "indoc",
  "insta",
  "mimalloc",
+ "regex",
  "rustc-hash",
  "serde",
  "serde_json",

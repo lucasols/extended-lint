@@ -14,24 +14,9 @@ importers:
 
   packages/extended-lint:
     dependencies:
-      '@typescript-eslint/scope-manager':
-        specifier: ^8.40.0
-        version: 8.40.0
       '@typescript-eslint/types':
         specifier: ^8.40.0
         version: 8.40.0
-      '@typescript-eslint/utils':
-        specifier: ^8.40.0
-        version: 8.40.0(eslint@9.33.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.2)
-      escape-string-regexp:
-        specifier: ^5.0.0
-        version: 5.0.0
-      espree:
-        specifier: ^10.4.0
-        version: 10.4.0
-      esutils:
-        specifier: ^2.0.3
-        version: 2.0.3
       zod:
         specifier: ^4.0.17
         version: 4.0.17
@@ -52,6 +37,9 @@ importers:
         specifier: ^8.40.0
         version: 8.40.0(eslint@9.33.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.2)
       '@typescript-eslint/rule-tester':
+        specifier: ^8.40.0
+        version: 8.40.0(eslint@9.33.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.2)
+      '@typescript-eslint/utils':
         specifier: ^8.40.0
         version: 8.40.0(eslint@9.33.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.2)
       '@vitest/ui':
@@ -84,6 +72,8 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@24.3.0)(@vitest/ui@3.2.4)(supports-color@7.2.0)
+
+  packages/fast-lint: {}
 
 packages:
 

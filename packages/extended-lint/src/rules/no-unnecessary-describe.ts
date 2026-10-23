@@ -1,4 +1,5 @@
-import { AST_NODE_TYPES, TSESTree } from '@typescript-eslint/utils'
+import { AST_NODE_TYPES } from '@typescript-eslint/types'
+import type { TSESTree } from '@typescript-eslint/types'
 import * as z from 'zod/v4'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 

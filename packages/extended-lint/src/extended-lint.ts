@@ -1,7 +1,10 @@
-import { TSESLint } from '@typescript-eslint/utils'
-import { rules } from './rules/rules'
+import { rules, type ExtendedLintRule } from './rules/rules'
 
-export const extendedLintPlugin: TSESLint.FlatConfig.Plugin = {
+export type ExtendedLintPlugin = {
+  rules: Record<string, ExtendedLintRule>
+}
+
+export const extendedLintPlugin: ExtendedLintPlugin = {
   rules,
 }
 

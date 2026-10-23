@@ -331,6 +331,16 @@ mod tests {
     }
 
     #[test]
+    fn eslint_core_and_former_rule_names() {
+        let text = "// eslint-disable-next-line eslint-core/no-restricted-syntax\na\n// oxlint-disable-next-line @ls-stack/advanced-no-restricted-syntax\nb\n/* eslint-disable eslint-core/naming-convention */\nc\n";
+        assert!(suppressed(text, "no-restricted-syntax", 2));
+        assert!(suppressed(text, "no-restricted-syntax", 4));
+        assert!(!suppressed(text, "naming-convention", 4));
+        assert!(suppressed(text, "naming-convention", 6));
+        assert!(!suppressed(text, "no-restricted-syntax", 6));
+    }
+
+    #[test]
     fn same_line_and_jsx_comment() {
         let text = "a // oxlint-disable-line strict-casting\n{/* eslint-disable-next-line @eslint-react/no-leaked-conditional-rendering */}\nb\n";
         assert!(suppressed(text, "strict-casting", 1));

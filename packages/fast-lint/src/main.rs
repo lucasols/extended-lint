@@ -256,7 +256,7 @@ fn load_config(args: &Args, cwd: &str) -> Result<(Config, String), String> {
         None => {
             let default = absolute(cwd, DEFAULT_CONFIG);
             if !std::path::Path::new(&default).is_file() {
-                return Ok((Config::all_rules(), cwd.to_string()));
+                return Ok((Config::default_rules(), cwd.to_string()));
             }
             default
         }

@@ -6,134 +6,33 @@ To use any of these rules, you need to install the package:
 pnpm add -D @lucasols/eslint-plugin-extended-lint
 ```
 
+There is no `typescript` peer dependency (only an optional `eslint` one), so it works with any TypeScript version (including TypeScript 7) or none at all, and also as an [oxlint JS plugin](https://oxc.rs/docs/guide/usage/linter/js-plugins).
+
 And then configure it in your eslint config:
 
 ```json
 {
   "plugins": ["@lucasols/extended-lint"],
   "rules": {
-    "@lucasols/extended-lint/no-unused-type-props-in-args": "error"
+    "@lucasols/extended-lint/<rule-name>": "error"
   }
 }
 ```
 
-The type-aware rules `improved-no-unnecessary-condition`, `strict-casting` and `no-unnecessary-void-on-promise` were
-removed from this plugin and now live only in [`@ls-stack/fast-lint`](../fast-lint), as does the deprecated
-`no-unnecessary-casting` (replaced by fast-lint's `strict-casting`). The `rules-of-hooks` and
-`exhaustive-deps` forks were also removed; use `eslint-plugin-react-hooks` instead.
+Rules are being migrated to [`@ls-stack/fast-lint`](../fast-lint), where these now live (same names and options, so
+`@ls-stack/<rule>` configs and disable comments keep working there): `improved-no-unnecessary-condition`,
+`strict-casting` (also replaces the removed `no-unnecessary-casting`), `no-unnecessary-void-on-promise`,
+`advanced-no-restricted-syntax` (now `no-restricted-syntax`), `no-default-export`, `no-reexport`, `no-relative-imports`,
+`no-sync-dynamic-import`, `no-leaked-text-in-jsx`, `no-static-style-prop`, `no-non-camel-case-functions`,
+`prefer-named-functions`, `no-call-with-explicit-generics`, `no-call-with-inferred-generics`, `no-unnecessary-typing`,
+`no-type-guards`, `use-state-setter-naming`, `require-lazy-execution`, `no-unnecessary-iife`, `require-description`,
+`no-write-only-ref`, `no-commented-out-code`, `react-single-export`, `no-unused-optional-args`,
+`no-unused-type-props-in-args`, `no-unused-t-state-field`, `no-unused-selected-values`, `no-optional-root-props`,
+`no-redundant-function-params`, `react-no-module-level-single-use-values`, `require-reads-to-var-prop`,
+`prefer-react-hook-alternative`, `sort-react-components-and-styles`, `use-types-directly-above-usage` and
+`react-compiler-extra`. The `rules-of-hooks` and `exhaustive-deps` forks were removed; use `eslint-plugin-react-hooks`
+(or oxlint's built-in rules) instead.
 
-## `no-unused-type-props-in-args`
-
-Checks if there are unused type props in function arguments.
-
-Examples
-
-Bad
-
-```ts
-function foo({ a }: { a: string; b: string }) {
-  /*                             ^ b is declared but not used in the function */
-  // ...
-}
-```
-
-Good
-
-```ts
-function foo({ a, b }: { a: string; b: string }) {
-  // ...
-}
-```
-
-It will also work with the react `FC` type:
-
-Bad
-
-```ts
-const Foo: FC<{ a: string; b: string }> = ({ a }) => {
-  /*                       ^ b is declared but not used in the component */
-  // ...
-}
-```
-
-Good
-
-```
-const Foo: FC<{ a: string; b: string }> = ({ a, b }) => {
-  // ...
-}
-```
-
-- This rule will not work in all situations, as it does not checks all possible usages of referenced types.
-
-## `no-commented-out-code`
-
-Checks if there are commented code. Block comments are ignored.
-
-Examples
-
-Bad:
-
-```ts
-// function foo() {
-//   // ...
-// }
-```
-
-Good:
-
-```ts
-/*
-function foo() {
-  // ...
-}
-*/
-```
-
-- This rule will not detect all possible commented code, and can give false negatives.
-
-## `no-call-with-infered-generics`
-
-This rule disallows calling functions with inferred generics.
-
-The rule options types are as follows:
-
-````ts
-type Options = [
-  {
-    functions: Array<{
-      name: string;
-      minGenerics?: number;
-      allowAny?: boolean;
-      disallowTypes?: string[];
-    }>;
-    anyAliases?: string[];
-  }
-];
-
-Examples:
-
-Bad:
-
-```ts
-// @typescript-eslint/no-call-with-inferred-generics: ["error", { functions: ["foo"] }]
-
-function foo<T>(arg: T) {
-  // ...
-}
-
-foo('bar') // Error: Generics must be defined explicitly
-foo<any>('bar') // Error: 'any' is not allowed in generics
-````
-
-Good:
-
-```ts
-// @typescript-eslint/no-call-with-inferred-generics: ["error", { functions: ["foo"] }]
-function foo<T>(arg: T) {
-  // ...
-}
-
-foo<string>('bar') // OK
-```
-
+Remaining rules: `collapse-simple-objs-in-one-line`, `no-data-attributes-on-components`, `no-restricted-comments`,
+`no-unnecessary-async-on-jsx-props`, `no-unnecessary-describe`, `no-unused-obj-props`, `react-compiler-migration`,
+`require-usage-explanation`, `template-indent` and `use-top-level-regex`.
