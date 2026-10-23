@@ -223,3 +223,275 @@ pub fn comment_at(file: P<SourceFile>, pos: u32) -> Option<(u32, u32, bool)> {
 fn is_line_terminator(c: char) -> bool {
     matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}')
 }
+
+/// Every comment of `file` in source order, as its byte range and whether it is a block comment, like ESLint's
+/// `sourceCode.getAllComments()`: `//` and `/*` inside strings, templates, regexes and JSX text are not comments.
+pub fn comments(file: P<SourceFile>) -> Vec<(u32, u32, bool)> {
+    let bytes = file.text().as_bytes();
+    let mut found = Vec::new();
+    let mut i = 0;
+    while let Some(offset) = bytes
+        .get(i..)
+        .and_then(|rest| rest.iter().position(|&b| b == b'/'))
+    {
+        let start = i + offset;
+        i = start + 1;
+        if !matches!(bytes.get(start + 1), Some(b'/' | b'*')) {
+            continue;
+        }
+        let Ok(pos) = u32::try_from(start) else {
+            break;
+        };
+        if let Some(comment) =
+            comment_at(file, pos).filter(|&(comment_start, _, _)| comment_start == pos)
+        {
+            found.push(comment);
+            i = usize::try_from(comment.1).unwrap_or(bytes.len());
+        }
+    }
+    found
+}
+
+/// The name of an ESTree `MemberExpression`'s `Identifier` property: `b` in `a.b`, and also in the computed `a[b]`,
+/// where ESTree keeps the identifier as the property too.
+pub fn member_identifier_property(node: P<Node>) -> Option<&'static str> {
+    match node.kind() {
+        Kind::PropertyAccessExpression => {
+            let name = node.as_property_access_expression().name;
+            ast::is_identifier(name).then(|| name.text())
+        }
+        Kind::ElementAccessExpression => {
+            let argument = skip_parens(node.as_element_access_expression().argument_expression);
+            ast::is_identifier(argument).then(|| argument.text())
+        }
+        _ => None,
+    }
+}
+
+/// The range of the ESTree `TSTypeAnnotation` holding `type_node` (a parameter's or a function's return type): from
+/// the `:` before it to its end.
+pub fn type_annotation_range(ctx: &Ctx, type_node: P<Node>) -> (i32, i32) {
+    let (start, end) = ctx.trim(type_node);
+    let colon = type_node
+        .pos()
+        .source_offset()
+        .and_then(|full_start| i32::try_from(full_start).ok())
+        .map(|full_start| full_start - 1)
+        .filter(|&colon| {
+            usize::try_from(colon)
+                .ok()
+                .and_then(|colon| ctx.text().get(colon..=colon))
+                == Some(":")
+        });
+    (colon.unwrap_or(start), end)
+}
+
+/// A type node without the parentheses around it; ESTree has no parenthesized type nodes.
+pub fn skip_type_parens(node: P<Node>) -> P<Node> {
+    let mut current = node;
+    while ast::is_parenthesized_type_node(current) {
+        current = current.as_parenthesized_type_node().type_;
+    }
+    current
+}
+
+/// The name of a property key that ESTree represents as an `Identifier`: `a` in `a: 1`, `{ a }`, `a() {}`,
+/// `a?: string` or `[a]: 1` (a computed identifier key is still an `Identifier`). `None` for string, numeric,
+/// private and other computed keys.
+pub fn estree_identifier_key(name: P<Node>) -> Option<&'static str> {
+    match name.kind() {
+        Kind::Identifier => Some(name.text()),
+        Kind::ComputedPropertyName => {
+            let expression = skip_parens(name.expression()?);
+            (expression.kind() == Kind::Identifier).then(|| expression.text())
+        }
+        _ => None,
+    }
+}
+
+/// The identifier key name of an ESTree `Property`: an object literal property, method or accessor, or a non-rest
+/// element of an object binding pattern. `None` for spread and rest elements and non-identifier keys.
+pub fn estree_property_key(node: P<Node>) -> Option<&'static str> {
+    match node.kind() {
+        Kind::PropertyAssignment
+        | Kind::ShorthandPropertyAssignment
+        | Kind::MethodDeclaration
+        | Kind::GetAccessor
+        | Kind::SetAccessor => estree_identifier_key(node.name()?),
+        Kind::BindingElement if node.as_binding_element().dot_dot_dot_token().is_none() => {
+            estree_identifier_key(node.property_name().or(node.name())?)
+        }
+        _ => None,
+    }
+}
+
+/// The function an object literal property holds as its ESTree `Property.value`: the arrow function or function
+/// expression of `a: () => {}`, or the method or accessor itself for `a() {}`.
+pub fn estree_property_function(property: P<Node>) -> Option<P<Node>> {
+    match property.kind() {
+        Kind::PropertyAssignment => {
+            let value = skip_parens(property.initializer()?);
+            matches!(value.kind(), Kind::ArrowFunction | Kind::FunctionExpression).then_some(value)
+        }
+        Kind::MethodDeclaration | Kind::GetAccessor | Kind::SetAccessor => Some(property),
+        _ => None,
+    }
+}
+
+/// The object literal a function returns: its arrow expression body, or the argument of the only `return` among
+/// the top-level statements of its block body.
+pub fn returned_object_literal(function: P<Node>) -> Option<P<Node>> {
+    let body = function.body()?;
+    let returned = if body.kind() == Kind::Block {
+        let mut returns = body
+            .statements()
+            .iter()
+            .filter(|statement| statement.kind() == Kind::ReturnStatement);
+        let only = returns.next()?;
+        if returns.next().is_some() {
+            return None;
+        }
+        skip_parens(only.expression()?)
+    } else {
+        skip_parens(body)
+    };
+    (returned.kind() == Kind::ObjectLiteralExpression).then_some(returned)
+}
+
+/// Whether the `var` declaration list `list` is inside a block scope of its function (a nested block, a `switch` or
+/// a `with`), where ESLint's `sourceCode.getScope(list)` is that block scope, which doesn't hold the hoisted variable.
+/// Always false for `let`/`const`/`using` lists.
+pub fn is_var_in_nested_block(list: P<Node>) -> bool {
+    if list.flags().intersects(ast::NodeFlags::BlockScoped) {
+        return false;
+    }
+    let mut node = list.parent();
+    while let Some(current) = node {
+        match current.kind() {
+            Kind::Block => {
+                return current.parent().is_some_and(|parent| {
+                    !ast::is_function_like(Some(parent))
+                        && parent.kind() != Kind::ClassStaticBlockDeclaration
+                });
+            }
+            Kind::CaseBlock | Kind::WithStatement => return true,
+            Kind::SourceFile | Kind::ModuleBlock | Kind::ClassStaticBlockDeclaration => {
+                return false;
+            }
+            _ if ast::is_function_like(Some(current)) => return false,
+            _ => node = current.parent(),
+        }
+    }
+    false
+}
+
+/// The comments between the previous token and `node`, like ESLint's `sourceCode.getCommentsBefore(node)`, as byte
+/// ranges. Unlike TypeScript's leading comments, this includes a comment on the same line as the previous token.
+pub fn comments_before(ctx: &Ctx, node: P<Node>) -> Vec<(i32, i32)> {
+    let Some(full_start) = node.pos().source_offset() else {
+        return Vec::new();
+    };
+    let (start, _) = ctx.trim(node);
+    let (Ok(full_start), Ok(start)) = (usize::try_from(full_start), usize::try_from(start)) else {
+        return Vec::new();
+    };
+    let Some(trivia) = ctx.text().get(full_start..start) else {
+        return Vec::new();
+    };
+    let mut comments = Vec::new();
+    let mut offset = 0;
+    if full_start == 0 && trivia.starts_with("#!") {
+        offset = trivia.find(is_line_terminator).unwrap_or(trivia.len());
+    }
+    while let Some(rest) = trivia.get(offset..).filter(|rest| !rest.is_empty()) {
+        let len = if rest.starts_with("//") {
+            rest.find(is_line_terminator).unwrap_or(rest.len())
+        } else if rest.starts_with("/*") {
+            rest.get(2..)
+                .and_then(|body| body.find("*/"))
+                .map_or(rest.len(), |end| end + 4)
+        } else {
+            offset += rest.chars().next().map_or(1, char::len_utf8);
+            continue;
+        };
+        if let (Ok(comment_start), Ok(comment_end)) = (
+            i32::try_from(full_start + offset),
+            i32::try_from(full_start + offset + len),
+        ) {
+            comments.push((comment_start, comment_end));
+        }
+        offset += len;
+    }
+    comments
+}
+
+/// Whether the Identifier `node` names a JSX tag or attribute (`<Foo>`, `<a.b>`, `<x:y>`, `<div id>`): ESTree has
+/// `JSXIdentifier`s there, not `Identifier`s.
+pub fn is_jsx_name(node: P<Node>) -> bool {
+    let mut current = node;
+    while let Some(parent) = current.parent() {
+        match parent.kind() {
+            Kind::PropertyAccessExpression | Kind::JsxNamespacedName => current = parent,
+            Kind::JsxOpeningElement | Kind::JsxSelfClosingElement | Kind::JsxClosingElement => {
+                return parent.tag_name() == current;
+            }
+            Kind::JsxAttribute => return parent.name() == Some(current),
+            _ => return false,
+        }
+    }
+    false
+}
+
+/// Where `node` starts once the comments directly before it (see `comments_before`) are included.
+pub fn start_with_comments_before(ctx: &Ctx, node: P<Node>) -> i32 {
+    comments_before(ctx, node)
+        .first()
+        .map_or_else(|| ctx.trim(node).0, |&(start, _)| start)
+}
+
+/// The text of `node` preceded by the comments directly before it, one per line, the way ESLint rules that move
+/// statements rebuild it: `comments.map(getText).join('\n') + '\n' + getText(node)`.
+pub fn text_with_comments_before(ctx: &Ctx, node: P<Node>) -> String {
+    let comments: Vec<&str> = comments_before(ctx, node)
+        .iter()
+        .filter_map(|&(start, end)| {
+            let (start, end) = (usize::try_from(start).ok()?, usize::try_from(end).ok()?);
+            ctx.text().get(start..end)
+        })
+        .collect();
+    let text = node_text(ctx, node);
+    if comments.is_empty() {
+        text.to_string()
+    } else {
+        format!("{}\n{text}", comments.join("\n"))
+    }
+}
+
+/// Where ESTree's node for the declaration `node` starts: TypeScript attaches `export` and `default` to the
+/// declaration, while ESTree wraps it in an `ExportNamedDeclaration`/`ExportDefaultDeclaration` that owns them.
+pub fn estree_declaration_start(ctx: &Ctx, node: P<Node>) -> i32 {
+    let (start, _) = ctx.trim(node);
+    let Some(last_export_modifier) = node
+        .modifier_nodes()
+        .iter()
+        .rev()
+        .find(|modifier| matches!(modifier.kind(), Kind::ExportKeyword | Kind::DefaultKeyword))
+    else {
+        return start;
+    };
+    last_export_modifier
+        .end()
+        .source_offset()
+        .map(|end| tsrs_scanner::skip_trivia(ctx.text(), end))
+        .and_then(|start| i32::try_from(start).ok())
+        .unwrap_or(start)
+}
+
+/// Calls `f` on `node` and each of its descendants, in source order.
+pub fn for_each_descendant<F: FnMut(P<Node>)>(node: P<Node>, f: &mut F) {
+    f(node);
+    node.for_each_child(&mut |child| {
+        for_each_descendant(child, f);
+        false
+    });
+}

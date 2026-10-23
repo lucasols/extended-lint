@@ -50,8 +50,6 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "@typescript-eslint/scope-manager": "^8.40.0",
-    "@typescript-eslint/types": "^8.40.0",
     "@typescript-eslint/utils": "^8.40.0",
     "escape-string-regexp": "^5.0.0",
     "espree": "^10.4.0",

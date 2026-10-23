@@ -4,7 +4,7 @@ use globset::{Glob, GlobBuilder, GlobMatcher, GlobSet, GlobSetBuilder};
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
-use crate::rules::{normalize_rule_name, RULE_NAMES};
+use crate::rules::{normalize_rule_name, DEFAULT_RULE_NAMES, RULE_NAMES};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Severity {
@@ -294,8 +294,9 @@ impl Config {
         })
     }
 
-    /// Every rule as `error` with default options: what runs when no config file is given.
-    pub fn all_rules() -> Config {
+    /// The default rules (`DEFAULT_RULE_NAMES`) as `error` with default options: what runs when no config file is
+    /// given.
+    pub fn default_rules() -> Config {
         Config {
             projects: Vec::new(),
             report_unused_disable_directives: false,
@@ -303,7 +304,7 @@ impl Config {
             blocks: vec![Block {
                 files: None,
                 ignores: None,
-                rules: RULE_NAMES
+                rules: DEFAULT_RULE_NAMES
                     .iter()
                     .map(|&name| {
                         (
@@ -415,7 +416,7 @@ fn parse_rules(
         crate::rules::create_rule(name, entry.options.as_ref())?;
         if parsed.iter().any(|(n, _)| *n == name) {
             return Err(format!(
-                "invalid config: rule \"{name}\" is configured twice in one block (with and without a plugin prefix)"
+                "invalid config: rule \"{name}\" is configured twice in one block (under different plugin prefixes or names)"
             ));
         }
         parsed.push((name, entry));
@@ -430,6 +431,21 @@ mod tests {
 
     fn rule_names(config: &Config, path: &str) -> Vec<&'static str> {
         config.rules_for(path).iter().map(|r| r.name).collect()
+    }
+
+    #[test]
+    fn default_config_runs_only_the_type_aware_rules() {
+        let mut names = rule_names(&Config::default_rules(), "src/a.ts");
+        names.sort_unstable();
+        assert_eq!(
+            names,
+            [
+                "improved-no-unnecessary-condition",
+                "no-leaked-conditional-rendering",
+                "no-unnecessary-void-on-promise",
+                "strict-casting",
+            ]
+        );
     }
 
     #[test]
@@ -475,7 +491,29 @@ mod tests {
         .unwrap_or_default();
         assert_eq!(
             error,
-            r#"invalid config: rule "strict-casting" is configured twice in one block (with and without a plugin prefix)"#
+            r#"invalid config: rule "strict-casting" is configured twice in one block (under different plugin prefixes or names)"#
+        );
+    }
+
+    #[test]
+    fn former_rule_name_is_an_alias() {
+        let config = Config::from_json(
+            r#"{ "rules": { "@ls-stack/advanced-no-restricted-syntax": ["error", { "disallow": [{ "selector": "ForInStatement", "message": "no" }] }] } }"#,
+        )
+        .unwrap_or_else(|e| panic!("{e}"));
+        assert_eq!(rule_names(&config, "src/a.ts"), ["no-restricted-syntax"]);
+    }
+
+    #[test]
+    fn rule_configured_under_its_former_name_too_is_rejected() {
+        let error = Config::from_json(
+            r#"{ "rules": { "eslint-core/no-restricted-syntax": "error", "@ls-stack/advanced-no-restricted-syntax": "error" } }"#,
+        )
+        .err()
+        .unwrap_or_default();
+        assert_eq!(
+            error,
+            r#"invalid config: rule "no-restricted-syntax" is configured twice in one block (under different plugin prefixes or names)"#
         );
     }
 }
