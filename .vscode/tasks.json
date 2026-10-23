@@ -12,7 +12,7 @@
     {
       "label": "bump version and deploy",
       "type": "shell",
-      "command": "pnpm pre-publish && pnpm version ${input:version} && pnpm npm-publish",
+      "command": "pkg-manager publish @ls-stack/extended-lint --type ${input:version}",
       "problemMatcher": []
     },
     {

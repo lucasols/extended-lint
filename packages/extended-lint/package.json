@@ -1,0 +1,65 @@
+{
+  "name": "@ls-stack/extended-lint",
+  "version": "0.91.0",
+  "license": "MIT",
+  "scripts": {
+    "lint": "pnpm tsc && pnpm eslint",
+    "tsc": "tsc -p tsconfig.prod.json",
+    "test": "vitest run",
+    "test:ui": "vitest --ui",
+    "eslint": "eslint . --max-warnings=0 --fix",
+    "build": "pnpm test && pnpm lint && pnpm run build:no-test",
+    "build:no-test": "tsup --minify --dts",
+    "build:no-minify": "tsup --dts",
+    "run-in-test-project": "pnpm build:no-minify && node --experimental-strip-types ./debug/runInTestProject.ts",
+    "pre-publish": "pnpm build",
+    "npm-publish": "pnpm publish --access=public"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": "github:lucaslos/eslint-plugin-extended-lint",
+  "author": "Lucas Santos",
+  "main": "./dist/extended-lint.js",
+  "module": "./dist/extended-lint.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/extended-lint.mjs",
+      "require": "./dist/extended-lint.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@ls-stack/eslint-cfg": "^0.5.1",
+    "@ls-stack/utils": "^3.36.0",
+    "@types/eslint": "^9.6.1",
+    "@types/node": "^24.3.0",
+    "@typescript-eslint/parser": "^8.40.0",
+    "@typescript-eslint/rule-tester": "^8.40.0",
+    "@vitest/ui": "^3.2.4",
+    "eslint": "^9.33.0",
+    "eslint-vitest-rule-tester": "^2.2.1",
+    "tschema": "^3.2.0",
+    "tsm": "^2.3.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.41.0",
+    "vite": "^7.1.3",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@typescript-eslint/scope-manager": "^8.40.0",
+    "@typescript-eslint/types": "^8.40.0",
+    "@typescript-eslint/utils": "^8.40.0",
+    "escape-string-regexp": "^5.0.0",
+    "espree": "^10.4.0",
+    "esutils": "^2.0.3",
+    "zod": "^4.0.17"
+  },
+  "peerDependencies": {
+    "eslint": "^9.33.0",
+    "typescript": "^5.9.2"
+  }
+}

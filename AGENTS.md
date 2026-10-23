@@ -1,6 +1,6 @@
 # Project Overview
 
-This is an **ESLint plugin** (`extended-lint`) that provides custom linting rules for TypeScript/JavaScript projects.
+This is a pnpm monorepo. The **ESLint plugin** (`@ls-stack/extended-lint`) that provides custom linting rules for TypeScript/JavaScript projects lives in `packages/extended-lint`.
 
 **Key Requirements:**
 
@@ -11,16 +11,21 @@ This is an **ESLint plugin** (`extended-lint`) that provides custom linting rule
 
 # Commands
 
+Run from the repo root (applies to all packages):
+
 - `pnpm test` - Run all tests (Vitest)
+- `pnpm lint` - TypeScript compiler + ESLint check (MUST pass)
+
+Run inside `packages/extended-lint` (or from the root with `pnpm --filter @ls-stack/extended-lint <script>`):
+
 - `pnpm test <rule-name>` - Run specific rule tests
-- `pnpm lint` - TypeScript compiler check (MUST pass)
 - `pnpm tsc` - Type check only
 
 # Testing
 
 - Use Vitest framework
-- Tests: `src/rules/*.test.ts`
-- Always use `createNewTester` from `@tests/utils/createTester.ts`
+- Tests: `packages/extended-lint/src/rules/*.test.ts`
+- Always use `createNewTester` from `@packages/extended-lint/tests/utils/createTester.ts`
 - Write tests BEFORE implementing rules
 - Use describe only for grouping tests
 - Trailing or leading empty lines in output are not a issue as the code will be formatted by the user, so don't worry about it. Handling it in the rule will make the rule code more complex, so don't do it.
@@ -103,10 +108,15 @@ test('invalid example with options', async () => {
 })
 ```
 
+- Dont use `expect(result.output).toMatchInlineSnapshot(...)` if the test do not have auto fixable code.
+- For code with fix suggestions, use `expect(getSuggestionOutput(result)).toMatchInlineSnapshot(...)` to check the fix.
+
 # Architecture
 
+All paths below are relative to `packages/extended-lint`.
+
 - **Entry point**: `src/extended-lint.ts`
-- **Rule creation**: Use `createExtendedLintRule` from `@src/createRule.ts`
+- **Rule creation**: Use `createExtendedLintRule` from `@packages/extended-lint/src/createRule.ts`
 - **Rules registry**: `src/rules/rules.ts` - add all new rules here
 - **Rule files**: `src/rules/rule-name.ts` + `src/rules/rule-name.test.ts`
 
@@ -169,7 +179,7 @@ The rules will be used in large codebases, so performance should be a priority.
 
 # Code maintainability and readability
 
-Extract and reuse common utility functions in @src/astUtils.ts
+Extract and reuse common utility functions in @packages/extended-lint/src/astUtils.ts
 
 # Fixing @typescript-eslint/no-unnecessary-condition
 
