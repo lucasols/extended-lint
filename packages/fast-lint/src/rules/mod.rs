@@ -35,6 +35,7 @@ pub mod react_single_export;
 pub mod require_description;
 pub mod require_lazy_execution;
 pub mod require_reads_to_var_prop;
+pub mod require_usage_explanation;
 pub mod sort_react_components_and_styles;
 pub mod strict_casting;
 pub mod use_state_setter_naming;
@@ -85,6 +86,7 @@ pub const RULE_NAMES: &[&str] = &[
     require_description::NAME,
     require_lazy_execution::NAME,
     require_reads_to_var_prop::NAME,
+    require_usage_explanation::NAME,
     sort_react_components_and_styles::NAME,
     strict_casting::NAME,
     use_state_setter_naming::NAME,
@@ -136,6 +138,7 @@ pub fn create_rule(
         require_description::NAME => require_description::create(options),
         require_lazy_execution::NAME => require_lazy_execution::create(options),
         require_reads_to_var_prop::NAME => require_reads_to_var_prop::create(options),
+        require_usage_explanation::NAME => require_usage_explanation::create(options),
         sort_react_components_and_styles::NAME => sort_react_components_and_styles::create(options),
         strict_casting::NAME => strict_casting::create(options),
         use_state_setter_naming::NAME => use_state_setter_naming::create(options),
