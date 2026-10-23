@@ -823,8 +823,9 @@ safe and why TS inference or an alternative can't be used.
 - the comment goes right before the function or before the statement, `export`, class member or object property
   holding it; consecutive `//` lines form one block, and block/JSDoc comments count too
 - an explicit predicate TypeScript (5.5+) would infer identically is reported even with a comment, with a suggestion
-  to remove the annotation (`inferablePredicate`); only null/undefined and `typeof` checks it is sure about are
-  reported
+  to remove the annotation (`inferablePredicate`); it is conservative and only reports `===`/`!==` checks against
+  `null`, `undefined` and string/number literals, `typeof` checks and `instanceof` (non-generic classes), combined with
+  `||`/`&&`, that it is sure TypeScript infers identically
 - body-less signatures (overloads, `declare function`, interface members, function types) and `asserts x` are ignored
 - `alternativeMsgs` appends a project-specific hint to the `missingExplanation` message, e.g. pointing to a schema
   validator or a `filterAndMap` helper; the most specific one wins: `inArrayFind`/`inArrayFilter` for guards passed
