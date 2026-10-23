@@ -4,6 +4,8 @@ use tsrs_compiler::Program;
 use tsrs_core::P;
 use tsrslint::rule::Ctx;
 
+use crate::esquery::estree::{self, EsNode, EsType};
+
 /// Whether `declaration` is in a default library file (`lib.*.d.ts`).
 pub fn is_default_lib_declaration(program: &Program, declaration: P<Node>) -> bool {
     ast::get_source_file_of_node(declaration)
@@ -251,6 +253,77 @@ pub fn comments(file: P<SourceFile>) -> Vec<(u32, u32, bool)> {
         }
     }
     found
+}
+
+/// The text of a comment without its `//` or `/* */` delimiters, like ESLint's `comment.value`.
+pub fn comment_value(text: &str, (start, end, block): (u32, u32, bool)) -> &str {
+    let (Ok(start), Ok(end)) = (usize::try_from(start), usize::try_from(end)) else {
+        return "";
+    };
+    let value_end = if block { end.saturating_sub(2) } else { end };
+    text.get(start + 2..value_end).unwrap_or("")
+}
+
+/// The comments of `comments` (see `comments`) directly before `pos`, nearest first: the first ends where the
+/// whitespace before `pos` starts, and only whitespace separates each from the next.
+pub fn comments_directly_before(
+    text: &str,
+    comments: &[(u32, u32, bool)],
+    pos: i32,
+) -> Vec<(u32, u32, bool)> {
+    let mut found = Vec::new();
+    let Ok(mut cursor) = usize::try_from(pos) else {
+        return found;
+    };
+    loop {
+        let Some(before) = text.get(..cursor) else {
+            return found;
+        };
+        let Ok(end) = u32::try_from(before.trim_end().len()) else {
+            return found;
+        };
+        let Some(&comment) = comments
+            .binary_search_by_key(&end, |&(_, end, _)| end)
+            .ok()
+            .and_then(|index| comments.get(index))
+        else {
+            return found;
+        };
+        found.push(comment);
+        let Ok(start) = usize::try_from(comment.0) else {
+            return found;
+        };
+        cursor = start;
+    }
+}
+
+/// Where a comment explaining the ESTree node `es` can be: the starts of `es` and of its ancestors up to the one
+/// whose parent `is_container` accepts (e.g. the statement holding `es` in a block), without repeated starts.
+pub fn explanation_anchors(
+    file: P<SourceFile>,
+    es: EsNode,
+    is_container: impl Fn(EsType) -> bool,
+) -> Vec<i32> {
+    let mut chain = vec![es];
+    let mut current = es;
+    loop {
+        let Some(parent) = estree::parent(current) else {
+            return Vec::new();
+        };
+        if is_container(parent.es_type()) {
+            break;
+        }
+        chain.push(parent);
+        current = parent;
+    }
+    let mut starts: Vec<i32> = Vec::with_capacity(chain.len());
+    for node in chain {
+        let start = estree::range(node, file).0;
+        if starts.last() != Some(&start) {
+            starts.push(start);
+        }
+    }
+    starts
 }
 
 /// The name of an ESTree `MemberExpression`'s `Identifier` property: `b` in `a.b`, and also in the computed `a[b]`,

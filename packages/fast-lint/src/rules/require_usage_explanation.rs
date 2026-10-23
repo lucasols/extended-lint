@@ -4,7 +4,7 @@ use tsrslint::rule::{Ctx, Listener, Rule, RuleMessage, RuleVisitor};
 
 use crate::esquery::estree::{self, EsNode, EsType, EsValue};
 use crate::esquery::{CompiledSelector, SelectorIndex};
-use crate::utils::comments;
+use crate::utils::{comment_value, comments, comments_directly_before, explanation_anchors};
 
 pub const NAME: &str = "require-usage-explanation";
 
@@ -142,15 +142,6 @@ fn callee_name(es: EsNode, file: P<SourceFile>) -> Option<String> {
     }
 }
 
-/// The text of a comment without its `//` or `/* */` delimiters, like ESLint's `comment.value`.
-fn comment_value(text: &str, (start, end, block): (u32, u32, bool)) -> &str {
-    let (Ok(start), Ok(end)) = (usize::try_from(start), usize::try_from(end)) else {
-        return "";
-    };
-    let value_end = if block { end.saturating_sub(2) } else { end };
-    text.get(start + 2..value_end).unwrap_or("")
-}
-
 fn is_explanation(value: &str, prefix: &str) -> bool {
     value
         .trim()
@@ -159,67 +150,23 @@ fn is_explanation(value: &str, prefix: &str) -> bool {
 }
 
 impl Visitor {
-    /// Whether a comment between the previous token and `pos` explains the usage, like checking
-    /// `sourceCode.getCommentsBefore(node)` for a node starting at `pos`.
-    fn has_explanation_before(&mut self, ctx: &Ctx, pos: i32, prefix: &str) -> bool {
-        let text = ctx.text();
-        let comments = self.comments.get_or_insert_with(|| comments(ctx.file));
-        let Ok(mut cursor) = usize::try_from(pos) else {
-            return false;
-        };
-        loop {
-            let Some(before) = text.get(..cursor) else {
-                return false;
-            };
-            let Ok(end) = u32::try_from(before.trim_end().len()) else {
-                return false;
-            };
-            let Ok(found) = comments.binary_search_by_key(&end, |&(_, end, _)| end) else {
-                return false;
-            };
-            let Some(&comment) = comments.get(found) else {
-                return false;
-            };
-            if is_explanation(comment_value(text, comment), prefix) {
-                return true;
-            }
-            let Ok(start) = usize::try_from(comment.0) else {
-                return false;
-            };
-            cursor = start;
-        }
-    }
-
     /// Whether a comment before `es` or before one of its ancestors up to the statement holding it explains the
     /// usage.
     fn has_explanation(&mut self, ctx: &Ctx, es: EsNode, prefix: &str) -> bool {
-        let mut chain = vec![es];
-        let mut current = es;
-        loop {
-            let Some(parent) = estree::parent(current) else {
-                return false;
-            };
-            if matches!(
-                parent.es_type(),
+        let text = ctx.text();
+        let comments = self.comments.get_or_insert_with(|| comments(ctx.file));
+        explanation_anchors(ctx.file, es, |parent| {
+            matches!(
+                parent,
                 EsType::Program | EsType::BlockStatement | EsType::SwitchCase
-            ) {
-                break;
-            }
-            chain.push(parent);
-            current = parent;
-        }
-        let mut last_start = None;
-        for node in chain {
-            let start = estree::range(node, ctx.file).0;
-            if last_start == Some(start) {
-                continue;
-            }
-            last_start = Some(start);
-            if self.has_explanation_before(ctx, start, prefix) {
-                return true;
-            }
-        }
-        false
+            )
+        })
+        .into_iter()
+        .any(|start| {
+            comments_directly_before(text, comments, start)
+                .into_iter()
+                .any(|comment| is_explanation(comment_value(text, comment), prefix))
+        })
     }
 
     fn check(&mut self, ctx: &mut Ctx, es: EsNode, check: &Check) {
