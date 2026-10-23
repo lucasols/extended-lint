@@ -14,6 +14,7 @@ pub mod no_optional_root_props;
 pub mod no_redundant_function_params;
 pub mod no_reexport;
 pub mod no_relative_imports;
+pub mod no_restricted_comments;
 pub mod no_restricted_syntax;
 pub mod no_static_style_prop;
 pub mod no_sync_dynamic_import;
@@ -63,6 +64,7 @@ pub const RULE_NAMES: &[&str] = &[
     no_redundant_function_params::NAME,
     no_reexport::NAME,
     no_relative_imports::NAME,
+    no_restricted_comments::NAME,
     no_restricted_syntax::NAME,
     no_static_style_prop::NAME,
     no_sync_dynamic_import::NAME,
@@ -111,6 +113,7 @@ pub fn create_rule(
         no_redundant_function_params::NAME => no_redundant_function_params::create(options),
         no_reexport::NAME => no_reexport::create(options),
         no_relative_imports::NAME => no_relative_imports::create(options),
+        no_restricted_comments::NAME => no_restricted_comments::create(options),
         no_restricted_syntax::NAME => no_restricted_syntax::create(options),
         no_static_style_prop::NAME => no_static_style_prop::create(options),
         no_sync_dynamic_import::NAME => no_sync_dynamic_import::create(options),
