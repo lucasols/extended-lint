@@ -1402,3 +1402,63 @@ fn cspell_and_spell_checker_comments_should_be_allowed() {
         },
     );
 }
+
+#[test]
+fn explanation_comment_blocks_are_ignored() {
+    valid(
+        RULE,
+        indoc! {r#"
+            // type-guard-safety: same as Lexical's `$is*Node` helpers: node => node instanceof ImageNode
+            // node-type: lexical registers one class per node type, see `$createImageNode()`
+            // so the klass check can't be inferred through `LexicalNode.getType()`
+            export function isImage(node: unknown) {
+              return node
+            }
+        "#},
+    );
+}
+
+#[test]
+fn explanation_prefix_must_start_the_comment() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+            // foo.bar();type-guard-safety:no
+            export const b = 2
+        "#},
+    );
+    assert_snapshot!(result.errors(), @"- { messageId: 'commentedOutCode', line: 1 }");
+}
+
+#[test]
+fn explanation_block_ends_at_a_blank_line() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+            // type-guard-safety: values come from our serializer, which always sets kind
+
+            // const a = 1
+            export const b = 2
+        "#},
+    );
+    assert_snapshot!(result.errors(), @"- { messageId: 'commentedOutCode', line: 3 }");
+}
+
+#[test]
+fn custom_explanation_prefixes() {
+    let result = invalid(
+        RULE,
+        Case {
+            code: indoc! {r#"
+                // WORKAROUND: the api-client: returns `null` for 404s
+                // and-then: we map it to undefined
+                export const a = 1
+                // type-guard-safety: the api-client: returns `null`
+                export const b = 2
+            "#},
+            options: Some(serde_json::json!([{ "explanationPrefixes": ["WORKAROUND:"] }])),
+            ..Default::default()
+        },
+    );
+    assert_snapshot!(result.errors(), @"- { messageId: 'commentedOutCode', line: 4 }");
+}

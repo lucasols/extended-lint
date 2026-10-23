@@ -217,10 +217,16 @@ export type NoRestrictedCommentsOptions = {
   }[]
 }
 
+export type NoCommentedOutCodeOptions = {
+  explanationPrefixes?: string[]
+}
+
 export type RequireTypeGuardExplanationOptions = {
   commentPrefix?: string
   minLength?: number
   alternativeMsgs?: {
+    default?: string
+    unknownInput?: string
     inArrayFind?: string
     inArrayFilter?: string
   }
@@ -261,7 +267,7 @@ type RuleOptions = {
   'no-unnecessary-iife': Record<string, never>
   'require-description': RequireDescriptionOptions
   'no-write-only-ref': Record<string, never>
-  'no-commented-out-code': Record<string, never>
+  'no-commented-out-code': NoCommentedOutCodeOptions
   'react-single-export': ReactSingleExportOptions
   'no-unused-optional-args': NoUnusedOptionalArgsOptions
   'no-unused-type-props-in-args': NoUnusedTypePropsInArgsOptions

@@ -633,16 +633,11 @@ fn mixed_null_checks_not_reported_as_inferable() {
         function both(value: string | null | undefined): value is null {
           return value === null && value === undefined
         }
-
-        function emptyOrNullish(value: unknown): value is null | '' | undefined {
-          return value === null || value === '' || value === undefined
-        }
     "#},
     );
     assert_snapshot!(result.errors(), @r#"
     - { messageId: 'missingExplanation', line: 1 }
     - { messageId: 'missingExplanation', line: 5 }
-    - { messageId: 'missingExplanation', line: 9 }
     "#);
 }
 
@@ -780,4 +775,372 @@ fn empty_alternative_msg_is_ignored() {
       msg: 'Type guards are not checked by TypeScript. Add a "// type-guard-safety: ..." comment (at least 20 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used.'
       line: 5
     "#);
+}
+
+#[test]
+fn inferable_literal_comparisons() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+        type ChatType = 'ai_builder' | 'ai_block_builder' | 'ai_app_builder' | 'other'
+        type BuilderChatType = Extract<ChatType, 'ai_builder' | 'ai_block_builder' | 'ai_app_builder'>
+        type Letter = 'a' | 'b'
+
+        function isBuilderChatType(chatType: string): chatType is BuilderChatType {
+          return chatType === 'ai_builder' || chatType === 'ai_block_builder' || chatType === 'ai_app_builder'
+        }
+
+        function isLetter(value: 'a' | 'b' | 'c' | 'd'): value is Letter {
+          return value === 'a' || 'b' === value
+        }
+
+        const isOne = (value: string | number): value is 'a' | 1 => value === 'a' || value === 1
+
+        const isSmall = (value: number): value is -1 | 2 => value === -1 || value === 2
+
+        const isTemplate = (value: string): value is 'a' | 'b' => value === `a` || value === 'b'
+
+        function isC(value: 'a' | 'b' | 'c'): value is 'c' {
+          return value !== 'a' && value !== 'b'
+        }
+
+        function isNumberOrA(value: string | number): value is number | 'a' {
+          return value === 'a' || typeof value === 'number'
+        }
+
+        function isAOrNull(value: string | null): value is 'a' | 'b' | null {
+          return value === 'a' || value === 'b' || value === null
+        }
+    "#},
+    );
+    assert_snapshot!(result.errors(), @r#"
+    - { messageId: 'inferablePredicate', line: 5 }
+    - { messageId: 'inferablePredicate', line: 9 }
+    - { messageId: 'inferablePredicate', line: 13 }
+    - { messageId: 'inferablePredicate', line: 15 }
+    - { messageId: 'inferablePredicate', line: 17 }
+    - { messageId: 'inferablePredicate', line: 19 }
+    - { messageId: 'inferablePredicate', line: 23 }
+    - { messageId: 'inferablePredicate', line: 27 }
+    "#);
+}
+
+#[test]
+fn inferable_unknown_or_chains() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+        function isKeyType(key: unknown): key is string | number | symbol {
+          return typeof key === 'string' || typeof key === 'number' || typeof key === 'symbol'
+        }
+
+        function isNullishOrEmptyString(value: unknown): value is null | '' | undefined {
+          return value === null || value === '' || value === undefined
+        }
+
+        const isStringOrNull = (value: unknown): value is string | null =>
+          typeof value === 'string' || value === null
+
+        const isOneOrA = (value: unknown): value is 1 | 'a' => value === 1 || value === 'a'
+
+        const isLooseEmpty = (value: unknown): value is '' | null | undefined =>
+          value == null || value === ''
+
+        function isStringOrNumber(value: string | number | boolean): value is string | number {
+          return typeof value === 'string' || typeof value === 'number'
+        }
+    "#},
+    );
+    assert_snapshot!(result.errors(), @r#"
+    - { messageId: 'inferablePredicate', line: 1 }
+    - { messageId: 'inferablePredicate', line: 5 }
+    - { messageId: 'inferablePredicate', line: 9 }
+    - { messageId: 'inferablePredicate', line: 12 }
+    - { messageId: 'inferablePredicate', line: 14 }
+    - { messageId: 'inferablePredicate', line: 17 }
+    "#);
+}
+
+#[test]
+fn inferable_generic_not_nullish() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+        function isNotNullish<T>(value: T): value is NonNullable<T> {
+          return value !== null && value !== undefined
+        }
+
+        const isPresent = <T,>(value: T): value is NonNullable<T> => value != null
+
+        function isDefined<T>(value: T): value is T & {} {
+          return undefined !== value && null !== value
+        }
+    "#},
+    );
+    assert_snapshot!(result.errors(), @r#"
+    - { messageId: 'inferablePredicate', line: 1 }
+    - { messageId: 'inferablePredicate', line: 5 }
+    - { messageId: 'inferablePredicate', line: 7 }
+    "#);
+}
+
+#[test]
+fn inferable_instanceof() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+        class LexicalNode { key = '' }
+        class ElementNode extends LexicalNode { element = 1 }
+        class ImageNode extends ElementNode { src = '' }
+
+        function $isImageNode(node: LexicalNode | null | undefined): node is ImageNode {
+          return node instanceof ImageNode
+        }
+
+        const isElementNode = (node: LexicalNode | string): node is ElementNode =>
+          node instanceof ElementNode
+
+        function isImage(value: unknown): value is ImageNode {
+          return value instanceof ImageNode
+        }
+
+        function isLexical(node: ImageNode | null): node is ImageNode {
+          return node instanceof LexicalNode
+        }
+    "#},
+    );
+    assert_snapshot!(result.errors(), @r#"
+    - { messageId: 'inferablePredicate', line: 5 }
+    - { messageId: 'inferablePredicate', line: 9 }
+    - { messageId: 'inferablePredicate', line: 12 }
+    - { messageId: 'inferablePredicate', line: 16 }
+    "#);
+}
+
+#[test]
+fn literal_generic_and_instanceof_not_reported_as_inferable() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+        type Letter = 'a' | 'b' | 'c'
+        class LexicalNode { key = '' }
+        class ImageNode extends LexicalNode { src = '' }
+        class Unrelated { key = '' }
+        class Box<T> { value?: T }
+        class Special {
+          static [Symbol.hasInstance](value: unknown): value is Special {
+            return value !== null
+          }
+        }
+        enum Kind { A = 'a', B = 'b' }
+        declare const other: string
+
+        function arrayIsNotEmpty<T extends readonly unknown[] | undefined | null>(array: T): array is NonNullable<T> {
+          return !!array && array.length !== 0
+        }
+
+        function partial(value: string): value is Letter {
+          return value === 'a' || value === 'b'
+        }
+
+        function nonLiteral(value: string | null): value is string {
+          return value === other
+        }
+
+        function notLiteralOnString(value: string | null): value is string {
+          return value !== null && value !== 'a'
+        }
+
+        function mixed(value: string | number): value is string {
+          return value !== 'a' && typeof value === 'string'
+        }
+
+        function andOr(value: string | null): value is 'a' {
+          return value !== null && (value === 'a' || value === 'b')
+        }
+
+        function looseLiteral(value: string): value is 'a' | 'b' {
+          return value === 'a' || value == 'b'
+        }
+
+        function emptyObjectLiteral(value: {} | null): value is 'a' {
+          return value === 'a'
+        }
+
+        function enumMember(value: Kind): value is Kind.A {
+          return value === Kind.A
+        }
+
+        function unrelatedClass(node: LexicalNode | null): node is Unrelated {
+          return node instanceof Unrelated
+        }
+
+        function genericClass(value: Box<string> | null): value is Box<string> {
+          return value instanceof Box
+        }
+
+        function hasInstance(value: Special | string): value is Special {
+          return value instanceof Special
+        }
+
+        function notNullOnly<T>(value: T): value is NonNullable<T> {
+          return value !== null
+        }
+
+        function constrained<T extends string | null>(value: T): value is NonNullable<T> {
+          return value !== null && value !== undefined
+        }
+
+        function widerGeneric<T>(value: T | null): value is NonNullable<T> {
+          return value !== null && value !== undefined
+        }
+    "#},
+    );
+    assert_snapshot!(result.errors(), @r#"
+    - { messageId: 'missingExplanation', line: 7 }
+    - { messageId: 'missingExplanation', line: 14 }
+    - { messageId: 'missingExplanation', line: 18 }
+    - { messageId: 'missingExplanation', line: 22 }
+    - { messageId: 'missingExplanation', line: 26 }
+    - { messageId: 'missingExplanation', line: 30 }
+    - { messageId: 'missingExplanation', line: 34 }
+    - { messageId: 'missingExplanation', line: 38 }
+    - { messageId: 'missingExplanation', line: 42 }
+    - { messageId: 'missingExplanation', line: 46 }
+    - { messageId: 'missingExplanation', line: 50 }
+    - { messageId: 'missingExplanation', line: 54 }
+    - { messageId: 'missingExplanation', line: 58 }
+    - { messageId: 'missingExplanation', line: 62 }
+    - { messageId: 'missingExplanation', line: 66 }
+    - { messageId: 'missingExplanation', line: 70 }
+    "#);
+}
+
+#[test]
+fn instanceof_with_custom_has_instance_not_reported_as_inferable() {
+    let result = invalid(
+        RULE,
+        indoc! {r#"
+        class Plain { plain = 1 }
+        class Matcher {
+          // type-guard-safety: test fixture, narrows instanceof checks to Plain on purpose
+          static [Symbol.hasInstance](value: unknown): value is Plain {
+            return value !== null
+          }
+        }
+        class SubMatcher extends Matcher { sub = 1 }
+
+        function isMatcher(value: Matcher | string): value is Matcher {
+          return value instanceof Matcher
+        }
+
+        function isSubMatcher(value: SubMatcher | string): value is SubMatcher {
+          return value instanceof SubMatcher
+        }
+    "#},
+    );
+    assert_snapshot!(result.errors(), @r#"
+    - { messageId: 'missingExplanation', line: 10 }
+    - { messageId: 'missingExplanation', line: 14 }
+    "#);
+}
+
+fn all_hints_case(code: &str) -> Case<'_> {
+    Case {
+        code,
+        options: Some(json!([{
+            "alternativeMsgs": {
+                "default": "DEFAULT hint.",
+                "unknownInput": "UNKNOWN hint.",
+                "inArrayFind": "FIND hint.",
+                "inArrayFilter": "FILTER hint."
+            }
+        }])),
+        filename: None,
+    }
+}
+
+fn hints(result: &common::LintResult) -> String {
+    result
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let message = diagnostic.message.as_str();
+            let hint = message.rsplit(". ").next().unwrap_or(message);
+            format!("{}: {hint}\n", diagnostic.line)
+        })
+        .collect()
+}
+
+#[test]
+fn most_specific_hint_wins() {
+    let result = invalid(
+        RULE,
+        all_hints_case(indoc! {r#"
+        type Node = { kind: string }
+        declare const items: unknown[]
+        declare const nodes: (Node | string)[]
+        declare function isObject(value: unknown): value is object
+
+        function isNode(value: unknown): value is Node {
+          return isObject(value) && 'kind' in value
+        }
+        function isNodeOrString(value: Node | string | number): value is Node {
+          return isObject(value)
+        }
+        class Wrapper {
+          isWrapped(): this is { inner: Node } {
+            return true
+          }
+        }
+        items.filter((item): item is Node => isObject(item) && 'kind' in item)
+        nodes.find((item): item is Node => isObject(item))
+        const check = (value: unknown): asserts value is Node => {
+          if (!isObject(value)) throw new Error()
+        }
+    "#}),
+    );
+    assert_snapshot!(hints(&result), @r#"
+    6: UNKNOWN hint.
+    9: DEFAULT hint.
+    13: DEFAULT hint.
+    17: FILTER hint.
+    18: FIND hint.
+    19: UNKNOWN hint.
+    "#);
+}
+
+#[test]
+fn unknown_input_falls_back_to_default() {
+    let result = invalid(
+        RULE,
+        Case {
+            code: indoc! {r#"
+            type Node = { kind: string }
+            declare function isObject(value: unknown): value is object
+
+            function isNode(value: unknown): value is Node {
+              return isObject(value) && 'kind' in value
+            }
+        "#},
+            options: Some(json!([{ "alternativeMsgs": { "default": "DEFAULT hint." } }])),
+            filename: None,
+        },
+    );
+    assert_snapshot!(hints(&result), @"4: DEFAULT hint.");
+}
+
+#[test]
+fn any_input_is_not_unknown_input() {
+    let result = invalid(
+        RULE,
+        all_hints_case(indoc! {r#"
+        type Node = { kind: string }
+
+        function isNode(value: any): value is Node {
+          return typeof value === 'object' && 'kind' in value
+        }
+    "#}),
+    );
+    assert_snapshot!(hints(&result), @"3: DEFAULT hint.");
 }

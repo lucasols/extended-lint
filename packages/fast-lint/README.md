@@ -467,6 +467,19 @@ Comments starting with `INFO:`, `TODO:`, `DOCS:`, `FIX:`, `FIXME:`, `HACK:`, `NO
 `ISSUE:`, `TEMP:`, `TEMPORARY:`, `XXX:`, `REVIEW:`, `eslint`, `cspell:` or `spell-checker:` are allowed. The rule is
 heuristic: it can miss commented code.
 
+Explanation comments required by other rules (`require-type-guard-explanation`'s `type-guard-safety:` by default) are
+prose, so a line comment starting with one of `explanationPrefixes`, plus the `//` lines right below it, is never
+reported.
+
+```ts
+type Options = [
+  {
+    /** Prefixes of explanation comment blocks to skip (default: `['type-guard-safety:']`; replaces the default) */
+    explanationPrefixes?: string[]
+  },
+]
+```
+
 ### `react-single-export`
 
 In React component files (by default `*.tsx`), a file that exports a component (a PascalCase function, arrow,
@@ -810,11 +823,13 @@ safe and why TS inference or an alternative can't be used.
 - the comment goes right before the function or before the statement, `export`, class member or object property
   holding it; consecutive `//` lines form one block, and block/JSDoc comments count too
 - an explicit predicate TypeScript (5.5+) would infer identically is reported even with a comment, with a suggestion
-  to remove the annotation (`inferablePredicate`); only null/undefined and `typeof` checks it is sure about are
-  reported
+  to remove the annotation (`inferablePredicate`); it is conservative and only reports `===`/`!==` checks against
+  `null`, `undefined` and string/number literals, `typeof` checks and `instanceof` (non-generic classes), combined with
+  `||`/`&&`, that it is sure TypeScript infers identically
 - body-less signatures (overloads, `declare function`, interface members, function types) and `asserts x` are ignored
-- `alternativeMsgs` appends a project-specific hint to the message of guards passed directly to `.find()` or
-  `.filter()`, e.g. pointing to a `filterAndMap` helper
+- `alternativeMsgs` appends a project-specific hint to the `missingExplanation` message, e.g. pointing to a schema
+  validator or a `filterAndMap` helper; the most specific one wins: `inArrayFind`/`inArrayFilter` for guards passed
+  directly to `.find()`/`.filter()`, then `unknownInput` for guards narrowing an `unknown` parameter, then `default`
 
 ```ts
 // Error: missingExplanation
@@ -842,9 +857,15 @@ type Options = [
     commentPrefix?: string
     /** Minimum characters of explanation after the prefix (default: 20) */
     minLength?: number
-    /** Extra hints appended to the message of guards passed directly to `.find()`/`.filter()` */
+    /** Extra hints appended to the `missingExplanation` message, the most specific one wins */
     alternativeMsgs?: {
+      /** Every guard */
+      default?: string
+      /** Guards narrowing an `unknown` parameter (falls back to `default`) */
+      unknownInput?: string
+      /** Guards passed directly to `.find()` */
       inArrayFind?: string
+      /** Guards passed directly to `.filter()` */
       inArrayFilter?: string
     }
   },
