@@ -127,11 +127,42 @@ export const improvedNoUnnecessaryCondition = {
         )
       }
 
-      function isGlobalFunctionType(type: ts.Type): boolean {
-        const symbol = type.getSymbol()
-        if (!symbol || !checker) return false
+      function isDefaultLibDeclaration(declaration: ts.Node): boolean {
+        return (
+          parserServices.program?.isSourceFileDefaultLibrary(
+            declaration.getSourceFile(),
+          ) ?? false
+        )
+      }
 
-        return globalFunctionTypeNames.has(checker.getFullyQualifiedName(symbol))
+      function isDefaultLibSymbol(symbol: ts.Symbol): boolean {
+        return symbol.declarations?.some(isDefaultLibDeclaration) ?? false
+      }
+
+      function isFunctionInterfaceType(type: ts.Type): boolean {
+        const bind = type.getProperty('bind')
+
+        return (
+          bind?.declarations?.some(
+            (declaration) =>
+              ts.isInterfaceDeclaration(declaration.parent) &&
+              globalFunctionTypeNames.has(declaration.parent.name.text) &&
+              isDefaultLibDeclaration(declaration.parent),
+          ) ?? false
+        )
+      }
+
+      function isGlobalObjectType(type: ts.Type): boolean {
+        const symbol = type.getSymbol()
+
+        return (
+          symbol?.getName() === 'Object' &&
+          symbol.declarations?.some(
+            (declaration) =>
+              ts.isInterfaceDeclaration(declaration) &&
+              isDefaultLibDeclaration(declaration),
+          ) === true
+        )
       }
 
       function getTypeOfFromType(type: ts.Type): TypeofValue[] | null {
@@ -188,7 +219,19 @@ export const improvedNoUnnecessaryCondition = {
           return ['function']
         }
 
-        if (isGlobalFunctionType(type)) return ['function']
+        if (isFunctionInterfaceType(type)) return ['function']
+
+        if (isGlobalObjectType(type)) {
+          return [
+            'string',
+            'number',
+            'bigint',
+            'boolean',
+            'symbol',
+            'object',
+            'function',
+          ]
+        }
 
         // For object types (including arrays, etc.)
         if (type.flags & ts.TypeFlags.Object) {
@@ -241,33 +284,19 @@ export const improvedNoUnnecessaryCondition = {
           return null
         }
 
-        // For all types, collect possible typeof values
-        const possibleTypeofValues: TypeofValue[] = []
+        const possibleTypeofValues = new Set<TypeofValue>()
 
-        // Handle union types
-        if (type.isUnion()) {
-          for (const unionType of type.types) {
-            const primitiveType = getTypeOfFromType(unionType)
+        for (const part of type.isUnion() ? type.types : [type]) {
+          const partTypeofValues = getTypeOfFromType(part)
 
-            if (primitiveType) {
-              possibleTypeofValues.push(...primitiveType)
-            } else {
-              return null
-            }
+          if (!partTypeofValues) return null
+
+          for (const value of partTypeofValues) {
+            possibleTypeofValues.add(value)
           }
-
-          return possibleTypeofValues
         }
 
-        // For non-union types
-        const primitiveType = getTypeOfFromType(type)
-
-        if (primitiveType) {
-          possibleTypeofValues.push(...primitiveType)
-          return possibleTypeofValues
-        } else {
-          return null
-        }
+        return [...possibleTypeofValues]
       }
 
       function checkBinaryExpression(node: TSESTree.BinaryExpression) {
@@ -511,10 +540,12 @@ export const improvedNoUnnecessaryCondition = {
         return null
       }
 
-      function isArraySymbolName(symbolName: string) {
-        if (symbolName === 'Array' || symbolName === 'ReadonlyArray') return true
+      function isArraySymbol(symbol: ts.Symbol) {
+        const symbolName = symbol.getName()
+
         return (
-          symbolName.endsWith('.Array') || symbolName.endsWith('.ReadonlyArray')
+          (symbolName === 'Array' || symbolName === 'ReadonlyArray') &&
+          isDefaultLibSymbol(symbol)
         )
       }
 
@@ -529,18 +560,11 @@ export const improvedNoUnnecessaryCondition = {
           return true
         }
 
-        if (type.aliasSymbol) {
-          const aliasName = checker.getFullyQualifiedName(type.aliasSymbol)
-          if (isArraySymbolName(aliasName)) return true
-        }
+        if (type.aliasSymbol && isArraySymbol(type.aliasSymbol)) return true
 
         const symbol = type.getSymbol()
-        if (symbol) {
-          const symbolName = checker.getFullyQualifiedName(symbol)
-          if (isArraySymbolName(symbolName)) return true
-        }
 
-        return false
+        return symbol !== undefined && isArraySymbol(symbol)
       }
 
       function isEmptyObjectType(type: ts.Type) {
@@ -630,13 +654,21 @@ export const improvedNoUnnecessaryCondition = {
       }
 
       function isArrayIsArrayCall(callee: TSESTree.MemberExpression) {
-        return (
-          !callee.computed &&
-          callee.object.type === AST_NODE_TYPES.Identifier &&
-          callee.object.name === arrayIsArrayMember.object &&
-          callee.property.type === AST_NODE_TYPES.Identifier &&
-          callee.property.name === arrayIsArrayMember.property
+        if (
+          callee.computed ||
+          callee.object.type !== AST_NODE_TYPES.Identifier ||
+          callee.object.name !== arrayIsArrayMember.object ||
+          callee.property.type !== AST_NODE_TYPES.Identifier ||
+          callee.property.name !== arrayIsArrayMember.property
+        ) {
+          return false
+        }
+
+        const symbol = checker?.getSymbolAtLocation(
+          parserServices.esTreeNodeToTSNodeMap.get(callee.object),
         )
+
+        return symbol !== undefined && isDefaultLibSymbol(symbol)
       }
 
       function checkArrayIsArray(node: TSESTree.CallExpression) {
@@ -942,7 +974,7 @@ export const improvedNoUnnecessaryCondition = {
         if (node.left.type === AST_NODE_TYPES.PrivateIdentifier) return
 
         const propertyName = getLiteralKeyFromExpression(node.left)
-        if (!propertyName) return
+        if (!propertyName || propertyName === '__proto__') return
 
         const right = node.right
 

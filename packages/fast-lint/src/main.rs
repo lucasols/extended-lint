@@ -11,11 +11,9 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 const DEFAULT_CONFIG: &str = "fast-lint.config.json";
 
-/// The npm package version when built by `scripts/build.mjs`, so `--version` matches the published package.
-const VERSION: &str = match option_env!("FAST_LINT_VERSION") {
-    Some(v) => v,
-    None => env!("CARGO_PKG_VERSION"),
-};
+/// The crate version. The npm launcher answers `--version` itself with the package version, so release binaries
+/// don't embed it and stay identical across releases without code changes.
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const HELP: &str = "\
 fast-lint: type-aware lint rules on a native TypeScript checker
@@ -32,7 +30,7 @@ Options:
       --fix                 Apply autofixes
   -f, --format <format>     stylish (default), compact or json
       --quiet               Report errors only
-      --max-warnings <n>    Fail when there are more than n warnings
+      --max-warnings <n>    Fail when there are more than n warnings (-1: no limit)
       --timing              Print program and lint times to stderr
       --no-color            Disable colors
   -h, --help                Print this help
@@ -97,10 +95,10 @@ fn parse_args(raw: Vec<String>) -> Result<Parsed, String> {
             "--quiet" => args.quiet = true,
             "--max-warnings" => {
                 let v = value(&name)?;
-                args.max_warnings = Some(
-                    v.parse()
-                        .map_err(|_| format!("--max-warnings expects a number, got \"{v}\""))?,
-                );
+                let max: i64 = v
+                    .parse()
+                    .map_err(|_| format!("--max-warnings expects a number, got \"{v}\""))?;
+                args.max_warnings = usize::try_from(max).ok();
             }
             "--timing" => args.timing = true,
             "--no-color" => args.color = false,
@@ -113,51 +111,73 @@ fn parse_args(raw: Vec<String>) -> Result<Parsed, String> {
     Ok(Parsed::Run(args))
 }
 
-/// The absolute, normalized form of `path`, with symlinks resolved when it exists so it compares equal to the
-/// physical current directory and the file names of the programs.
+fn canonical(path: &str) -> Option<String> {
+    let canonical = std::fs::canonicalize(path).ok()?;
+    let canonical = canonical.to_string_lossy();
+    Some(tspath::normalize_path(
+        canonical.strip_prefix(r"\\?\").unwrap_or(&canonical),
+    ))
+}
+
+/// The absolute, normalized form of `path` with the symlinks of its directory resolved, so it compares equal to the
+/// physical current directory. The last component is kept: a symlinked tsconfig or source file is used by the path
+/// it was given, like tsc does.
 fn absolute(cwd: &str, path: &str) -> String {
     let resolved = tspath::normalize_path(&tspath::resolve_path(cwd, &[path]));
-    match std::fs::canonicalize(&resolved) {
-        Ok(canonical) => {
-            let canonical = canonical.to_string_lossy();
-            tspath::normalize_path(canonical.strip_prefix(r"\\?\").unwrap_or(&canonical))
-        }
-        Err(_) => resolved,
+    let resolved = without_trailing_slash(&resolved);
+    let dir = tspath::get_directory_path(&resolved);
+    if dir.len() >= resolved.len() {
+        return canonical(&resolved).unwrap_or(resolved);
+    }
+    match canonical(&dir) {
+        Some(dir) => tspath::combine_paths(&dir, &[&tspath::get_base_file_name(&resolved)]),
+        None => resolved,
     }
 }
 
-/// A path argument: absolute, without a trailing `/` unless it is a root.
-fn path_arg(cwd: &str, path: &str) -> String {
-    let path = absolute(cwd, path);
+/// The absolute, normalized form of directory `path`, with every symlink resolved like the current directory's.
+fn absolute_dir(cwd: &str, path: &str) -> String {
+    let resolved = tspath::normalize_path(&tspath::resolve_path(cwd, &[path]));
+    canonical(&resolved).unwrap_or_else(|| without_trailing_slash(&resolved))
+}
+
+/// `path` without a trailing `/`, unless it is a root.
+fn without_trailing_slash(path: &str) -> String {
     let trimmed = path.trim_end_matches('/');
-    if trimmed.len() == path.len() || tspath::get_root_length(&path) >= path.len() {
-        path
+    if trimmed.len() == path.len() || tspath::get_root_length(path) >= path.len() {
+        path.to_string()
     } else {
         trimmed.to_string()
     }
 }
 
-/// Writes fixed text back in the file's encoding: a UTF-8 BOM is kept. Files that aren't UTF-8 are left alone, since
-/// their text was decoded lossily.
-fn write_fixed(path: &str, text: &str) -> Result<Option<String>, String> {
+/// The forms a path argument may take in the projects' file names, which keep symlinks below the tsconfig
+/// directory: as given (resolved against the physical current directory), with its directory's symlinks resolved
+/// and fully resolved.
+fn path_arg(cwd: &str, path: &str) -> Vec<String> {
+    let logical =
+        without_trailing_slash(&tspath::normalize_path(&tspath::resolve_path(cwd, &[path])));
+    let first = absolute(cwd, path);
+    let physical = canonical(&first);
+    let mut forms = vec![first];
+    for form in [Some(logical), physical].into_iter().flatten() {
+        if !forms.contains(&form) {
+            forms.push(form);
+        }
+    }
+    forms
+}
+
+/// Writes fixed text back, keeping a UTF-8 BOM. The linter only fixes UTF-8 files.
+fn write_fixed(path: &str, text: &str) -> Result<(), String> {
     const BOM: &[u8] = b"\xEF\xBB\xBF";
     let original = std::fs::read(path).map_err(|e| format!("failed to read {path}: {e}"))?;
-    let has_bom = original.starts_with(BOM);
-    let body = if has_bom {
-        original.get(BOM.len()..).unwrap_or_default()
-    } else {
-        &original
-    };
-    if std::str::from_utf8(body).is_err() {
-        return Ok(Some(format!("{path}: not fixed, the file isn't UTF-8")));
-    }
     let mut bytes = Vec::with_capacity(text.len() + BOM.len());
-    if has_bom {
+    if original.starts_with(BOM) {
         bytes.extend_from_slice(BOM);
     }
     bytes.extend_from_slice(text.as_bytes());
-    std::fs::write(path, bytes).map_err(|e| format!("failed to write {path}: {e}"))?;
-    Ok(None)
+    std::fs::write(path, bytes).map_err(|e| format!("failed to write {path}: {e}"))
 }
 
 /// The config and the directory its relative paths resolve from.
@@ -166,7 +186,7 @@ fn load_config(args: &Args, cwd: &str) -> Result<(Config, String), String> {
         let root = args
             .config_root
             .as_deref()
-            .map_or_else(|| cwd.to_string(), |r| absolute(cwd, r));
+            .map_or_else(|| cwd.to_string(), |r| absolute_dir(cwd, r));
         return Ok((Config::from_json(json)?, root));
     }
     let path = match &args.config {
@@ -208,16 +228,14 @@ fn run(args: Args) -> Result<ExitCode, String> {
 
     let mut output = linter::run(&config, &opts)?;
 
-    if args.fix {
-        for file in &mut output.files {
-            if let Some(text) = &file.fixed_text {
-                if let Some(warning) = write_fixed(&file.path, text)? {
-                    output.warnings.push(warning);
-                    file.fixed_text = None;
-                }
-            }
-        }
-    }
+    let write_errors: Vec<String> = output
+        .files
+        .iter()
+        .filter_map(|file| {
+            let text = file.fixed_text.as_ref()?;
+            write_fixed(&file.path, text).err()
+        })
+        .collect();
     let mut stderr = std::io::stderr().lock();
     for warning in &output.warnings {
         let _ = writeln!(stderr, "warning: {warning}");
@@ -248,6 +266,13 @@ fn run(args: Args) -> Result<ExitCode, String> {
             output.timings.program.as_secs_f64(),
             output.timings.lint.as_secs_f64()
         );
+    }
+
+    if !write_errors.is_empty() {
+        for error in &write_errors {
+            let _ = writeln!(stderr, "fast-lint: {error}");
+        }
+        return Ok(ExitCode::from(2));
     }
 
     let too_many_warnings = args.max_warnings.is_some_and(|max| counts.warnings > max);

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
+import { constants } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -18,34 +19,37 @@ function binaryPath() {
 
   const platform = `${process.platform}-${process.arch}`
   const exe = process.platform === 'win32' ? 'fast-lint.exe' : 'fast-lint'
-  const path = fileURLToPath(
-    new URL(`../dist/${platform}/${exe}`, import.meta.url),
-  )
+  const candidates =
+    platform === 'win32-arm64' ? [platform, 'win32-x64'] : [platform]
 
-  if (!existsSync(path)) {
-    throw new Error(
-      `no prebuilt binary for ${platform}. Build one with \`cargo build --release\` in packages/fast-lint and point FAST_LINT_BINARY at it`,
+  for (const candidate of candidates) {
+    const path = fileURLToPath(
+      new URL(`../dist/${candidate}/${exe}`, import.meta.url),
     )
+    if (existsSync(path)) return path
   }
 
-  return path
+  throw new Error(
+    `no prebuilt binary for ${platform}. Build one with \`cargo build --release\` in packages/fast-lint and point FAST_LINT_BINARY at it`,
+  )
 }
 
 function findConfigFlag(args) {
+  let found
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
     if (arg === undefined) continue
 
     if (arg === '-c' || arg === '--config') {
-      return { index: i, length: 2, path: args[i + 1] }
-    }
-
-    if (arg.startsWith('--config=')) {
-      return { index: i, length: 1, path: arg.slice('--config='.length) }
+      found = { index: i, length: 2, path: args[i + 1] }
+      i++
+    } else if (arg.startsWith('--config=')) {
+      found = { index: i, length: 1, path: arg.slice('--config='.length) }
     }
   }
 
-  return undefined
+  return found
 }
 
 function isScriptConfig(path) {
@@ -54,7 +58,18 @@ function isScriptConfig(path) {
 
 async function loadScriptConfig(path) {
   const module = await import(pathToFileURL(path).href)
-  const config = module.default ?? module
+
+  if (!('default' in module)) {
+    throw new Error(`${path} has no default export`)
+  }
+
+  const config = await module.default
+
+  if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+    throw new Error(
+      `${path}: the default export must be a config object or a promise of one`,
+    )
+  }
 
   return JSON.stringify(config)
 }
@@ -115,12 +130,14 @@ if (rawArgs.includes('-v') || rawArgs.includes('--version')) {
   process.exit(0)
 }
 
+const isHelp = rawArgs.includes('-h') || rawArgs.includes('--help')
+
 let exe
 let args
 
 try {
   exe = binaryPath()
-  args = await resolveArgs(rawArgs)
+  args = isHelp ? rawArgs : await resolveArgs(rawArgs)
 } catch (error) {
   console.error(
     `fast-lint: ${error instanceof Error ? error.message : String(error)}`,
@@ -137,15 +154,28 @@ for (const signal of signals) {
 }
 
 child.on('error', (error) => {
-  console.error(`fast-lint: failed to run ${exe}: ${error.message}`)
+  const hint =
+    process.platform === 'linux' &&
+    !process.env.FAST_LINT_BINARY &&
+    'code' in error &&
+    error.code === 'ENOENT'
+      ? ' (the prebuilt Linux binaries need glibc >= 2.17; on musl/Alpine point FAST_LINT_BINARY at a binary built there)'
+      : ''
+  console.error(`fast-lint: failed to run ${exe}: ${error.message}${hint}`)
   process.exit(2)
 })
 
 child.on('exit', (code, signal) => {
   if (signal) {
-    process.removeAllListeners(signal)
-    process.kill(process.pid, signal)
-    return
+    process.exitCode = 128 + (constants.signals[signal] ?? 0)
+
+    if (signals.includes(signal)) {
+      process.removeAllListeners(signal)
+      process.kill(process.pid, signal)
+      return
+    }
+
+    process.exit()
   }
 
   process.exit(code ?? 2)

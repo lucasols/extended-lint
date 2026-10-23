@@ -1,6 +1,22 @@
-use tsrs_ast::{self as ast, Kind, Node, SourceFile};
+use tsrs_ast::{self as ast, Kind, Node, SourceFile, Symbol};
+use tsrs_compiler::Program;
 use tsrs_core::P;
 use tsrslint::rule::Ctx;
+
+/// Whether `declaration` is in a default library file (`lib.*.d.ts`).
+pub fn is_default_lib_declaration(program: &Program, declaration: P<Node>) -> bool {
+    ast::get_source_file_of_node(declaration)
+        .is_some_and(|file| program.is_source_file_default_library(file.path()))
+}
+
+/// Whether `symbol` is declared in a default library file: the global `Array`, `Function`, ..., not a local one with
+/// the same name.
+pub fn is_default_lib_symbol(program: &Program, symbol: P<Symbol>) -> bool {
+    symbol
+        .declarations()
+        .iter()
+        .any(|&declaration| is_default_lib_declaration(program, declaration))
+}
 
 /// Source text of `node` without its leading trivia, like ESLint's `sourceCode.getText(node)`.
 pub fn node_text(ctx: &Ctx, node: P<Node>) -> &'static str {
@@ -133,7 +149,7 @@ pub fn replacement_at(ctx: &Ctx, node: P<Node>, replacement: String) -> String {
         return replacement;
     }
     let statement_start = u32::try_from(ctx.trim(statement).0).unwrap_or(0);
-    let previous = tsrs_astnav::find_preceding_token(ctx.file, statement_start);
+    let previous = tsrs_astnav::find_preceding_token_ex(ctx.file, statement_start, None, true);
     let ends_statement = previous
         .is_none_or(|token| matches!(token.kind(), Kind::SemicolonToken | Kind::OpenBraceToken));
     if ends_statement {

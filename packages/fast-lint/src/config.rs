@@ -93,6 +93,8 @@ struct IgnorePattern {
     negated: bool,
     /// `dir/`: matches directories only.
     directory_only: bool,
+    /// For `dir/**` (and `dir/**/`): matches `dir` itself as a directory, as minimatch's `**` matches nothing.
+    directory_itself: Option<GlobMatcher>,
 }
 
 /// Global ignores with ESLint flat config semantics: a pattern matching a directory ignores everything in it, and
@@ -115,15 +117,23 @@ impl Ignores {
                     Some(dir) => (true, dir),
                     None => (false, pattern),
                 };
-                let matcher = GlobBuilder::new(pattern)
-                    .literal_separator(true)
-                    .build()
-                    .map_err(|e| format!("invalid glob \"{raw}\": {e}"))?
-                    .compile_matcher();
+                let build = |pattern: &str| {
+                    GlobBuilder::new(pattern)
+                        .literal_separator(true)
+                        .build()
+                        .map(|glob| glob.compile_matcher())
+                        .map_err(|e| format!("invalid glob \"{raw}\": {e}"))
+                };
+                let directory_itself = pattern
+                    .strip_suffix("/**")
+                    .filter(|dir| !dir.is_empty())
+                    .map(build)
+                    .transpose()?;
                 Ok(IgnorePattern {
-                    matcher,
+                    matcher: build(pattern)?,
                     negated,
                     directory_only,
+                    directory_itself,
                 })
             })
             .collect::<Result<_, String>>()?;
@@ -133,7 +143,14 @@ impl Ignores {
     fn matches(&self, path: &str, is_directory: bool) -> bool {
         let mut ignored = false;
         for pattern in &self.patterns {
-            if (is_directory || !pattern.directory_only) && pattern.matcher.is_match(path) {
+            let matches_directory_itself = is_directory
+                && pattern
+                    .directory_itself
+                    .as_ref()
+                    .is_some_and(|matcher| matcher.is_match(path));
+            if (is_directory || !pattern.directory_only) && pattern.matcher.is_match(path)
+                || matches_directory_itself
+            {
                 ignored = !pattern.negated;
             }
         }

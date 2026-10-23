@@ -96,6 +96,7 @@ for (const target of selected) {
       ...target.command,
       '--profile',
       'dist',
+      '--locked',
       '--bin',
       'fast-lint',
       '--target',
@@ -104,11 +105,9 @@ for (const target of selected) {
     {
       cwd: root,
       stdio: 'inherit',
-      env: {
-        ...process.env,
-        FAST_LINT_VERSION: version,
-        ...(target.needsLlvmTools ? { PATH: llvmToolsPath() } : {}),
-      },
+      env: target.needsLlvmTools
+        ? { ...process.env, PATH: llvmToolsPath() }
+        : process.env,
     },
   )
 

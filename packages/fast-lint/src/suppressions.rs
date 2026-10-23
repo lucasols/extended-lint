@@ -2,7 +2,9 @@ use rustc_hash::FxHashSet;
 
 use crate::rules::normalize_rule_name;
 
-const PREFIXES: &[&str] = &["eslint-", "oxlint-"];
+/// `fast-lint-` directives are ignored by ESLint, so `eslint --fix` doesn't remove them as unused when these rules are
+/// off in ESLint.
+const PREFIXES: &[&str] = &["eslint-", "oxlint-", "fast-lint-"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Kind {
@@ -33,7 +35,7 @@ struct Directive {
 /// A comment: its byte range and whether it is a block comment.
 pub type Comment = (usize, usize, bool);
 
-/// The `eslint-disable*` / `oxlint-disable*` directives of a file.
+/// The `eslint-disable*` / `oxlint-disable*` / `fast-lint-disable*` directives of a file.
 #[derive(Debug, Default)]
 pub struct Suppressions {
     directives: Vec<Directive>,
@@ -280,6 +282,13 @@ mod tests {
         let text = "a // oxlint-disable-line strict-casting\n{/* eslint-disable-next-line @eslint-react/no-leaked-conditional-rendering */}\nb\n";
         assert!(suppressed(text, "strict-casting", 1));
         assert!(suppressed(text, "no-leaked-conditional-rendering", 3));
+    }
+
+    #[test]
+    fn fast_lint_directives() {
+        let text = "// fast-lint-disable-next-line strict-casting\nString(a)\n/* fast-lint-disable */\nb\n";
+        assert!(suppressed(text, "strict-casting", 2));
+        assert!(suppressed(text, "no-unnecessary-void-on-promise", 4));
     }
 
     #[test]

@@ -745,3 +745,71 @@ test('comment-like text in a type argument keeps the fix', async () => {
     const x = s"
   `)
 })
+
+test('values that may hold primitives are not NaN', async () => {
+  await valid(dedent`
+    declare const empty: {}
+    declare const obj: Object
+    declare const bool: Boolean
+    declare const custom: { toString(): string }
+    declare const valueOfString: { valueOf(): string }
+
+    function narrowed(value: unknown) {
+      if (value != null) return Number(value)
+    }
+    function generic<T extends {}>(value: T) {
+      return Number(value)
+    }
+    const a = Number(empty)
+    const b = Number(obj)
+    const c = Number(bool)
+    const d = Number(custom)
+    const e = Number(valueOfString)
+  `)
+})
+
+test('toPrimitive returning a symbol is invalid', async () => {
+  const { result } = await invalid(dedent`
+    declare const weird: { [Symbol.toPrimitive](): symbol }
+    const a = Number(weird)
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'nanNumberCasting', line: 2 }
+    "
+  `)
+})
+
+test('optional call of an any cast function is ignored', async () => {
+  await valid({
+    code: dedent`
+      const toNumber: any = undefined
+      let calls = 0
+      const a = toNumber?.(++calls)
+    `,
+    options: [
+      {
+        additionalCastFunctions: [
+          { name: 'toNumber', expectedType: 'number' },
+        ],
+      },
+    ],
+  })
+})
+
+test('ASI guard ignores JSDoc tokens', async () => {
+  const { result } = await invalid(dedent`
+    declare const n: number
+    const x = 1
+    /** @type {{ */
+    Number(-n)
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const n: number
+    const x = 1
+    /** @type {{ */
+    ;-n"
+  `)
+})

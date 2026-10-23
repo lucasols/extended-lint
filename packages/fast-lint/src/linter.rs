@@ -21,9 +21,9 @@ pub struct LintOptions {
     pub root: String,
     /// Absolute tsconfig paths.
     pub projects: Vec<String>,
-    /// Absolute, normalized files or directories to lint, without a trailing `/`; empty means every file of the
-    /// projects.
-    pub paths: Vec<String>,
+    /// Files or directories to lint; empty means every file of the projects. Each is given as the absolute,
+    /// normalized forms (without a trailing `/`) it may take in the projects' file names, the first one is printed.
+    pub paths: Vec<Vec<String>>,
     pub fix: bool,
     /// Run only the rules set to `error` (`--quiet` without `--max-warnings`, like ESLint).
     pub errors_only: bool,
@@ -149,8 +149,8 @@ pub fn run(config: &Config, opts: &LintOptions) -> Result<LintOutput, String> {
         let config_errors: Vec<P<tsrs_ast::Diagnostic>> = parsed
             .errors
             .iter()
-            .chain(parsed_config.errors.iter())
             .copied()
+            .chain(parsed_config.get_config_file_parsing_diagnostics())
             .collect();
         if config_errors
             .iter()
@@ -232,13 +232,20 @@ pub fn run(config: &Config, opts: &LintOptions) -> Result<LintOutput, String> {
         let mut groups: Vec<_> = groups.into_iter().collect();
         groups.sort_by(|a, b| a.0.cmp(b.0));
         for (rules, group) in &groups {
-            output.files.extend(lint_group(program, group, rules, opts));
+            output.files.extend(lint_group(
+                program,
+                group,
+                rules,
+                opts,
+                &mut output.warnings,
+            ));
         }
         output.timings.lint += start.elapsed();
     }
 
     let mut unmatched = Vec::new();
-    for (path, state) in opts.paths.iter().zip(&selection.paths) {
+    for (forms, state) in opts.paths.iter().zip(&selection.paths) {
+        let path = forms.first().map_or("", String::as_str);
         match state {
             PathMatch::None => unmatched.push(display_path(&opts.root, path)),
             PathMatch::Ignored if std::path::Path::new(path).is_file() => {
@@ -301,11 +308,14 @@ fn display_path<'a>(root: &str, path: &'a str) -> &'a str {
         .unwrap_or(path)
 }
 
-/// Whether `file_name` is `path` or in it. `path` has no trailing `/` unless it is a root (`/`, `c:/`).
-fn is_under(file_name: &str, path: &str) -> bool {
-    file_name
-        .strip_prefix(path)
-        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/') || path.ends_with('/'))
+/// Whether `file_name` is a path argument (any of its forms) or in it. A form has no trailing `/` unless it is a
+/// root (`/`, `c:/`).
+fn is_under(file_name: &str, forms: &[String]) -> bool {
+    forms.iter().any(|path| {
+        file_name
+            .strip_prefix(path.as_str())
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/') || path.ends_with('/'))
+    })
 }
 
 /// How a path argument matched the project files.
@@ -417,11 +427,20 @@ fn create_rules(rules: &[EnabledRule]) -> Vec<&'static dyn Rule> {
         .collect()
 }
 
+/// Whether the file on disk is UTF-8 (with or without a BOM): only then can fixed text be written back, since other
+/// encodings were decoded to text lossily.
+fn is_utf8_file(path: &str) -> bool {
+    std::fs::read(path).is_ok_and(|bytes| {
+        std::str::from_utf8(bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&bytes)).is_ok()
+    })
+}
+
 fn lint_group(
     program: &'static Program,
     files: &[P<SourceFile>],
     rules: &[EnabledRule],
     lint_opts: &LintOptions,
+    warnings: &mut Vec<String>,
 ) -> Vec<FileResult> {
     let rule_instances = create_rules(rules);
     let severities: FxHashMap<&str, Severity> =
@@ -482,8 +501,17 @@ fn lint_group(
         if diagnostics.is_empty() {
             continue;
         }
-        let fixed_text = if lint_opts.fix {
-            apply_fixes(text, &mut diagnostics, lint_opts.fix_errors_only)
+        let has_fixes = diagnostics.iter().any(|d| !d.fixes.is_empty());
+        let fixed_text = if lint_opts.fix && has_fixes {
+            if is_utf8_file(file.file_name()) {
+                apply_fixes(text, &mut diagnostics, lint_opts.fix_errors_only)
+            } else {
+                warnings.push(format!(
+                    "{}: not fixed, the file isn't UTF-8",
+                    file.file_name()
+                ));
+                None
+            }
         } else {
             None
         };
@@ -520,12 +548,21 @@ fn map_offset(edits: &[Edit], offset: u32) -> Option<u32> {
     u32::try_from(i64::from(offset) + delta).ok()
 }
 
+/// Moves fixes to the fixed text. `None` when one overlaps or encloses an applied edit: its text was computed from the
+/// original text and would undo or duplicate the edit.
 fn map_fixes(edits: &[Edit], fixes: &[RuleFix]) -> Option<Vec<RuleFix>> {
     fixes
         .iter()
         .map(|f| {
-            let pos = map_offset(edits, u32::try_from(f.pos).ok()?)?;
-            let end = map_offset(edits, u32::try_from(f.end).ok()?)?;
+            let (pos, end) = (u32::try_from(f.pos).ok()?, u32::try_from(f.end).ok()?);
+            if edits
+                .iter()
+                .any(|e| e.pos < end && pos < e.end.max(e.pos + 1))
+            {
+                return None;
+            }
+            let pos = map_offset(edits, pos)?;
+            let end = map_offset(edits, end)?;
             Some(RuleFix {
                 pos: i32::try_from(pos).ok()?,
                 end: i32::try_from(end).ok()?,

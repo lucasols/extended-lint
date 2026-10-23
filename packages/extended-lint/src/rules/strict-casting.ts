@@ -89,6 +89,9 @@ const primitiveTypeFlags =
   ts.TypeFlags.BooleanLike |
   ts.TypeFlags.EnumLike
 
+const convertiblePrimitiveTypeFlags =
+  primitiveTypeFlags | ts.TypeFlags.Any | ts.TypeFlags.Unknown
+
 type Options = z.infer<typeof optionsSchema>
 
 export const strictCasting = createExtendedLintRule<
@@ -176,6 +179,41 @@ export const strictCasting = createExtendedLintRule<
       return parts
     }
 
+    function isDefaultLibDeclaration(declaration: ts.Declaration): boolean {
+      return services.program.isSourceFileDefaultLibrary(
+        declaration.getSourceFile(),
+      )
+    }
+
+    function isGlobalObjectType(type: ts.Type): boolean {
+      const symbol = type.getSymbol()
+
+      return (
+        symbol?.getName() === 'Object' &&
+        (symbol.declarations?.some(isDefaultLibDeclaration) ?? false)
+      )
+    }
+
+    function isEmptyObjectType(type: ts.Type): boolean {
+      return (
+        type.getProperties().length === 0 &&
+        checker.getIndexInfosOfType(type).length === 0 &&
+        type.getCallSignatures().length === 0 &&
+        type.getConstructSignatures().length === 0
+      )
+    }
+
+    function methodReturnsPrimitive(method: ts.Symbol, tsNode: ts.Node): boolean {
+      const methodType = checker.getTypeOfSymbolAtLocation(method, tsNode)
+
+      return methodType.getCallSignatures().some((signature) => {
+        const returnType = signature.getReturnType()
+        const parts = returnType.isUnion() ? returnType.types : [returnType]
+
+        return parts.some((part) => part.flags & convertiblePrimitiveTypeFlags)
+      })
+    }
+
     function mayConvertToNumber(type: ts.Type, tsNode: ts.Node): boolean {
       if (
         type.isIntersection() &&
@@ -184,35 +222,26 @@ export const strictCasting = createExtendedLintRule<
         return true
       }
 
+      if (isGlobalObjectType(type) || isEmptyObjectType(type)) return true
+
       const apparentType = checker.getApparentType(type)
-      if (
-        apparentType
-          .getProperties()
-          .some((property) => property.getName().startsWith('__@toPrimitive@'))
-      ) {
-        return true
-      }
+      const toPrimitive = apparentType
+        .getProperties()
+        .find((property) => property.getName().startsWith('__@toPrimitive@'))
 
-      return hasNumericValueOf(apparentType, tsNode)
-    }
+      if (toPrimitive) return methodReturnsPrimitive(toPrimitive, tsNode)
 
-    function hasNumericValueOf(apparentType: ts.Type, tsNode: ts.Node): boolean {
-      const valueOfSymbol = apparentType.getProperty('valueOf')
+      const valueOf = apparentType.getProperty('valueOf')
 
-      if (!valueOfSymbol) return false
+      if (valueOf && methodReturnsPrimitive(valueOf, tsNode)) return true
 
-      const valueOfType = checker.getTypeOfSymbolAtLocation(
-        valueOfSymbol,
-        tsNode,
+      const toString = apparentType.getProperty('toString')
+
+      return (
+        toString?.declarations?.some(
+          (declaration) => !isDefaultLibDeclaration(declaration),
+        ) ?? false
       )
-
-      for (const signature of valueOfType.getCallSignatures()) {
-        if (signature.getReturnType().flags & ts.TypeFlags.NumberLike) {
-          return true
-        }
-      }
-
-      return false
     }
 
     function hasCommentsOutsideArg(
@@ -230,13 +259,7 @@ export const strictCasting = createExtendedLintRule<
         services.esTreeNodeToTSNodeMap.get(callee),
       )
 
-      return (
-        symbol?.declarations?.some((declaration) =>
-          services.program.isSourceFileDefaultLibrary(
-            declaration.getSourceFile(),
-          ),
-        ) ?? false
-      )
+      return symbol?.declarations?.some(isDefaultLibDeclaration) ?? false
     }
 
     function isPossiblyNullish(callee: TSESTree.Identifier): boolean {
@@ -245,7 +268,11 @@ export const strictCasting = createExtendedLintRule<
       )
       const parts = calleeType.isUnion() ? calleeType.types : [calleeType]
 
-      return parts.some((part) => part.flags & nullishTypeFlags)
+      return parts.some(
+        (part) =>
+          part.flags &
+          (nullishTypeFlags | ts.TypeFlags.Any | ts.TypeFlags.Unknown),
+      )
     }
 
     function reportUnnecessary(

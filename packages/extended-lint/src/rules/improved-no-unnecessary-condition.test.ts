@@ -1481,3 +1481,92 @@ test('string method annotation fallback ignores nested declarations', async () =
     }
   `)
 })
+
+test('typeof with repeated outcomes', async () => {
+  const { result } = await invalid(dedent`
+    declare const b: boolean
+    if (typeof b === 'boolean') {}
+    if (typeof b !== 'boolean') {}
+    declare const s: 'a' | 'b'
+    if (typeof s === 'string') {}
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
+    - { messageId: 'alwaysFalseTypeofCondition', line: 3 }
+    - { messageId: 'unnecessaryTypeofCondition', line: 5 }
+    "
+  `)
+})
+
+test('typeof on types extending Function', async () => {
+  const { result } = await invalid(dedent`
+    interface AbstractType<T> extends Function {
+      prototype: T
+    }
+    declare const t: AbstractType<{ a: string }>
+    if (typeof t === 'object') {}
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'alwaysFalseTypeofCondition', line: 5 }
+    "
+  `)
+})
+
+test('typeof on Object type', async () => {
+  await valid(dedent`
+    declare const o: Object
+    if (typeof o === 'string') {}
+    if (typeof o === 'function') {}
+  `)
+})
+
+test('typeof on a local type named Function', async () => {
+  const { result } = await invalid(dedent`
+    export {}
+    type Function = { name: string }
+    declare const fn: Function
+    if (typeof fn === 'function') {}
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'alwaysFalseTypeofCondition', line: 4 }
+    "
+  `)
+})
+
+test('Array.isArray on a local type named Array', async () => {
+  const { result } = await invalid(dedent`
+    export {}
+    namespace Data {
+      export type Array = { value: string }
+    }
+    declare const x: Data.Array
+    if (Array.isArray(x)) {}
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'alwaysFalseArrayIsArrayCondition', line: 6 }
+    "
+  `)
+})
+
+test('isArray of a local binding named Array is ignored', async () => {
+  await valid(dedent`
+    export {}
+    const Array = { isArray: (v: number) => v === 1 }
+    if (Array.isArray(1)) {}
+  `)
+})
+
+test('in check of __proto__ is ignored', async () => {
+  await valid(dedent`
+    declare const o: { a: number }
+    if ('__proto__' in o) {}
+  `)
+})

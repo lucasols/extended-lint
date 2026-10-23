@@ -788,3 +788,78 @@ fn comment_like_text_in_a_type_argument_keeps_the_fix() {
     const x = s
     "###);
 }
+
+#[test]
+fn values_that_may_hold_primitives_are_not_nan() {
+    valid(
+        RULE,
+        indoc! {"
+            declare const empty: {}
+            declare const obj: Object
+            declare const bool: Boolean
+            declare const custom: { toString(): string }
+            declare const valueOfString: { valueOf(): string }
+
+            function narrowed(value: unknown) {
+                if (value != null) return Number(value)
+            }
+            function generic<T extends {}>(value: T) {
+                return Number(value)
+            }
+            const a = Number(empty)
+            const b = Number(obj)
+            const c = Number(bool)
+            const d = Number(custom)
+            const e = Number(valueOfString)
+        "},
+    );
+}
+
+#[test]
+fn to_primitive_returning_a_symbol_is_invalid() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const weird: { [Symbol.toPrimitive](): symbol }
+            const a = Number(weird)
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @"- { messageId: 'nanNumberCasting', line: 2 }");
+}
+
+#[test]
+fn optional_call_of_an_any_cast_function_is_ignored() {
+    valid(
+        RULE,
+        Case {
+            code: indoc! {"
+                const toNumber: any = undefined
+                let calls = 0
+                const a = toNumber?.(++calls)
+            "},
+            options: to_number_cast_option(),
+            filename: None,
+        },
+    );
+}
+
+#[test]
+fn asi_guard_ignores_jsdoc_tokens() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const n: number
+            const x = 1
+            /** @type {{ */
+            Number(-n)
+        "},
+    );
+
+    assert_snapshot!(result.output, @r"
+    declare const n: number
+    const x = 1
+    /** @type {{ */
+    ;-n
+    ");
+}

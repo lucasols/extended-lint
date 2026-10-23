@@ -18,10 +18,14 @@ struct Options {
     react_version: String,
 }
 
+/// The version assumed when `reactVersion` is not set, empty or `"detect"` (ESLint-React's default, which reads the
+/// installed React version, isn't supported).
+const DEFAULT_REACT_VERSION: &str = "19.0.0";
+
 impl Default for Options {
     fn default() -> Self {
         Options {
-            react_version: "19.0.0".to_string(),
+            react_version: DEFAULT_REACT_VERSION.to_string(),
         }
     }
 }
@@ -33,8 +37,12 @@ pub struct NoLeakedConditionalRendering {
 
 pub fn create(options: Option<&serde_json::Value>) -> Result<Box<dyn Rule>, String> {
     let options = super::parse_options::<Options>(options)?;
+    let version = match options.react_version.as_str() {
+        "" | "detect" => DEFAULT_REACT_VERSION,
+        version => version,
+    };
     Ok(Box::new(NoLeakedConditionalRendering {
-        allow_strings: !is_before_react_18(&options.react_version)?,
+        allow_strings: !is_before_react_18(version)?,
     }))
 }
 

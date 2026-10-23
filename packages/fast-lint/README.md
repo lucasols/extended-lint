@@ -12,7 +12,7 @@ Node type checker: only these rules run, against one shared program per tsconfig
 | `improved-no-unnecessary-condition` | `@ls-stack/improved-no-unnecessary-condition` |
 | `strict-casting` | `@ls-stack/strict-casting` |
 | `no-unnecessary-void-on-promise` | `@ls-stack/no-unnecessary-void-on-promise` |
-| `no-leaked-conditional-rendering` | `@eslint-react/no-leaked-conditional-rendering` (v2.3.13); option `reactVersion` (default `"19.0.0"`) |
+| `no-leaked-conditional-rendering` | `@eslint-react/no-leaked-conditional-rendering` (v2.3.13); option `reactVersion` (default `"19.0.0"`, also used for `""` and `"detect"`: the installed version isn't read) |
 
 Options are the same as the ESLint rules'.
 
@@ -22,8 +22,8 @@ Options are the same as the ESLint rules'.
 fast-lint                      # every file of ./tsconfig.json
 fast-lint src/feature          # only files under these paths
 fast-lint --fix                # apply autofixes (strict-casting's unnecessary casts)
-fast-lint --format json        # stylish (default), compact or json
-fast-lint --max-warnings 0 --timing
+fast-lint --format json        # stylish (default), compact or json, in ESLint's formats
+fast-lint --max-warnings 0 --timing   # --max-warnings -1: no limit
 ```
 
 A solution-style tsconfig (empty `files` plus `references`) lints its referenced projects; a file in several
@@ -35,9 +35,10 @@ entirely unless `--max-warnings` is given, in which case warnings still count. `
 result shape, listing only files with problems or fixes.
 
 Exit code: `0` clean, `1` errors (or more warnings than `--max-warnings`), `2` fatal error: a tsconfig with a missing
-`files` entry or `extends` target, no files to lint, a path argument that matches no project file, or a directory
-argument whose files are all ignored. A file argument that is ignored, a declaration file or in `node_modules` is
-skipped with a warning.
+`files` entry or `extends` target, no files to lint, a path argument that matches no project file, a directory
+argument whose files are all ignored, or a fixed file that couldn't be written (reported after the results). A file
+argument that is ignored, a declaration file or in `node_modules` is skipped with a warning, and so is fixing a file
+that isn't UTF-8 (its problems are still reported).
 
 ## Config
 
@@ -67,24 +68,37 @@ export default defineConfig({
 
 Overrides apply in order, like ESLint flat config blocks: a severity-only entry keeps the options set by an earlier
 block. Globs are relative to the config file's directory (`../` for files outside it). Global `ignores` follow ESLint's
-semantics: a pattern matching a directory (`src/gen`, `**/out`, `dist/`) ignores everything in it, and `!pattern`
-un-ignores files ignored by earlier patterns, but not files inside an ignored directory. Rule names may carry a plugin
-prefix (`@ls-stack/strict-casting`).
+semantics: a pattern matching a directory (`src/gen`, `**/out`, `dist/`, `dist/**`) ignores everything in it, and
+`!pattern` un-ignores files ignored by earlier patterns, but not files inside an ignored directory: to keep a file of
+an ignored directory, ignore its contents with `dir/**/*` instead. Rule names may carry a plugin prefix
+(`@ls-stack/strict-casting`).
+
+A script config's default export must be the config object, or a promise of it.
 
 ## Disable comments
 
 `eslint-disable`, `eslint-enable`, `eslint-disable-line` and `eslint-disable-next-line` comments (and their
-`oxlint-` forms) are honored, with or without a rule list and a `-- description`, so existing directives such as
-`// eslint-disable-next-line @ls-stack/improved-no-unnecessary-condition` keep working. They are parsed like ESLint
-does: the comment text must start with the directive, `disable` and `enable` need a block comment (`/* */`), and a
-multi-line `disable-next-line` block comment applies to the line after the comment ends.
+`oxlint-` and `fast-lint-` forms) are honored, with or without a rule list and a `-- description`, so existing
+directives such as `// eslint-disable-next-line @ls-stack/improved-no-unnecessary-condition` keep working. They are
+parsed like ESLint does: the comment text must start with the directive, `disable` and `enable` need a block comment
+(`/* */`), and a multi-line `disable-next-line` block comment applies to the line after the comment ends.
+
+### Running alongside ESLint
+
+When these rules are moved out of ESLint (set to `off` there, or their plugin removed), ESLint sees their
+`eslint-disable` comments as unused (`reportUnusedDisableDirectives`, a warning by default in ESLint 9), and
+`eslint --fix` deletes them, or as errors for an unknown rule when the plugin isn't loaded. Then fast-lint reports the
+problems again. Either write these rules' directives as `fast-lint-disable*` (or `oxlint-disable*`), which ESLint
+ignores, or set `linterOptions: { reportUnusedDisableDirectives: 'off' }` in the ESLint config, which also stops
+reporting directives that are unused for the remaining ESLint rules.
 
 ## Differences from ESLint
 
 - `--fix` applies one pass of non-overlapping fixes (ESLint repeats up to 10 passes).
 - Types come from tsrs (TypeScript 7.1-dev semantics); printed types in messages can differ slightly from TS 5.x.
 - Prebuilt binaries ship for macOS (arm64, x64), Linux (x64, arm64; glibc >= 2.17, not musl/Alpine) and Windows
-  x64. Elsewhere, set `FAST_LINT_BINARY` to a `cargo build --release` binary.
+  x64 (also used on Windows arm64, through emulation). Elsewhere, set `FAST_LINT_BINARY` to a `cargo build --release`
+  binary. The launcher prints the package version for `--version`; the binary itself prints the crate version.
 
 ## Development
 

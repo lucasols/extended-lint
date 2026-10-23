@@ -1,14 +1,18 @@
 use rustc_hash::FxHashMap;
-use tsrs_ast::{self as ast, Kind, Node, SymbolFlags};
+use tsrs_ast::{self as ast, Kind, Node, Symbol, SymbolFlags};
 use tsrs_checker::{
     is_tuple_type_exported as is_tuple_type, Checker, LiteralValue, ObjectFlags, SignatureKind,
     Type, TypeFlags,
 };
+use tsrs_compiler::Program;
 use tsrs_core::{jsnum, P};
 use tsrslint::rule::{Ctx, Listener, Rule, RuleMessage, RuleVisitor};
 use tsrslint::utils::{get_call_signatures, is_symbol_flag_set, type_to_string, union_type_parts};
 
-use crate::utils::{is_estree_chain_expression, node_text, skip_parens};
+use crate::utils::{
+    is_default_lib_declaration, is_default_lib_symbol, is_estree_chain_expression, node_text,
+    skip_parens,
+};
 
 pub const NAME: &str = "improved-no-unnecessary-condition";
 
@@ -139,7 +143,11 @@ const NON_NULLISH_TYPEOFS: &[TypeofValue] = &[
     TypeofValue::Function,
 ];
 
-fn typeof_values_of_type(checker: &mut Checker, t: P<Type>) -> Option<&'static [TypeofValue]> {
+fn typeof_values_of_type(
+    checker: &mut Checker,
+    program: &Program,
+    t: P<Type>,
+) -> Option<&'static [TypeofValue]> {
     let flags = t.flags();
     if flags.intersects(TypeFlags::Any | TypeFlags::Unknown) {
         return None;
@@ -172,8 +180,11 @@ fn typeof_values_of_type(checker: &mut Checker, t: P<Type>) -> Option<&'static [
     {
         return Some(&[TypeofValue::Function]);
     }
-    if is_global_function_type(checker, t) {
+    if is_function_interface_type(checker, program, t) {
         return Some(&[TypeofValue::Function]);
+    }
+    if t == checker.global_object_type {
+        return Some(NON_NULLISH_TYPEOFS);
     }
     if flags.intersects(TypeFlags::Object) {
         if checker.get_properties_of_type(t).is_empty() {
@@ -190,22 +201,40 @@ fn typeof_values_of_type(checker: &mut Checker, t: P<Type>) -> Option<&'static [
     None
 }
 
-/// `Function`, `CallableFunction` and `NewableFunction` have no signatures but are functions.
-fn is_global_function_type(checker: &mut Checker, t: P<Type>) -> bool {
-    t.symbol().is_some_and(|symbol| {
-        matches!(
-            checker.get_fully_qualified_name_exported(symbol).as_str(),
-            "Function" | "CallableFunction" | "NewableFunction"
-        )
+/// `Function`, `CallableFunction`, `NewableFunction` and the interfaces extending them (`interface AbstractType<T>
+/// extends Function`) have no signatures but are functions: they have the `bind` method of the library's `Function`
+/// interfaces.
+fn is_function_interface_type(checker: &mut Checker, program: &Program, t: P<Type>) -> bool {
+    checker.get_property_of_type(t, "bind").is_some_and(|bind| {
+        bind.declarations().iter().any(|&declaration| {
+            declaration.parent().is_some_and(|parent| {
+                ast::is_interface_declaration(parent)
+                    && parent.name().is_some_and(|name| {
+                        matches!(
+                            name.text(),
+                            "Function" | "CallableFunction" | "NewableFunction"
+                        )
+                    })
+                    && is_default_lib_declaration(program, parent)
+            })
+        })
     })
 }
 
-/// Every `typeof` result of each union member, in order and with repetitions (`boolean` gives two).
-fn typeof_values_of_operand(checker: &mut Checker, operand: P<Node>) -> Option<Vec<TypeofValue>> {
+/// The distinct `typeof` results of the union members, in order.
+fn typeof_values_of_operand(
+    checker: &mut Checker,
+    program: &Program,
+    operand: P<Node>,
+) -> Option<Vec<TypeofValue>> {
     let t = checker.get_type_at_location(operand);
     let mut values = Vec::new();
     for part in union_type_parts(t) {
-        values.extend_from_slice(typeof_values_of_type(checker, part)?);
+        for &value in typeof_values_of_type(checker, program, part)? {
+            if !values.contains(&value) {
+                values.push(value);
+            }
+        }
     }
     Some(values)
 }
@@ -276,7 +305,7 @@ fn check_typeof_comparison(ctx: &mut Ctx, node: P<Node>, operator: Kind) {
         return;
     };
     let operand = skip_parens(typeof_node.as_type_of_expression().expression());
-    let Some(possible) = typeof_values_of_operand(ctx.checker, operand) else {
+    let Some(possible) = typeof_values_of_operand(ctx.checker, ctx.program, operand) else {
         return;
     };
     let included = possible.contains(&condition);
@@ -535,7 +564,7 @@ impl Visitor {
         let Some(property) = literal_key_of_expression(ctx.checker, left) else {
             return;
         };
-        if property.is_empty() {
+        if property.is_empty() || property == "__proto__" {
             return;
         }
         let right = skip_parens(binary.right());
@@ -563,17 +592,16 @@ impl Visitor {
     }
 }
 
-fn is_array_symbol_name(name: &str) -> bool {
-    matches!(name, "Array" | "ReadonlyArray")
-        || name.ends_with(".Array")
-        || name.ends_with(".ReadonlyArray")
+/// The library's `Array` or `ReadonlyArray`, not a local type with the same name (`Data.Array`).
+fn is_array_symbol(program: &Program, symbol: P<Symbol>) -> bool {
+    matches!(symbol.name(), "Array" | "ReadonlyArray") && is_default_lib_symbol(program, symbol)
 }
 
 fn is_array_or_tuple_type(checker: &Checker, t: P<Type>) -> bool {
     checker.is_array_type(t) || is_tuple_type(t)
 }
 
-fn is_runtime_array_type(checker: &mut Checker, t: P<Type>) -> bool {
+fn is_runtime_array_type(checker: &mut Checker, program: &Program, t: P<Type>) -> bool {
     if is_array_or_tuple_type(checker, t) {
         return true;
     }
@@ -582,13 +610,12 @@ fn is_runtime_array_type(checker: &mut Checker, t: P<Type>) -> bool {
         return true;
     }
     if let Some(alias_symbol) = t.alias().and_then(|alias| alias.symbol()) {
-        if is_array_symbol_name(&checker.get_fully_qualified_name_exported(alias_symbol)) {
+        if is_array_symbol(program, alias_symbol) {
             return true;
         }
     }
-    t.symbol().is_some_and(|symbol| {
-        is_array_symbol_name(&checker.get_fully_qualified_name_exported(symbol))
-    })
+    t.symbol()
+        .is_some_and(|symbol| is_array_symbol(program, symbol))
 }
 
 fn is_empty_object_type(checker: &mut Checker, t: P<Type>) -> bool {
@@ -602,7 +629,7 @@ fn is_empty_object_type(checker: &mut Checker, t: P<Type>) -> bool {
             .is_empty()
 }
 
-fn is_definitely_not_array_type(checker: &mut Checker, t: P<Type>) -> bool {
+fn is_definitely_not_array_type(checker: &mut Checker, program: &Program, t: P<Type>) -> bool {
     let flags = t.flags();
     if flags.intersects(
         TypeFlags::StringLike
@@ -621,7 +648,7 @@ fn is_definitely_not_array_type(checker: &mut Checker, t: P<Type>) -> bool {
     flags.intersects(TypeFlags::Object)
         && !t.object_flags().intersects(ObjectFlags::ClassOrInterface)
         && !is_class_or_interface_reference(t)
-        && !is_runtime_array_type(checker, t)
+        && !is_runtime_array_type(checker, program, t)
         && !is_empty_object_type(checker, t)
 }
 
@@ -633,7 +660,7 @@ fn is_class_or_interface_reference(t: P<Type>) -> bool {
 }
 
 /// `Some(result)` when `Array.isArray` always gives `result` for a value of type `t`.
-fn evaluate_array_is_array(checker: &mut Checker, t: P<Type>) -> Option<bool> {
+fn evaluate_array_is_array(checker: &mut Checker, program: &Program, t: P<Type>) -> Option<bool> {
     if t.flags().intersects(TypeFlags::Any | TypeFlags::Unknown) {
         return None;
     }
@@ -641,7 +668,7 @@ fn evaluate_array_is_array(checker: &mut Checker, t: P<Type>) -> Option<bool> {
         let mut all_true = true;
         let mut all_false = true;
         for part in t.types() {
-            let result = evaluate_array_is_array(checker, *part)?;
+            let result = evaluate_array_is_array(checker, program, *part)?;
             all_true &= result;
             all_false &= !result;
         }
@@ -651,26 +678,31 @@ fn evaluate_array_is_array(checker: &mut Checker, t: P<Type>) -> Option<bool> {
             _ => None,
         };
     }
-    if is_runtime_array_type(checker, t) {
+    if is_runtime_array_type(checker, program, t) {
         return Some(true);
     }
-    is_definitely_not_array_type(checker, t).then_some(false)
+    is_definitely_not_array_type(checker, program, t).then_some(false)
 }
 
-fn is_array_is_array_callee(callee: P<Node>) -> bool {
+/// `Array.isArray` with the global `Array`, not a local binding named `Array`.
+fn is_array_is_array_callee(ctx: &mut Ctx, callee: P<Node>) -> bool {
     let access = callee.as_property_access_expression();
     let object = skip_parens(access.expression);
     ast::is_identifier(object)
         && object.text() == "Array"
         && ast::is_identifier(access.name)
         && access.name.text() == "isArray"
+        && ctx
+            .checker
+            .get_symbol_at_location_exported(object)
+            .is_some_and(|symbol| is_default_lib_symbol(ctx.program, symbol))
 }
 
 fn check_array_is_array(ctx: &mut Ctx, node: P<Node>) {
     let Some(callee) = member_callee(node) else {
         return;
     };
-    if !is_array_is_array_callee(callee) {
+    if !is_array_is_array_callee(ctx, callee) {
         return;
     }
     let Some(first) = node.arguments().first() else {
@@ -680,7 +712,7 @@ fn check_array_is_array(ctx: &mut Ctx, node: P<Node>) {
         return;
     }
     let t = ctx.checker.get_type_at_location(skip_parens(*first));
-    let message = match evaluate_array_is_array(ctx.checker, t) {
+    let message = match evaluate_array_is_array(ctx.checker, ctx.program, t) {
         Some(true) => RuleMessage::new(
             "unnecessaryArrayIsArrayCondition",
             "This Array.isArray check is unnecessary as it always evaluates to true.",

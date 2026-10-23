@@ -1,11 +1,12 @@
 use rustc_hash::FxHashMap;
-use tsrs_ast::{self as ast, Kind, Node};
+use tsrs_ast::{self as ast, Kind, Node, Symbol};
 use tsrs_checker::{Checker, SignatureKind, Type, TypeFlags};
 use tsrs_core::P;
 use tsrslint::rule::{Ctx, Listener, Rule, RuleMessage, RuleSuggestion, RuleVisitor};
 
 use crate::utils::{
-    comment_at, estree_parent, is_in_optional_chain, node_text, replacement_at, skip_parens,
+    comment_at, estree_parent, is_default_lib_declaration, is_default_lib_symbol,
+    is_in_optional_chain, node_text, replacement_at, skip_parens,
 };
 
 pub const NAME: &str = "strict-casting";
@@ -223,9 +224,32 @@ fn resolve_union_parts(checker: &mut Checker, t: P<Type>) -> Option<Vec<P<Type>>
     Some(parts)
 }
 
-/// Whether `Number()` of an object type can give a number: a branded primitive (`string & { __brand: 'id' }`), an
-/// object with `[Symbol.toPrimitive]` or a `valueOf` returning a number.
-fn may_convert_to_number(checker: &mut Checker, t: P<Type>, location: P<Node>) -> bool {
+/// Return types that `Number()` may turn into a number when `[Symbol.toPrimitive]` or `valueOf` returns them.
+const CONVERTIBLE_PRIMITIVE_FLAGS: TypeFlags = TypeFlags::StringLike
+    .union(TypeFlags::NumberLike)
+    .union(TypeFlags::BigIntLike)
+    .union(TypeFlags::BooleanLike)
+    .union(TypeFlags::EnumLike)
+    .union(TypeFlags::Any)
+    .union(TypeFlags::Unknown);
+
+/// `{}` (also `NonNullable<unknown>` and the constraint of `T extends {}`): any value but `null` and `undefined`.
+fn is_empty_object_type(checker: &mut Checker, t: P<Type>) -> bool {
+    checker.get_properties_of_type(t).is_empty()
+        && checker.get_index_infos_of_type(t).is_empty()
+        && checker
+            .get_signatures_of_type(t, SignatureKind::Call)
+            .is_empty()
+        && checker
+            .get_signatures_of_type(t, SignatureKind::Construct)
+            .is_empty()
+}
+
+/// Whether `Number()` of an object type can give a number, following `ToPrimitive`: a branded primitive
+/// (`string & { __brand: 'id' }`), `{}` or `Object` (which hold primitives too), an object whose
+/// `[Symbol.toPrimitive]` or `valueOf` returns a primitive, or one with its own `toString` (the default ones give
+/// `"[object Object]"`, a function's source and so on).
+fn may_convert_to_number(ctx: &mut Ctx, t: P<Type>, location: P<Node>) -> bool {
     if t.flags().intersects(TypeFlags::Intersection)
         && t.types().iter().any(|part| {
             part.flags().intersects(
@@ -239,32 +263,49 @@ fn may_convert_to_number(checker: &mut Checker, t: P<Type>, location: P<Node>) -
     {
         return true;
     }
-    let apparent_type = checker.get_apparent_type(t);
-    let to_primitive = checker.get_property_name_for_known_symbol_name("toPrimitive");
-    if checker
-        .get_property_of_type(apparent_type, &to_primitive)
-        .is_some()
-    {
+    if t == ctx.checker.global_object_type || is_empty_object_type(ctx.checker, t) {
         return true;
     }
-    has_numeric_value_of(checker, apparent_type, location)
+    let apparent_type = ctx.checker.get_apparent_type(t);
+    let to_primitive = ctx
+        .checker
+        .get_property_name_for_known_symbol_name("toPrimitive");
+    if let Some(symbol) = ctx
+        .checker
+        .get_property_of_type(apparent_type, &to_primitive)
+    {
+        return method_returns_primitive(ctx.checker, symbol, location);
+    }
+    if let Some(symbol) = ctx.checker.get_property_of_type(apparent_type, "valueOf") {
+        if method_returns_primitive(ctx.checker, symbol, location) {
+            return true;
+        }
+    }
+    ctx.checker
+        .get_property_of_type(apparent_type, "toString")
+        .is_some_and(|symbol| {
+            symbol
+                .declarations()
+                .iter()
+                .any(|&declaration| !is_default_lib_declaration(ctx.program, declaration))
+        })
 }
 
-fn has_numeric_value_of(checker: &mut Checker, apparent_type: P<Type>, location: P<Node>) -> bool {
-    let Some(value_of_symbol) = checker.get_property_of_type(apparent_type, "valueOf") else {
+fn method_returns_primitive(checker: &mut Checker, method: P<Symbol>, location: P<Node>) -> bool {
+    let Some(method_type) = checker.get_type_of_symbol_at_location(method, Some(location)) else {
         return false;
     };
-    let Some(value_of_type) =
-        checker.get_type_of_symbol_at_location(value_of_symbol, Some(location))
-    else {
-        return false;
-    };
-    let signatures = checker.get_signatures_of_type(value_of_type, SignatureKind::Call);
+    let signatures = checker.get_signatures_of_type(method_type, SignatureKind::Call);
     signatures.iter().any(|&signature| {
-        checker
-            .get_return_type_of_signature(signature)
-            .flags()
-            .intersects(TypeFlags::NumberLike)
+        let return_type = checker.get_return_type_of_signature(signature);
+        let parts: &[P<Type>] = if return_type.flags().intersects(TypeFlags::Union) {
+            return_type.types()
+        } else {
+            std::slice::from_ref(&return_type)
+        };
+        parts
+            .iter()
+            .any(|part| part.flags().intersects(CONVERTIBLE_PRIMITIVE_FLAGS))
     })
 }
 
@@ -317,7 +358,8 @@ fn report_unnecessary(
     });
 }
 
-/// `castToString?.(value)` of an optional cast function evaluates to `undefined` when the function is missing.
+/// `castToString?.(value)` of an optional cast function evaluates to `undefined` when the function is missing, which
+/// an `any` or `unknown` function may be too.
 fn is_possibly_nullish(ctx: &mut Ctx, node: P<Node>) -> bool {
     let t = ctx.checker.get_type_at_location(node);
     let parts: &[P<Type>] = if t.flags().intersects(TypeFlags::Union) {
@@ -325,18 +367,17 @@ fn is_possibly_nullish(ctx: &mut Ctx, node: P<Node>) -> bool {
     } else {
         std::slice::from_ref(&t)
     };
-    parts.iter().any(|p| p.flags().intersects(NULLISH_FLAGS))
+    parts.iter().any(|p| {
+        p.flags()
+            .intersects(NULLISH_FLAGS | TypeFlags::Any | TypeFlags::Unknown)
+    })
 }
 
 /// Whether `callee` resolves to a declaration of the default library, not a local `String`/`Number`.
 fn is_global_builtin(ctx: &mut Ctx, callee: P<Node>) -> bool {
-    let Some(symbol) = ctx.checker.get_symbol_at_location_exported(callee) else {
-        return false;
-    };
-    symbol.declarations().iter().any(|&declaration| {
-        ast::get_source_file_of_node(declaration)
-            .is_some_and(|file| ctx.program.is_source_file_default_library(file.path()))
-    })
+    ctx.checker
+        .get_symbol_at_location_exported(callee)
+        .is_some_and(|symbol| is_default_lib_symbol(ctx.program, symbol))
 }
 
 fn report_nullish(ctx: &mut Ctx, node: P<Node>, arg: P<Node>, expected: ExpectedType) {
@@ -468,7 +509,7 @@ impl StrictCasting {
         let has_nan_part = parts.iter().any(|&p| {
             p.flags()
                 .intersects(TypeFlags::Object | TypeFlags::Intersection)
-                && !may_convert_to_number(ctx.checker, p, arg)
+                && !may_convert_to_number(ctx, p, arg)
         });
         if !has_nan_part {
             return false;

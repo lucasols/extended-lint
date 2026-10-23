@@ -149,14 +149,18 @@ fn stylish(root: &str, files: &[FileResult], style: &Style) -> String {
     out
 }
 
+/// ESLint's `compact` format (`eslint-formatter-compact`), with paths relative to the current directory.
 fn compact(root: &str, files: &[FileResult]) -> String {
     let mut out = String::new();
+    let mut total = 0;
     for file in files {
         let path = display_path(root, &file.path);
         for d in &file.diagnostics {
-            let severity = match d.severity {
-                Severity::Error => "Error",
-                _ => "Warning",
+            total += 1;
+            let severity = if d.fatal || d.severity == Severity::Error {
+                "Error"
+            } else {
+                "Warning"
             };
             let rule = if d.rule.is_empty() {
                 String::new()
@@ -165,10 +169,17 @@ fn compact(root: &str, files: &[FileResult]) -> String {
             };
             let _ = writeln!(
                 out,
-                "{path}:{}:{}: {severity} - {}{rule}",
+                "{path}: line {}, col {}, {severity} - {}{rule}",
                 d.line, d.column, d.message
             );
         }
+    }
+    if total > 0 {
+        let _ = writeln!(
+            out,
+            "\n{total} problem{}",
+            if total == 1 { "" } else { "s" }
+        );
     }
     out
 }

@@ -1473,3 +1473,106 @@ fn string_method_annotation_fallback_ignores_nested_declarations() {
         "},
     );
 }
+
+#[test]
+fn typeof_with_repeated_outcomes() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const b: boolean
+            if (typeof b === 'boolean') {}
+            if (typeof b !== 'boolean') {}
+            declare const s: 'a' | 'b'
+            if (typeof s === 'string') {}
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @r"
+    - { messageId: 'unnecessaryTypeofCondition', line: 2 }
+    - { messageId: 'alwaysFalseTypeofCondition', line: 3 }
+    - { messageId: 'unnecessaryTypeofCondition', line: 5 }
+    ");
+}
+
+#[test]
+fn typeof_on_types_extending_function() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            interface AbstractType<T> extends Function {
+                prototype: T
+            }
+            declare const t: AbstractType<{ a: string }>
+            if (typeof t === 'object') {}
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @"- { messageId: 'alwaysFalseTypeofCondition', line: 5 }");
+}
+
+#[test]
+fn typeof_on_object_type() {
+    valid(
+        RULE,
+        indoc! {"
+            declare const o: Object
+            if (typeof o === 'string') {}
+            if (typeof o === 'function') {}
+        "},
+    );
+}
+
+#[test]
+fn typeof_on_a_local_type_named_function() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            export {}
+            type Function = { name: string }
+            declare const fn: Function
+            if (typeof fn === 'function') {}
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @"- { messageId: 'alwaysFalseTypeofCondition', line: 4 }");
+}
+
+#[test]
+fn array_is_array_on_a_local_type_named_array() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            export {}
+            namespace Data {
+                export type Array = { value: string }
+            }
+            declare const x: Data.Array
+            if (Array.isArray(x)) {}
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @"- { messageId: 'alwaysFalseArrayIsArrayCondition', line: 6 }");
+}
+
+#[test]
+fn is_array_of_a_local_binding_named_array_is_ignored() {
+    valid(
+        RULE,
+        indoc! {"
+            export {}
+            const Array = { isArray: (v: number) => v === 1 }
+            if (Array.isArray(1)) {}
+        "},
+    );
+}
+
+#[test]
+fn in_check_of_proto_is_ignored() {
+    valid(
+        RULE,
+        indoc! {"
+            declare const o: { a: number }
+            if ('__proto__' in o) {}
+        "},
+    );
+}

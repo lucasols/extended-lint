@@ -1315,7 +1315,7 @@ fn react_version_build_metadata_and_fourth_part() {
             },
         );
     }
-    for version in ["18-rc", "18.0.0.foo", "18.0.0.0.0", "detect"] {
+    for version in ["18-rc", "18.0.0.foo", "18.0.0.0.0"] {
         assert!(
             fast_lint::rules::create_rule(RULE, Some(&json!({ "reactVersion": version }))).is_err(),
             "{version}"
@@ -1334,4 +1334,18 @@ fn self_referencing_initializers_are_searched_once() {
             const el = <>{a}</>
         "},
     );
+}
+
+#[test]
+fn detect_and_empty_react_version_mean_the_default() {
+    for version in ["detect", ""] {
+        valid(
+            RULE,
+            Case {
+                code: "const s = ''; const a = <>{s && <Foo />}</>;",
+                options: react_version(version),
+                filename: None,
+            },
+        );
+    }
 }
