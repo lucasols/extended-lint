@@ -217,6 +217,11 @@ export type NoRestrictedCommentsOptions = {
   }[]
 }
 
+export type RequireTypeGuardExplanationOptions = {
+  commentPrefix?: string
+  minLength?: number
+}
+
 export type RequireUsageExplanationOptions = {
   matches: {
     fn?: string
@@ -270,6 +275,7 @@ type RuleOptions = {
   'require-usage-explanation': RequireUsageExplanationOptions
   'use-top-level-regex': Record<string, never>
   'no-unused-obj-props': Record<string, never>
+  'require-type-guard-explanation': RequireTypeGuardExplanationOptions
 }
 
 export type RulesConfig = {

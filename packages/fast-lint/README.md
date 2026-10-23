@@ -51,6 +51,7 @@ plugin, whose rules were all moved here or removed.
 | `require-usage-explanation` | moved from `@ls-stack/extended-lint` (see below) |
 | `use-top-level-regex` | moved from `@ls-stack/extended-lint` (see below) |
 | `no-unused-obj-props` | moved from `@ls-stack/extended-lint`, stricter (see below) |
+| `require-type-guard-explanation` | new, a stricter alternative to `no-type-guards` (see below) |
 
 Options are the same as the former ESLint rules' (see `lib/index.d.ts`). Rule names may carry a plugin prefix, so
 existing `@ls-stack/strict-casting` configs and disable comments keep working.
@@ -797,6 +798,51 @@ const { values, errors } = useForm()
 ```
 
 No options.
+
+### `require-type-guard-explanation`
+
+A stricter alternative to `no-type-guards`: TypeScript doesn't check type guards, so each one must explain why it is
+safe and why TS inference or an alternative can't be used.
+
+- every function with a body whose return type is `x is T`, `this is T` or `asserts x is T` (declarations, function
+  expressions, arrows, object and class methods, inline callbacks like `.filter((x): x is T => ...)`) needs a
+  comment starting with `commentPrefix` and at least `minLength` characters of explanation (`missingExplanation`)
+- the comment goes right before the function or before the statement, `export`, class member or object property
+  holding it; consecutive `//` lines form one block, and block/JSDoc comments count too
+- an explicit predicate TypeScript (5.5+) would infer identically is reported even with a comment, with a suggestion
+  to remove the annotation (`inferablePredicate`); only null/undefined and `typeof` checks it is sure about are
+  reported
+- body-less signatures (overloads, `declare function`, interface members, function types) and `asserts x` are ignored
+
+```ts
+// Error: missingExplanation
+function isNode(value: unknown): value is Node {
+  return isObject(value) && 'kind' in value
+}
+
+// ok
+// type-guard-safety: values come from our serializer, which always sets `kind`; a zod schema would parse every
+// render
+function isNode(value: unknown): value is Node {
+  return isObject(value) && 'kind' in value
+}
+
+// Error: inferablePredicate, TS infers `value is null | undefined`
+function isNullish(value: unknown): value is null | undefined {
+  return value === null || value === undefined
+}
+```
+
+```ts
+type Options = [
+  {
+    /** Prefix the explanation comment must start with (default: `type-guard-safety:`) */
+    commentPrefix?: string
+    /** Minimum characters of explanation after the prefix (default: 20) */
+    minLength?: number
+  },
+]
+```
 
 ## Usage
 
