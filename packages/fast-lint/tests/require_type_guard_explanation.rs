@@ -19,11 +19,11 @@ fn function_declaration_without_comment() {
         }
     "#},
     );
-    assert_snapshot!(result.errors_with_msg(), @r###"
+    assert_snapshot!(result.errors_with_msg(), @r#"
     - messageId: 'missingExplanation'
       msg: 'Type guards are not checked by TypeScript. Add a "// type-guard-safety: ..." comment (at least 20 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used.'
       line: 3
-    "###);
+    "#);
 }
 
 #[test]
@@ -244,10 +244,10 @@ fn object_literal_members() {
         }
     "#},
     );
-    assert_snapshot!(result.errors(), @r###"
+    assert_snapshot!(result.errors(), @r#"
     - { messageId: 'missingExplanation', line: 9 }
     - { messageId: 'missingExplanation', line: 11 }
-    "###);
+    "#);
 }
 
 #[test]
@@ -274,10 +274,10 @@ fn class_members() {
         }
     "#},
     );
-    assert_snapshot!(result.errors(), @r###"
+    assert_snapshot!(result.errors(), @r#"
     - { messageId: 'missingExplanation', line: 10 }
     - { messageId: 'missingExplanation', line: 14 }
-    "###);
+    "#);
 }
 
 #[test]
@@ -376,11 +376,11 @@ fn custom_prefix_and_min_length() {
             filename: None,
         },
     );
-    assert_snapshot!(result.errors_with_msg(), @r###"
+    assert_snapshot!(result.errors_with_msg(), @r#"
     - messageId: 'missingExplanation'
       msg: 'Type guards are not checked by TypeScript. Add a "// SAFETY: ..." comment (at least 5 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used.'
       line: 9
-    "###);
+    "#);
 }
 
 #[test]
@@ -409,17 +409,17 @@ fn inferable_filter_callback() {
         const strings = items.filter((item): item is string => item !== null)
     "#},
     );
-    assert_snapshot!(result.errors_with_msg(), @r###"
+    assert_snapshot!(result.errors_with_msg(), @r#"
     - messageId: 'inferablePredicate'
       msg: 'TypeScript infers this type predicate, remove the return type annotation.'
       line: 4
-    "###);
-    assert_snapshot!(result.suggestion_output(0), @r###"
+    "#);
+    assert_snapshot!(result.suggestion_output(0), @r#"
     declare const items: (string | null)[]
 
     // type-guard-safety: an explanation does not help when TS infers the predicate
     const strings = items.filter((item) => item !== null)
-    "###);
+    "#);
 }
 
 #[test]
@@ -446,13 +446,13 @@ fn inferable_null_and_undefined_checks() {
         }
     "#},
     );
-    assert_snapshot!(result.errors(), @r###"
+    assert_snapshot!(result.errors(), @r#"
     - { messageId: 'inferablePredicate', line: 1 }
     - { messageId: 'inferablePredicate', line: 5 }
     - { messageId: 'inferablePredicate', line: 9 }
     - { messageId: 'inferablePredicate', line: 13 }
     - { messageId: 'inferablePredicate', line: 15 }
-    "###);
+    "#);
 }
 
 #[test]
@@ -476,12 +476,12 @@ fn inferable_typeof_checks() {
           typeof value === 'string'
     "#},
     );
-    assert_snapshot!(result.errors(), @r###"
+    assert_snapshot!(result.errors(), @r#"
     - { messageId: 'inferablePredicate', line: 1 }
     - { messageId: 'inferablePredicate', line: 5 }
     - { messageId: 'inferablePredicate', line: 9 }
     - { messageId: 'inferablePredicate', line: 13 }
-    "###);
+    "#);
 }
 
 #[test]
@@ -539,7 +539,7 @@ fn not_reported_as_inferable() {
         }
     "#},
     );
-    assert_snapshot!(result.errors(), @r###"
+    assert_snapshot!(result.errors(), @r#"
     - { messageId: 'missingExplanation', line: 1 }
     - { messageId: 'missingExplanation', line: 5 }
     - { messageId: 'missingExplanation', line: 9 }
@@ -552,7 +552,7 @@ fn not_reported_as_inferable() {
     - { messageId: 'missingExplanation', line: 38 }
     - { messageId: 'missingExplanation', line: 42 }
     - { messageId: 'missingExplanation', line: 46 }
-    "###);
+    "#);
 }
 
 #[test]
@@ -573,11 +573,11 @@ fn inferable_block_body_and_method() {
         }
     "#},
     );
-    assert_snapshot!(result.errors(), @r###"
+    assert_snapshot!(result.errors(), @r#"
     - { messageId: 'inferablePredicate', line: 2 }
     - { messageId: 'inferablePredicate', line: 8 }
-    "###);
-    assert_snapshot!(result.suggestion_output(0), @r###"
+    "#);
+    assert_snapshot!(result.suggestion_output(0), @r#"
     const guards = {
       isDefined(value: string | undefined) {
         return value !== undefined
@@ -589,7 +589,7 @@ fn inferable_block_body_and_method() {
         return value !== undefined
       }
     }
-    "###);
+    "#);
 }
 
 #[test]
@@ -612,13 +612,13 @@ fn inferable_positive_null_checks() {
         }
     "#},
     );
-    assert_snapshot!(result.errors(), @r###"
+    assert_snapshot!(result.errors(), @r#"
     - { messageId: 'inferablePredicate', line: 1 }
     - { messageId: 'inferablePredicate', line: 5 }
     - { messageId: 'inferablePredicate', line: 7 }
     - { messageId: 'inferablePredicate', line: 9 }
     - { messageId: 'inferablePredicate', line: 11 }
-    "###);
+    "#);
 }
 
 #[test]
@@ -639,9 +639,145 @@ fn mixed_null_checks_not_reported_as_inferable() {
         }
     "#},
     );
-    assert_snapshot!(result.errors(), @r###"
+    assert_snapshot!(result.errors(), @r#"
     - { messageId: 'missingExplanation', line: 1 }
     - { messageId: 'missingExplanation', line: 5 }
     - { messageId: 'missingExplanation', line: 9 }
-    "###);
+    "#);
+}
+
+fn alternative_msgs_case(code: &str) -> Case<'_> {
+    Case {
+        code,
+        options: Some(json!([{
+            "alternativeMsgs": {
+                "inArrayFind": "Use findAndMap instead.",
+                "inArrayFilter": "Use filterAndMap instead."
+            }
+        }])),
+        filename: None,
+    }
+}
+
+#[test]
+fn alternative_msgs_are_appended_in_filter_and_find_callbacks() {
+    let result = invalid(
+        RULE,
+        alternative_msgs_case(indoc! {r#"
+        type Node = { kind: string }
+        declare const items: unknown[]
+        declare function isObject(value: unknown): value is object
+
+        items.filter((item): item is Node => isObject(item) && 'kind' in item)
+        items.find((item): item is Node => isObject(item) && 'kind' in item)
+        items?.filter(((item): item is Node => isObject(item) && 'kind' in item))
+        items['find'](function (item): item is Node {
+          return isObject(item) && 'kind' in item
+        })
+    "#}),
+    );
+    assert_snapshot!(result.errors_with_msg(), @r#"
+    - messageId: 'missingExplanation'
+      msg: 'Type guards are not checked by TypeScript. Add a "// type-guard-safety: ..." comment (at least 20 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used. Use filterAndMap instead.'
+      line: 5
+    - messageId: 'missingExplanation'
+      msg: 'Type guards are not checked by TypeScript. Add a "// type-guard-safety: ..." comment (at least 20 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used. Use findAndMap instead.'
+      line: 6
+    - messageId: 'missingExplanation'
+      msg: 'Type guards are not checked by TypeScript. Add a "// type-guard-safety: ..." comment (at least 20 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used. Use filterAndMap instead.'
+      line: 7
+    - messageId: 'missingExplanation'
+      msg: 'Type guards are not checked by TypeScript. Add a "// type-guard-safety: ..." comment (at least 20 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used. Use findAndMap instead.'
+      line: 8
+    "#);
+}
+
+#[test]
+fn alternative_msgs_only_apply_to_direct_callbacks() {
+    let result = invalid(
+        RULE,
+        alternative_msgs_case(indoc! {r#"
+        type Node = { kind: string }
+        declare const items: unknown[]
+        declare function isObject(value: unknown): value is object
+
+        function isNode(value: unknown): value is Node {
+          return isObject(value) && 'kind' in value
+        }
+
+        items.filter((item) => {
+          const check = (value: unknown): value is Node => isObject(value) && 'kind' in value
+          return check(item)
+        })
+        items.map((item): item is Node => isObject(item) && 'kind' in item)
+    "#}),
+    );
+    assert_snapshot!(result.errors_with_msg(), @r#"
+    - messageId: 'missingExplanation'
+      msg: 'Type guards are not checked by TypeScript. Add a "// type-guard-safety: ..." comment (at least 20 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used.'
+      line: 5
+    - messageId: 'missingExplanation'
+      msg: 'Type guards are not checked by TypeScript. Add a "// type-guard-safety: ..." comment (at least 20 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used.'
+      line: 10
+    - messageId: 'missingExplanation'
+      msg: 'Type guards are not checked by TypeScript. Add a "// type-guard-safety: ..." comment (at least 20 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used.'
+      line: 13
+    "#);
+}
+
+#[test]
+fn alternative_msgs_with_explanation_are_valid() {
+    valid(
+        RULE,
+        alternative_msgs_case(indoc! {r#"
+        type Node = { kind: string }
+        declare const items: unknown[]
+        declare function isObject(value: unknown): value is object
+
+        items.filter(
+          // type-guard-safety: items come from our serializer, which always sets `kind`
+          (item): item is Node => isObject(item) && 'kind' in item,
+        )
+    "#}),
+    );
+}
+
+#[test]
+fn alternative_msgs_are_not_added_to_inferable_predicates() {
+    let result = invalid(
+        RULE,
+        alternative_msgs_case(indoc! {r#"
+        declare const items: (string | null)[]
+
+        items.filter((item): item is string => item !== null)
+    "#}),
+    );
+    assert_snapshot!(result.errors_with_msg(), @r#"
+    - messageId: 'inferablePredicate'
+      msg: 'TypeScript infers this type predicate, remove the return type annotation.'
+      line: 3
+    "#);
+}
+
+#[test]
+fn empty_alternative_msg_is_ignored() {
+    let result = invalid(
+        RULE,
+        Case {
+            code: indoc! {r#"
+            type Node = { kind: string }
+            declare const items: unknown[]
+            declare function isObject(value: unknown): value is object
+
+            items.filter((item): item is Node => isObject(item) && 'kind' in item)
+        "#},
+            options: Some(json!([{ "alternativeMsgs": { "inArrayFilter": "" } }])),
+            filename: None,
+        },
+    );
+    assert_snapshot!(result.errors_with_msg(), @r#"
+    - messageId: 'missingExplanation'
+      msg: 'Type guards are not checked by TypeScript. Add a "// type-guard-safety: ..." comment (at least 20 characters) explaining why this guard is safe and why TS inference or an alternative (narrowing with typeof/in/instanceof, a discriminated union, a schema parser) can't be used.'
+      line: 5
+    "#);
 }
