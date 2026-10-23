@@ -1,0 +1,33 @@
+{
+  "name": "@ls-stack/fast-lint",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Type-aware lint rules of @ls-stack/extended-lint running natively on tsrs, the Rust port of the TypeScript checker",
+  "type": "module",
+  "scripts": {
+    "test": "cargo test",
+    "lint": "cargo fmt --check && cargo clippy --all-targets -- -D warnings",
+    "build": "pnpm test && pnpm lint && pnpm run build:no-test",
+    "build:no-test": "node scripts/build.mjs",
+    "pre-publish": "pnpm build"
+  },
+  "bin": {
+    "fast-lint": "./bin/fast-lint.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.mjs"
+    }
+  },
+  "files": [
+    "bin",
+    "lib",
+    "dist"
+  ],
+  "repository": "github:lucaslos/eslint-plugin-extended-lint",
+  "author": "Lucas Santos",
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

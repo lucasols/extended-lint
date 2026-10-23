@@ -204,3 +204,16 @@ if (alwaysFalse && node.parent.type) { ... }
 # Best Practices
 
 - For analyzing code usage/references use eslint scope analysis utilities
+
+# fast-lint (Rust)
+
+`packages/fast-lint` runs the type-aware rules natively on tsrs/tsrslint (see its README). When changing one of
+`improved-no-unnecessary-condition`, `strict-casting` or `no-unnecessary-void-on-promise`, change both the TS rule
+and its Rust port (`packages/fast-lint/src/rules/<rule_name>.rs`) and keep their tests in sync.
+
+- Tests: `packages/fast-lint/tests/<rule_name>.rs`, via `tests/common/mod.rs` (`valid`, `invalid`, insta snapshots)
+- Run: `cargo test --test <rule_name>` and `cargo clippy --all-targets` inside `packages/fast-lint`
+- Build with `cargo test`/`cargo clippy`, not a plain `cargo build` (which rebuilds every tsrs crate with different
+  features)
+- ESTree vs TS AST: skip parenthesized expressions (`utils::skip_parens`) and mirror ESTree `ChainExpression`
+  wrapping of optional chains (`utils::is_estree_chain_expression`)

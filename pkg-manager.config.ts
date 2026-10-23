@@ -5,6 +5,7 @@ export default defineConfig({
   monorepo: {
     packages: [
       { name: '@ls-stack/extended-lint', path: 'packages/extended-lint' },
+      { name: '@ls-stack/fast-lint', path: 'packages/fast-lint' },
     ],
   },
 })
