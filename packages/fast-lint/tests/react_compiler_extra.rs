@@ -1376,3 +1376,148 @@ fn function_declaration_without_jsx_or_hooks_skipped_with_use_no_memo() {
     "#},
     );
 }
+
+fn manual_memo_case(code: &str) -> Case<'_> {
+    Case {
+        code,
+        options: Some(json!([{"disallowManualMemoization":true}])),
+        filename: None,
+    }
+}
+
+#[test]
+fn manual_memoization_is_allowed_by_default() {
+    valid(
+        RULE,
+        indoc! {r#"
+        function useValue(a: number) {
+          const doubled = useMemo(() => a * 2, [a])
+          return useCallback(() => doubled, [doubled])
+        }
+    "#},
+    );
+}
+
+#[test]
+fn manual_memoization_is_reported_when_disallowed() {
+    let result = invalid(
+        RULE,
+        manual_memo_case(indoc! {r#"
+        function useValue(a: number) {
+          const doubled = useMemo(() => a * 2, [a])
+          return useCallback(() => doubled, [doubled])
+        }
+
+        const Component: FC = () => {
+          const value = useMemo(() => 1, [])
+          return <div onClick={useCallback(() => value, [value])} />
+        }
+
+        const fn = useMemo?.(() => 1, [])
+        const parenthesized = (useMemo)(() => 1, [])
+    "#}),
+    );
+    assert_snapshot!(result.errors_with_msg(), @r#"
+    - messageId: 'unnecessaryManualMemoization'
+      msg: '"useMemo" is not necessary when using React Compiler.'
+      line: 2
+    - messageId: 'unnecessaryManualMemoization'
+      msg: '"useCallback" is not necessary when using React Compiler.'
+      line: 3
+    - messageId: 'unnecessaryManualMemoization'
+      msg: '"useMemo" is not necessary when using React Compiler.'
+      line: 7
+    - messageId: 'unnecessaryManualMemoization'
+      msg: '"useCallback" is not necessary when using React Compiler.'
+      line: 8
+    - messageId: 'unnecessaryManualMemoization'
+      msg: '"useMemo" is not necessary when using React Compiler.'
+      line: 11
+    - messageId: 'unnecessaryManualMemoization'
+      msg: '"useMemo" is not necessary when using React Compiler.'
+      line: 12
+    "#);
+}
+
+#[test]
+fn manual_memoization_in_use_no_memo_functions_is_allowed() {
+    valid(
+        RULE,
+        manual_memo_case(indoc! {r#"
+        function useValue(a: number) {
+          'use no memo'
+          return useMemo(() => a * 2, [a])
+        }
+
+        const useOther = () => {
+          'use no memo'
+          return useCallback(() => 1, [])
+        }
+
+        function createX() {
+          function useInner() {
+            'use no memo'
+            return useMemo(() => 1, [])
+          }
+          return useInner
+        }
+
+        const Input = forwardRef((props, ref) => {
+          'use no memo'
+          const value = useMemo(() => props.value, [props.value])
+          return <input ref={ref} value={value} />
+        })
+    "#}),
+    );
+}
+
+#[test]
+fn manual_memoization_only_checks_the_nearest_function_directive() {
+    let result = invalid(
+        RULE,
+        manual_memo_case(indoc! {r#"
+        function useOuter() {
+          'use no memo'
+          function useInner() {
+            return useMemo(() => 1, [])
+          }
+          const callback = () => useCallback(() => 1, [])
+          return [useInner, callback]
+        }
+
+        function useDirectiveNotFirst() {
+          const a = 1
+          'use no memo'
+          return useMemo(() => a, [a])
+        }
+    "#}),
+    );
+    assert_snapshot!(result.errors_with_msg(), @r#"
+    - messageId: 'unnecessaryManualMemoization'
+      msg: '"useMemo" is not necessary when using React Compiler.'
+      line: 4
+    - messageId: 'functionCallingHooksMustBeComponent'
+      msg: 'Functions calling hooks must be React components (PascalCase with FC type) or hooks (start with "use").'
+      line: 6
+    - messageId: 'unnecessaryManualMemoization'
+      msg: '"useCallback" is not necessary when using React Compiler.'
+      line: 6
+    - messageId: 'unnecessaryManualMemoization'
+      msg: '"useMemo" is not necessary when using React Compiler.'
+      line: 13
+    "#);
+}
+
+#[test]
+fn manual_memoization_ignores_other_callees() {
+    valid(
+        RULE,
+        manual_memo_case(indoc! {r#"
+        function useValue(a: number) {
+          const memo = React.useMemo(() => a, [a])
+          const other = useMemoized(() => a, [a])
+          return [memo, other]
+        }
+    "#}),
+    );
+}

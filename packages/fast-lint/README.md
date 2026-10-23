@@ -683,13 +683,16 @@ Extra checks for code optimized by the React compiler:
 - React components and hooks should create JSX, call hooks or use the `"use memo"` directive (with a suggestion to
   add it)
 - functions calling hooks must be components or hooks, and functions using `"use memo"` must be named like one
-- functions starting with the `"use no memo"` directive are skipped
+- with `disallowManualMemoization`, `useMemo` and `useCallback` calls are reported, as the compiler memoizes for you
+- functions starting with the `"use no memo"` directive are skipped (only the nearest enclosing function counts)
 
 ```ts
 type Options = [
   {
     /** Only run in files with an `eslint react-compiler/react-compiler: ["error"` comment (default: false) */
     runOnlyWithEnableCompilerDirective?: boolean
+    /** Report `useMemo` and `useCallback` calls (default: false) */
+    disallowManualMemoization?: boolean
   },
 ]
 ```

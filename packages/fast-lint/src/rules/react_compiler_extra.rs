@@ -16,10 +16,12 @@ pub const NAME: &str = "react-compiler-extra";
 #[serde(default, deny_unknown_fields, rename_all = "camelCase")]
 struct Options {
     run_only_with_enable_compiler_directive: bool,
+    disallow_manual_memoization: bool,
 }
 
 pub struct ReactCompilerExtra {
     run_only_with_enable_compiler_directive: bool,
+    disallow_manual_memoization: bool,
     enable_compiler_directive: Regex,
 }
 
@@ -30,6 +32,7 @@ pub fn create(options: Option<&serde_json::Value>) -> Result<Box<dyn Rule>, Stri
             .map_err(|e| e.to_string())?;
     Ok(Box::new(ReactCompilerExtra {
         run_only_with_enable_compiler_directive: options.run_only_with_enable_compiler_directive,
+        disallow_manual_memoization: options.disallow_manual_memoization,
         enable_compiler_directive,
     }))
 }
@@ -53,7 +56,10 @@ impl Rule for ReactCompilerExtra {
     fn create_visitor(&'static self, ctx: &mut Ctx) -> Box<dyn RuleVisitor> {
         let enabled = !self.run_only_with_enable_compiler_directive
             || self.has_enable_compiler_directive(ctx);
-        Box::new(Visitor { enabled })
+        Box::new(Visitor {
+            enabled,
+            disallow_manual_memoization: self.disallow_manual_memoization,
+        })
     }
 }
 
@@ -75,6 +81,7 @@ impl ReactCompilerExtra {
 
 struct Visitor {
     enabled: bool,
+    disallow_manual_memoization: bool,
 }
 
 const MESSAGE_OBJECT_METHOD: &str = "Object methods such as `{ method() {} }` have limited support to optimizations in the React compiler, use a function expression `{ method: () => {} }` instead.";
@@ -575,6 +582,25 @@ fn check_call_expression(ctx: &mut Ctx, node: P<Node>) {
     }
 }
 
+fn check_manual_memoization(ctx: &mut Ctx, node: P<Node>) {
+    let Some(hook) = estree_callee(node)
+        .and_then(identifier_name)
+        .filter(|&name| name == "useMemo" || name == "useCallback")
+    else {
+        return;
+    };
+    if should_skip_due_to_use_no_memo(node) {
+        return;
+    }
+    ctx.report_node(
+        node,
+        RuleMessage::new(
+            "unnecessaryManualMemoization",
+            format!("\"{hook}\" is not necessary when using React Compiler."),
+        ),
+    );
+}
+
 fn check_variable_declaration(ctx: &mut Ctx, node: P<Node>) {
     let Some(identifier) = node.name().and_then(identifier_name) else {
         return;
@@ -711,7 +737,12 @@ impl RuleVisitor for Visitor {
     }
     fn visit(&mut self, ctx: &mut Ctx, _l: Listener, node: P<Node>) {
         match node.kind() {
-            Kind::CallExpression => check_call_expression(ctx, node),
+            Kind::CallExpression => {
+                if self.disallow_manual_memoization {
+                    check_manual_memoization(ctx, node);
+                }
+                check_call_expression(ctx, node);
+            }
             Kind::VariableDeclaration => check_variable_declaration(ctx, node),
             Kind::FunctionDeclaration => check_function_declaration(ctx, node),
             Kind::ReturnStatement => check_return_statement(ctx, node),
