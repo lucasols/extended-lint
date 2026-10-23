@@ -1,4 +1,5 @@
 use tsrs_ast::{self as ast, Kind, Node, SourceFile, Symbol};
+use tsrs_checker::{LiteralValue, Type, TypeFlags};
 use tsrs_compiler::Program;
 use tsrs_core::P;
 use tsrslint::rule::Ctx;
@@ -494,4 +495,33 @@ pub fn for_each_descendant<F: FnMut(P<Node>)>(node: P<Node>, f: &mut F) {
         for_each_descendant(child, f);
         false
     });
+}
+
+/// The value of a string literal type.
+pub fn literal_string_value(t: P<Type>) -> Option<&'static str> {
+    match t.as_literal_type().value() {
+        Some(LiteralValue::String(value)) => Some(value),
+        _ => None,
+    }
+}
+
+/// The values of a string literal type or a union of string literal types; `None` for any other type.
+pub fn string_literal_values_of_type(t: P<Type>) -> Option<Vec<&'static str>> {
+    if t.flags().intersects(TypeFlags::Any | TypeFlags::Unknown) {
+        return None;
+    }
+    if t.flags().intersects(TypeFlags::Union) {
+        let mut values = Vec::with_capacity(t.types().len());
+        for part in t.types() {
+            if !part.flags().intersects(TypeFlags::StringLiteral) {
+                return None;
+            }
+            values.push(literal_string_value(*part)?);
+        }
+        return Some(values);
+    }
+    if t.flags().intersects(TypeFlags::StringLiteral) {
+        return Some(vec![literal_string_value(t)?]);
+    }
+    None
 }
