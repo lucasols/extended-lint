@@ -169,7 +169,10 @@ export const improvedNoUnnecessaryCondition = {
         }
 
         // For function types - check if it has call signatures
-        if (type.getCallSignatures().length > 0) {
+        if (
+          type.getCallSignatures().length > 0 ||
+          type.getConstructSignatures().length > 0
+        ) {
           return ['function']
         }
 
@@ -193,7 +196,7 @@ export const improvedNoUnnecessaryCondition = {
 
         // For all other non-primitive types
         if (type.flags & ts.TypeFlags.NonPrimitive) {
-          return ['object']
+          return ['object', 'function']
         }
 
         if (type.flags & ts.TypeFlags.Never) {
@@ -421,6 +424,19 @@ export const improvedNoUnnecessaryCondition = {
         return null
       }
 
+      function isDeclaredInFile(id: TSESTree.Identifier): boolean {
+        if (!checker) return false
+        const tsNode = parserServices.esTreeNodeToTSNodeMap.get(id)
+        const symbol = checker.getSymbolAtLocation(tsNode)
+        const sourceFile = tsNode.getSourceFile()
+
+        return (
+          symbol?.declarations?.some(
+            (declaration) => declaration.getSourceFile() === sourceFile,
+          ) ?? false
+        )
+      }
+
       function getStringLiteralValuesFromIdentifierAnnotation(
         id: TSESTree.Identifier,
       ): string[] | null {
@@ -639,7 +655,11 @@ export const improvedNoUnnecessaryCondition = {
 
         const objectExpr = node.callee.object
         let possibleValues = getStringLiteralValuesFromExpression(objectExpr)
-        if (!possibleValues && objectExpr.type === AST_NODE_TYPES.Identifier) {
+        if (
+          !possibleValues &&
+          objectExpr.type === AST_NODE_TYPES.Identifier &&
+          !isDeclaredInFile(objectExpr)
+        ) {
           possibleValues =
             getStringLiteralValuesFromIdentifierAnnotation(objectExpr)
         }
@@ -710,6 +730,7 @@ export const improvedNoUnnecessaryCondition = {
 
         let lens: number[] | null = null
         let literal: number | null = null
+        let lengthOnLeft = true
 
         if (leftLen) {
           if (
@@ -726,6 +747,7 @@ export const improvedNoUnnecessaryCondition = {
           ) {
             lens = rightLen.values
             literal = node.left.value
+            lengthOnLeft = false
           }
         }
 
@@ -733,14 +755,16 @@ export const improvedNoUnnecessaryCondition = {
 
         let trues = 0
         let falses = 0
-        for (const l of lens) {
+        for (const length of lens) {
+          const l = lengthOnLeft ? length : literal
+          const r = lengthOnLeft ? literal : length
           let result = false
-          if (node.operator === '===') result = l === literal
-          else if (node.operator === '!==') result = l !== literal
-          else if (node.operator === '>') result = l > literal
-          else if (node.operator === '>=') result = l >= literal
-          else if (node.operator === '<') result = l < literal
-          else if (node.operator === '<=') result = l <= literal
+          if (node.operator === '===') result = l === r
+          else if (node.operator === '!==') result = l !== r
+          else if (node.operator === '>') result = l > r
+          else if (node.operator === '>=') result = l >= r
+          else if (node.operator === '<') result = l < r
+          else if (node.operator === '<=') result = l <= r
           if (result) trues++
           else falses++
           if (trues > 0 && falses > 0) return

@@ -5,6 +5,7 @@ import {
 } from '@typescript-eslint/utils'
 import * as ts from 'typescript'
 import { z } from 'zod/v4'
+import { getReplacementAt } from '../astUtils'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const optionsSchema = z.object({
@@ -38,10 +39,25 @@ const simpleArgTypes = new Set<AST_NODE_TYPES>([
 const nullishTypeFlags =
   ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Void
 
+function isNumericLiteralMemberObject(
+  arg: TSESTree.Expression,
+  node: TSESTree.CallExpression,
+): boolean {
+  return (
+    arg.type === AST_NODE_TYPES.Literal &&
+    typeof arg.value === 'number' &&
+    node.parent.type === AST_NODE_TYPES.MemberExpression &&
+    !node.parent.computed &&
+    node.parent.object === node
+  )
+}
+
 function unnecessaryFixNeedsParens(
   arg: TSESTree.Expression,
   node: TSESTree.CallExpression,
 ): boolean {
+  if (isNumericLiteralMemberObject(arg, node)) return true
+
   if (simpleArgTypes.has(arg.type)) return false
 
   if (arg.type === AST_NODE_TYPES.SequenceExpression) return true
@@ -173,12 +189,54 @@ export const strictCasting = createExtendedLintRule<
       return false
     }
 
+    function hasCommentsOutsideArg(
+      node: TSESTree.CallExpression,
+      arg: TSESTree.Expression,
+    ): boolean {
+      return (
+        context.sourceCode.getCommentsInside(node).length >
+        context.sourceCode.getCommentsInside(arg).length
+      )
+    }
+
+    function isGlobalBuiltin(callee: TSESTree.Identifier): boolean {
+      const symbol = checker.getSymbolAtLocation(
+        services.esTreeNodeToTSNodeMap.get(callee),
+      )
+
+      return (
+        symbol?.declarations?.some((declaration) =>
+          services.program.isSourceFileDefaultLibrary(
+            declaration.getSourceFile(),
+          ),
+        ) ?? false
+      )
+    }
+
+    function isPossiblyNullish(callee: TSESTree.Identifier): boolean {
+      const calleeType = checker.getTypeAtLocation(
+        services.esTreeNodeToTSNodeMap.get(callee),
+      )
+      const parts = calleeType.isUnion() ? calleeType.types : [calleeType]
+
+      return parts.some((part) => part.flags & nullishTypeFlags)
+    }
+
     function reportUnnecessary(
       node: TSESTree.CallExpression,
       arg: TSESTree.Expression,
       name: string,
       type: 'string' | 'number',
     ) {
+      if (hasCommentsOutsideArg(node, arg)) {
+        context.report({
+          node,
+          messageId: 'unnecessaryCasting',
+          data: { name, type },
+        })
+        return
+      }
+
       context.report({
         node,
         messageId: 'unnecessaryCasting',
@@ -188,7 +246,11 @@ export const strictCasting = createExtendedLintRule<
 
           return fixer.replaceText(
             node,
-            unnecessaryFixNeedsParens(arg, node) ? `(${argText})` : argText,
+            getReplacementAt(
+              node,
+              unnecessaryFixNeedsParens(arg, node) ? `(${argText})` : argText,
+              context.sourceCode,
+            ),
           )
         },
       })
@@ -210,6 +272,10 @@ export const strictCasting = createExtendedLintRule<
 
         const functionName = node.callee.name
         const { expectedType, builtin } = castFunction
+
+        if (builtin && !isGlobalBuiltin(node.callee)) return
+
+        if (node.optional && isPossiblyNullish(node.callee)) return
 
         if (arg.type === AST_NODE_TYPES.Literal) {
           if (typeof arg.value === expectedType) {

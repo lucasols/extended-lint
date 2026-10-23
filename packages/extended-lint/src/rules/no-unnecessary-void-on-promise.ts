@@ -1,6 +1,7 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from '@typescript-eslint/utils'
 import ts from 'typescript'
 import { z } from 'zod/v4'
+import { getReplacementAt } from '../astUtils'
 import { createExtendedLintRule, getJsonSchemaFromZod } from '../createRule'
 
 const optionsSchema = z.object({})
@@ -40,6 +41,10 @@ export const noUnnecessaryVoidOnPromise = createExtendedLintRule<
         return false
       }
 
+      if (type.isUnion()) {
+        return type.types.some((part) => isPromiseLike(part, typeChecker))
+      }
+
       const thenSymbol = type.getProperty('then')
       if (!thenSymbol) return false
 
@@ -67,7 +72,10 @@ export const noUnnecessaryVoidOnPromise = createExtendedLintRule<
               {
                 messageId: 'removeVoid',
                 fix(fixer) {
-                  return fixer.replaceText(node, argumentText)
+                  return fixer.replaceText(
+                    node,
+                    getReplacementAt(node, argumentText, sourceCode),
+                  )
                 },
               },
             ],

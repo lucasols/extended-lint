@@ -578,3 +578,109 @@ fn unnecessary_cast_fix_parens_by_parent() {
     const neg = -(x + y)
     ");
 }
+
+#[test]
+fn unnecessary_cast_fix_keeps_statements_apart() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const a: string
+            declare const b: string
+            declare const n: number
+            declare function sideEffect(): void
+
+            sideEffect()
+            String(`${a}`).split(',')
+            sideEffect()
+            String(a + b).length
+            sideEffect()
+            Number(-n).toFixed()
+            sideEffect();
+            String(a + b).length
+            const f = () => String({} as unknown as string)
+        "},
+    );
+
+    assert_snapshot!(result.output, @r###"
+    declare const a: string
+    declare const b: string
+    declare const n: number
+    declare function sideEffect(): void
+
+    sideEffect()
+    ;`${a}`.split(',')
+    sideEffect()
+    ;(a + b).length
+    sideEffect()
+    ;(-n).toFixed()
+    sideEffect();
+    (a + b).length
+    const f = () => ({} as unknown as string)
+    "###);
+}
+
+#[test]
+fn unnecessary_number_literal_cast_fix_keeps_member_access_valid() {
+    let result = invalid(RULE, "const s = Number(1).toString()");
+
+    assert_snapshot!(result.output, @"const s = (1).toString()");
+}
+
+#[test]
+fn unnecessary_cast_with_comments_is_not_autofixed() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const s: string
+
+            const a = String(/* keep */ s)
+            const b = String(s /* keep */)
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @r###"
+    - { messageId: 'unnecessaryCasting', line: 3 }
+    - { messageId: 'unnecessaryCasting', line: 4 }
+    "###);
+    assert_snapshot!(result.output, @r###"
+    declare const s: string
+
+    const a = String(/* keep */ s)
+    const b = String(s /* keep */)
+    "###);
+}
+
+#[test]
+fn shadowed_builtin_casts_are_ignored() {
+    valid(
+        RULE,
+        indoc! {"
+            export {}
+
+            function Number(value: number) {
+              return value + 1
+            }
+
+            declare const s: string | undefined
+            const n = Number(41)
+            const String = (value: string | undefined) => value ?? ''
+            const t = String(s)
+        "},
+    );
+}
+
+#[test]
+fn optional_call_of_possibly_missing_cast_function_is_ignored() {
+    valid(
+        RULE,
+        Case {
+            code: indoc! {"
+                declare const toNumber: ((value: unknown) => number) | undefined
+
+                const n = toNumber?.(1)
+            "},
+            options: to_number_cast_option(),
+            filename: None,
+        },
+    );
+}

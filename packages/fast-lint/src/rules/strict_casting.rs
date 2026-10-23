@@ -4,7 +4,7 @@ use tsrs_checker::{Checker, SignatureKind, Type, TypeFlags};
 use tsrs_core::P;
 use tsrslint::rule::{Ctx, Listener, Rule, RuleMessage, RuleSuggestion, RuleVisitor};
 
-use crate::utils::{estree_parent, is_in_optional_chain, node_text, skip_parens};
+use crate::utils::{estree_parent, is_in_optional_chain, node_text, replacement_at, skip_parens};
 
 pub const NAME: &str = "strict-casting";
 
@@ -143,7 +143,19 @@ fn is_object_member_computed_name(computed_name: P<Node>) -> bool {
         })
 }
 
+/// `Number(1).toString()`: a bare `1.toString()` would read the `.` as a decimal point.
+fn is_numeric_literal_member_object(arg: P<Node>, node: P<Node>) -> bool {
+    ast::is_numeric_literal(arg)
+        && estree_parent(node).is_some_and(|parent| {
+            ast::is_property_access_expression(parent)
+                && parent.expression().map(skip_parens) == Some(node)
+        })
+}
+
 fn unnecessary_fix_needs_parens(arg: P<Node>, node: P<Node>) -> bool {
+    if is_numeric_literal_member_object(arg, node) {
+        return true;
+    }
     if is_simple_arg(arg) {
         return false;
     }
@@ -228,6 +240,20 @@ fn has_numeric_value_of(checker: &mut Checker, t: P<Type>, location: P<Node>) ->
     })
 }
 
+/// Whether the call has comments outside its argument, which removing the call would drop.
+fn has_comments_outside_arg(ctx: &Ctx, node: P<Node>, arg: P<Node>) -> bool {
+    let (node_start, node_end) = ctx.trim(node);
+    let (arg_start, arg_end) = ctx.trim(arg);
+    let text = ctx.text();
+    let segment = |start: i32, end: i32| {
+        text.get(usize::try_from(start).unwrap_or(0)..usize::try_from(end).unwrap_or(0))
+            .unwrap_or_default()
+    };
+    [segment(node_start, arg_start), segment(arg_end, node_end)]
+        .iter()
+        .any(|s| s.contains("//") || s.contains("/*"))
+}
+
 fn report_unnecessary(
     ctx: &mut Ctx,
     node: P<Node>,
@@ -242,6 +268,10 @@ fn report_unnecessary(
             expected.as_str()
         ),
     );
+    if has_comments_outside_arg(ctx, node, arg) {
+        ctx.report_node(node, message);
+        return;
+    }
     ctx.report_node_with_fixes(node, message, |ctx| {
         let arg_text = node_text(ctx, arg);
         let replacement = if unnecessary_fix_needs_parens(arg, node) {
@@ -249,8 +279,30 @@ fn report_unnecessary(
         } else {
             arg_text.to_string()
         };
-        vec![ctx.fix_replace(node, replacement)]
+        vec![ctx.fix_replace(node, replacement_at(ctx, node, replacement))]
     });
+}
+
+/// `castToString?.(value)` of an optional cast function evaluates to `undefined` when the function is missing.
+fn is_possibly_nullish(ctx: &mut Ctx, node: P<Node>) -> bool {
+    let t = ctx.checker.get_type_at_location(node);
+    let parts: &[P<Type>] = if t.flags().intersects(TypeFlags::Union) {
+        t.types()
+    } else {
+        std::slice::from_ref(&t)
+    };
+    parts.iter().any(|p| p.flags().intersects(NULLISH_FLAGS))
+}
+
+/// Whether `callee` resolves to a declaration of the default library, not a local `String`/`Number`.
+fn is_global_builtin(ctx: &mut Ctx, callee: P<Node>) -> bool {
+    let Some(symbol) = ctx.checker.get_symbol_at_location_exported(callee) else {
+        return false;
+    };
+    symbol.declarations().iter().any(|&declaration| {
+        ast::get_source_file_of_node(declaration)
+            .is_some_and(|file| ctx.program.is_source_file_default_library(file.path()))
+    })
 }
 
 fn report_nullish(ctx: &mut Ctx, node: P<Node>, arg: P<Node>, expected: ExpectedType) {
@@ -416,6 +468,12 @@ impl RuleVisitor for Visitor {
             return;
         };
         if ast::is_spread_element(arg) {
+            return;
+        }
+        if cast.builtin && !is_global_builtin(ctx, callee) {
+            return;
+        }
+        if node.question_dot_token().is_some() && is_possibly_nullish(ctx, callee) {
             return;
         }
         self.rule.check(ctx, node, skip_parens(arg), name, cast);

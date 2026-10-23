@@ -3,7 +3,7 @@ use tsrs_checker::{Checker, SignatureKind, Type, TypeFlags};
 use tsrs_core::P;
 use tsrslint::rule::{Ctx, Listener, Rule, RuleMessage, RuleSuggestion, RuleVisitor};
 
-use crate::utils::{is_in_optional_chain, node_text, skip_parens};
+use crate::utils::{is_in_optional_chain, node_text, replacement_at, skip_parens};
 
 pub const NAME: &str = "no-unnecessary-void-on-promise";
 
@@ -34,6 +34,9 @@ struct Visitor;
 fn is_promise_like(checker: &mut Checker, t: P<Type>) -> bool {
     if t.flags().intersects(TypeFlags::Any | TypeFlags::Unknown) {
         return false;
+    }
+    if t.flags().intersects(TypeFlags::Union) {
+        return t.types().iter().any(|&part| is_promise_like(checker, part));
     }
     let Some(then_symbol) = checker.get_property_of_type(t, "then") else {
         return false;
@@ -68,9 +71,10 @@ impl RuleVisitor for Visitor {
                 "Unnecessary void operator on non-Promise function call",
             ),
             |ctx| {
+                let replacement = replacement_at(ctx, node, argument_text.to_string());
                 vec![RuleSuggestion {
                     message: RuleMessage::new("removeVoid", "Remove void operator"),
-                    fixes: vec![ctx.fix_replace(node, argument_text)],
+                    fixes: vec![ctx.fix_replace(node, replacement)],
                 }]
             },
         );

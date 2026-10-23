@@ -33,18 +33,39 @@ pub struct NoLeakedConditionalRendering {
 
 pub fn create(options: Option<&serde_json::Value>) -> Result<Box<dyn Rule>, String> {
     let options = super::parse_options::<Options>(options)?;
-    let major = parse_major_version(&options.react_version)?;
     Ok(Box::new(NoLeakedConditionalRendering {
-        allow_strings: major >= 18,
+        allow_strings: !is_before_react_18(&options.react_version)?,
     }))
 }
 
-fn parse_major_version(version: &str) -> Result<u64, String> {
-    let trimmed = version.trim().trim_start_matches(['v', 'V']);
-    let major = trimmed.split('.').next().unwrap_or(trimmed);
-    major
-        .parse()
-        .map_err(|_| format!("invalid reactVersion: {version:?}"))
+/// `compare(version, "18.0.0", "<")` of compare-versions, as ESLint-React does: range prefixes (`^`, `~`, `>=`, ...)
+/// are ignored, missing or wildcard parts count as 0 and a prerelease comes before its release.
+fn is_before_react_18(version: &str) -> Result<bool, String> {
+    let invalid = || format!("invalid reactVersion: {version:?}");
+    let trimmed = version
+        .trim()
+        .trim_start_matches(['v', 'V', '^', '~', '<', '>', '=']);
+    let (release, prerelease) = match trimmed.split_once('-') {
+        Some((release, prerelease)) => (release, !prerelease.is_empty()),
+        None => (trimmed, false),
+    };
+    let release = release.split('+').next().unwrap_or(release);
+    let mut parts = release.split('.');
+    let major: u64 = parts
+        .next()
+        .and_then(|major| major.parse().ok())
+        .ok_or_else(invalid)?;
+    let mut rest = [0u64; 2];
+    for slot in &mut rest {
+        let Some(part) = parts.next() else {
+            break;
+        };
+        *slot = match part {
+            "x" | "X" | "*" => 0,
+            _ => part.parse().map_err(|_| invalid())?,
+        };
+    }
+    Ok(major < 18 || (major == 18 && rest == [0, 0] && prerelease))
 }
 
 const LISTENERS: &[Listener] = &[Listener::Enter(Kind::JsxExpression)];

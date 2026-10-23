@@ -134,3 +134,61 @@ export function traverseAST(
   traverse(node)
 }
 
+
+type LeadingPosition =
+  | { type: 'statement'; statement: TSESTree.ExpressionStatement }
+  | { type: 'arrowBody' }
+
+function getLeadingPosition(
+  node: TSESTree.Node,
+  sourceCode: TSESLint.SourceCode,
+): LeadingPosition | null {
+  const start = node.range[0]
+  let current: TSESTree.Node = node
+
+  for (;;) {
+    const parent = current.parent
+    if (!parent) return null
+
+    if (parent.type === AST_NODE_TYPES.ArrowFunctionExpression) {
+      if (parent.body !== current) return null
+      if (sourceCode.getTokenBefore(current)?.value === '(') return null
+      return { type: 'arrowBody' }
+    }
+
+    if (parent.range[0] !== start) return null
+
+    if (parent.type === AST_NODE_TYPES.ExpressionStatement) {
+      return { type: 'statement', statement: parent }
+    }
+
+    current = parent
+  }
+}
+
+const statementKeywordStart = /^(?:function|class|async)(?![\w$])/
+const asiHazardStart = /^[([`+\-/]/
+
+export function getReplacementAt(
+  node: TSESTree.Node,
+  replacement: string,
+  sourceCode: TSESLint.SourceCode,
+): string {
+  const position = getLeadingPosition(node, sourceCode)
+  if (!position) return replacement
+
+  const startsLikeStatement =
+    replacement.startsWith('{') ||
+    (position.type === 'statement' && statementKeywordStart.test(replacement))
+
+  const text = startsLikeStatement ? `(${replacement})` : replacement
+
+  if (position.type !== 'statement' || !asiHazardStart.test(text)) return text
+
+  const previous = sourceCode.getTokenBefore(position.statement)
+  if (!previous || previous.value === ';' || previous.value === '{') {
+    return text
+  }
+
+  return `;${text}`
+}

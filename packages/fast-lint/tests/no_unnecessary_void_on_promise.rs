@@ -213,3 +213,57 @@ fn void_with_chained_then() {
         "},
     );
 }
+
+#[test]
+fn void_on_call_returning_void_or_promise() {
+    valid(
+        RULE,
+        indoc! {"
+            declare const onSubmit: () => void | Promise<void>
+
+            void onSubmit()
+        "},
+    );
+}
+
+#[test]
+fn remove_void_suggestion_wraps_a_function_expression_statement() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare function f(): void
+
+            f()
+            void (function once() {}())
+        "},
+    );
+
+    assert_snapshot!(result.suggestion_output(0), @r###"
+    declare function f(): void
+
+    f()
+    ;(function once() {}())
+    "###);
+}
+
+#[test]
+fn remove_void_suggestion_keeps_the_statement_apart_from_the_previous_line() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare function f(): void
+            declare const g: (() => void) | undefined
+
+            f()
+            void (g || f)()
+        "},
+    );
+
+    assert_snapshot!(result.suggestion_output(0), @r###"
+    declare function f(): void
+    declare const g: (() => void) | undefined
+
+    f()
+    ;(g || f)()
+    "###);
+}

@@ -1315,3 +1315,100 @@ fn optional_chain_length_comparison_is_ignored() {
         "},
     );
 }
+
+#[test]
+fn typeof_function_on_class_constructor() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            class Example {}
+
+            if (typeof Example === 'function') {}
+            if (typeof Example === 'object') {}
+        "},
+    );
+
+    assert_snapshot!(result.errors_with_msg(), @r###"
+    - messageId: 'unnecessaryTypeofCondition'
+      msg: 'This condition is unnecessary. The type of "Example" is always "function".'
+      line: 3
+    - messageId: 'alwaysFalseTypeofCondition'
+      msg: 'This condition will always be false. The type of "Example" is "function" so the condition has no overlap with "object".'
+      line: 4
+    "###);
+}
+
+#[test]
+fn typeof_object_on_non_primitive_object_type() {
+    valid(
+        RULE,
+        indoc! {"
+            function f(value: object) {
+              if (typeof value === 'object') {}
+              if (typeof value === 'function') {}
+            }
+        "},
+    );
+}
+
+#[test]
+fn typeof_on_non_primitive_object_type_never_string() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            function f(value: object) {
+              if (typeof value === 'string') {}
+            }
+        "},
+    );
+
+    assert_snapshot!(result.errors_with_msg(), @r###"
+    - messageId: 'alwaysFalseTypeofCondition'
+      msg: 'This condition will always be false. The type of "value" is "object | function" so the condition has no overlap with "string".'
+      line: 2
+    "###);
+}
+
+#[test]
+fn string_method_annotation_fallback_respects_scope() {
+    valid(
+        RULE,
+        indoc! {"
+            const status: 'idle' | 'loading' = 'idle'
+
+            function f(status: string) {
+              return status.startsWith('err')
+            }
+        "},
+    );
+}
+
+#[test]
+fn in_check_with_empty_key_is_skipped() {
+    valid(
+        RULE,
+        indoc! {"
+            declare const obj: { a: string }
+
+            if ('' in obj) {}
+        "},
+    );
+}
+
+#[test]
+fn length_comparison_with_literal_on_the_left() {
+    let result = invalid(
+        RULE,
+        indoc! {"
+            declare const s: 'abc'
+
+            if (5 > s.length) {}
+            if (2 > s.length) {}
+        "},
+    );
+
+    assert_snapshot!(result.errors(), @r###"
+    - { messageId: 'unnecessaryLengthCondition', line: 3 }
+    - { messageId: 'alwaysFalseLengthCondition', line: 4 }
+    "###);
+}

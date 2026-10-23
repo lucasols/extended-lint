@@ -26,7 +26,11 @@ fast-lint --format json        # stylish (default), compact or json
 fast-lint --max-warnings 0 --timing
 ```
 
-Exit code: `0` clean, `1` errors (or more warnings than `--max-warnings`), `2` fatal error.
+A solution-style tsconfig (empty `files` plus `references`) lints its referenced projects; a file in several
+projects is linted once.
+
+Exit code: `0` clean, `1` errors (or more warnings than `--max-warnings`), `2` fatal error: a tsconfig with a missing
+`files` entry or `extends` target, no files to lint, or a path argument that matches no project file.
 
 ## Config
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -59,8 +59,21 @@ async function loadScriptConfig(path) {
   return JSON.stringify(config)
 }
 
+function hasInlineConfig(args) {
+  return args.some(
+    (arg) => arg === '--config-json' || arg.startsWith('--config-json='),
+  )
+}
+
+function packageVersion() {
+  const packageJson = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  )
+  return packageJson.version
+}
+
 async function resolveArgs(args) {
-  if (args.includes('--config-json')) return args
+  if (hasInlineConfig(args)) return args
 
   const flag = findConfigFlag(args)
 
@@ -95,12 +108,19 @@ async function resolveArgs(args) {
   ]
 }
 
+const rawArgs = process.argv.slice(2)
+
+if (rawArgs.includes('-v') || rawArgs.includes('--version')) {
+  console.log(packageVersion())
+  process.exit(0)
+}
+
 let exe
 let args
 
 try {
   exe = binaryPath()
-  args = await resolveArgs(process.argv.slice(2))
+  args = await resolveArgs(rawArgs)
 } catch (error) {
   console.error(
     `fast-lint: ${error instanceof Error ? error.message : String(error)}`,
@@ -123,6 +143,7 @@ child.on('error', (error) => {
 
 child.on('exit', (code, signal) => {
   if (signal) {
+    process.removeAllListeners(signal)
     process.kill(process.pid, signal)
     return
   }

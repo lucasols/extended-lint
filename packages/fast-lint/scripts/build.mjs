@@ -62,6 +62,14 @@ function llvmToolsPath() {
 const root = fileURLToPath(new URL('..', import.meta.url))
 const { version } = JSON.parse(readFileSync(`${root}/package.json`, 'utf8'))
 
+// Honors CARGO_TARGET_DIR and `build.target-dir`.
+const targetDir = JSON.parse(
+  execFileSync('cargo', ['metadata', '--format-version', '1', '--no-deps'], {
+    cwd: root,
+    encoding: 'utf8',
+  }),
+).target_directory
+
 const args = process.argv.slice(2)
 const clean = args.includes('--clean')
 const requested = args.filter((a) => !a.startsWith('--'))
@@ -107,11 +115,11 @@ for (const target of selected) {
   const exe = target.exe ?? 'fast-lint'
   const outDir = `${root}/dist/${target.platform}`
   mkdirSync(outDir, { recursive: true })
-  copyFileSync(`${root}/target/${target.triple}/dist/${exe}`, `${outDir}/${exe}`)
+  copyFileSync(`${targetDir}/${target.triple}/dist/${exe}`, `${outDir}/${exe}`)
   chmodSync(`${outDir}/${exe}`, 0o755)
 
   if (clean) {
-    rmSync(`${root}/target/${target.triple}`, { recursive: true, force: true })
+    rmSync(`${targetDir}/${target.triple}`, { recursive: true, force: true })
   }
 }
 

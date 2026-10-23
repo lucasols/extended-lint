@@ -1273,3 +1273,32 @@ fn unknown_options_are_rejected() {
 
     assert_snapshot!(error, @"invalid options for rule no-leaked-conditional-rendering: unknown field `version`, expected `reactVersion`");
 }
+
+#[test]
+fn react_version_accepts_range_prefixes() {
+    for version in ["^17.0.2", "~17.0.2", ">=17", "18.0.0-rc.0"] {
+        let result = lint(
+            RULE,
+            &Case {
+                code: "const s = ''; const a = <>{s && <Foo />}</>;",
+                options: react_version(version),
+                filename: None,
+            },
+        );
+        assert_eq!(
+            result.errors(),
+            "- { messageId: 'noLeakedConditionalRendering', line: 1 }\n",
+            "{version}"
+        );
+    }
+    for version in ["^18.2.0", "18", "18.x", "19.0.0-rc.1"] {
+        valid(
+            RULE,
+            Case {
+                code: "const s = ''; const a = <>{s && <Foo />}</>;",
+                options: react_version(version),
+                filename: None,
+            },
+        );
+    }
+}

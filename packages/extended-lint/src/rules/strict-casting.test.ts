@@ -430,3 +430,97 @@ test('nullish String cast with object in union', async () => {
     "
   `)
 })
+
+test('unnecessary cast fix keeps statements apart', async () => {
+  const { result } = await invalid(dedent`
+    declare const a: string
+    declare const b: string
+    declare const n: number
+    declare function sideEffect(): void
+
+    sideEffect()
+    String(\`\${a}\`).split(',')
+    sideEffect()
+    String(a + b).length
+    sideEffect()
+    Number(-n).toFixed()
+    sideEffect();
+    String(a + b).length
+    const f = () => String({} as unknown as string)
+  `)
+
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const a: string
+    declare const b: string
+    declare const n: number
+    declare function sideEffect(): void
+
+    sideEffect()
+    ;\`\${a}\`.split(',')
+    sideEffect()
+    ;(a + b).length
+    sideEffect()
+    ;(-n).toFixed()
+    sideEffect();
+    (a + b).length
+    const f = () => ({} as unknown as string)"
+  `)
+})
+
+test('unnecessary number literal cast fix keeps member access valid', async () => {
+  const { result } = await invalid('const s = Number(1).toString()')
+
+  expect(result.output).toMatchInlineSnapshot(`"const s = (1).toString()"`)
+})
+
+test('unnecessary cast with comments is not autofixed', async () => {
+  const { result } = await invalid(dedent`
+    declare const s: string
+
+    const a = String(/* keep */ s)
+    const b = String(s /* keep */)
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryCasting', line: 3 }
+    - { messageId: 'unnecessaryCasting', line: 4 }
+    "
+  `)
+  expect(result.output).toMatchInlineSnapshot(`
+    "declare const s: string
+
+    const a = String(/* keep */ s)
+    const b = String(s /* keep */)"
+  `)
+})
+
+test('shadowed builtin casts are ignored', async () => {
+  await valid(dedent`
+    export {}
+
+    function Number(value: number) {
+      return value + 1
+    }
+
+    declare const s: string | undefined
+    const n = Number(41)
+    const String = (value: string | undefined) => value ?? ''
+    const t = String(s)
+  `)
+})
+
+test('optional call of possibly missing cast function is ignored', async () => {
+  await valid({
+    code: dedent`
+      declare const toNumber: ((value: unknown) => number) | undefined
+
+      const n = toNumber?.(1)
+    `,
+    options: [
+      {
+        additionalCastFunctions: [{ name: 'toNumber', expectedType: 'number' }],
+      },
+    ],
+  })
+})

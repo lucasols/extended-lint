@@ -221,3 +221,45 @@ test('void with chained then', async () => {
     `,
   )
 })
+
+test('void on call returning void or promise', async () => {
+  await valid(dedent`
+    declare const onSubmit: () => void | Promise<void>
+
+    void onSubmit()
+  `)
+})
+
+test('remove void suggestion wraps a function expression statement', async () => {
+  const { result } = await invalid(dedent`
+    declare function f(): void
+
+    f()
+    void (function once() {}())
+  `)
+
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
+    "declare function f(): void
+
+    f()
+    ;(function once() {}())"
+  `)
+})
+
+test('remove void suggestion keeps the statement apart from the previous line', async () => {
+  const { result } = await invalid(dedent`
+    declare function f(): void
+    declare const g: (() => void) | undefined
+
+    f()
+    void (g || f)()
+  `)
+
+  expect(getSuggestionOutput(result)).toMatchInlineSnapshot(`
+    "declare function f(): void
+    declare const g: (() => void) | undefined
+
+    f()
+    ;(g || f)()"
+  `)
+})

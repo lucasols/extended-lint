@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import {
   createNewTester,
   getErrorsFromResult,
+  getErrorsWithMsgFromResult,
 } from '../../tests/utils/createTester'
 import { improvedNoUnnecessaryCondition } from './improved-no-unnecessary-condition'
 
@@ -1335,4 +1336,83 @@ describe('string assertions', () => {
       "
     `)
   })
+})
+
+test('typeof function on class constructor', async () => {
+  const { result } = await invalid(dedent`
+    class Example {}
+
+    if (typeof Example === 'function') {}
+    if (typeof Example === 'object') {}
+  `)
+
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - messageId: 'unnecessaryTypeofCondition'
+      msg: 'This condition is unnecessary. The type of "Example" is always "function".'
+      line: 3
+    - messageId: 'alwaysFalseTypeofCondition'
+      msg: 'This condition will always be false. The type of "Example" is "function" so the condition has no overlap with "object".'
+      line: 4
+    "
+  `)
+})
+
+test('typeof object on non primitive object type', async () => {
+  await valid(dedent`
+    function f(value: object) {
+      if (typeof value === 'object') {}
+      if (typeof value === 'function') {}
+    }
+  `)
+})
+
+test('typeof on non primitive object type is never string', async () => {
+  const { result } = await invalid(dedent`
+    function f(value: object) {
+      if (typeof value === 'string') {}
+    }
+  `)
+
+  expect(getErrorsWithMsgFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - messageId: 'alwaysFalseTypeofCondition'
+      msg: 'This condition will always be false. The type of "value" is "object | function" so the condition has no overlap with "string".'
+      line: 2
+    "
+  `)
+})
+
+test('string method annotation fallback respects scope', async () => {
+  await valid(dedent`
+    const status: 'idle' | 'loading' = 'idle'
+
+    function f(status: string) {
+      return status.startsWith('err')
+    }
+  `)
+})
+
+test('in check with empty key is skipped', async () => {
+  await valid(dedent`
+    declare const obj: { a: string }
+
+    if ('' in obj) {}
+  `)
+})
+
+test('length comparison with literal on the left', async () => {
+  const { result } = await invalid(dedent`
+    declare const s: 'abc'
+
+    if (5 > s.length) {}
+    if (2 > s.length) {}
+  `)
+
+  expect(getErrorsFromResult(result)).toMatchInlineSnapshot(`
+    "
+    - { messageId: 'unnecessaryLengthCondition', line: 3 }
+    - { messageId: 'alwaysFalseLengthCondition', line: 4 }
+    "
+  `)
 })

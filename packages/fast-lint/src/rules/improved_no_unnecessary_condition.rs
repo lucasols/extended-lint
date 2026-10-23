@@ -125,6 +125,9 @@ impl TypeofValue {
     }
 }
 
+/// The `typeof` results of the `object` type, which functions are assignable to.
+const NON_PRIMITIVE_TYPEOFS: &[TypeofValue] = &[TypeofValue::Object, TypeofValue::Function];
+
 /// The `typeof` results of the `{}` type: anything but `undefined` and `null`.
 const NON_NULLISH_TYPEOFS: &[TypeofValue] = &[
     TypeofValue::String,
@@ -162,7 +165,11 @@ fn typeof_values_of_type(checker: &mut Checker, t: P<Type>) -> Option<&'static [
     if flags.intersects(TypeFlags::Null) {
         return Some(&[TypeofValue::Object]);
     }
-    if !get_call_signatures(checker, t).is_empty() {
+    if !get_call_signatures(checker, t).is_empty()
+        || !checker
+            .get_signatures_of_type(t, SignatureKind::Construct)
+            .is_empty()
+    {
         return Some(&[TypeofValue::Function]);
     }
     if flags.intersects(TypeFlags::Object) {
@@ -172,7 +179,7 @@ fn typeof_values_of_type(checker: &mut Checker, t: P<Type>) -> Option<&'static [
         return Some(&[TypeofValue::Object]);
     }
     if flags.intersects(TypeFlags::NonPrimitive) {
-        return Some(&[TypeofValue::Object]);
+        return Some(NON_PRIMITIVE_TYPEOFS);
     }
     if flags.intersects(TypeFlags::Never) {
         return Some(&[TypeofValue::Never]);
@@ -361,6 +368,18 @@ fn collect_annotated_literals(node: P<Node>, found: &mut AnnotatedLiterals) {
     });
 }
 
+/// Whether `identifier` refers to something declared in this file, whose type the checker already gave.
+fn is_declared_in_file(ctx: &mut Ctx, identifier: P<Node>) -> bool {
+    ctx.checker
+        .get_symbol_at_location_exported(identifier)
+        .is_some_and(|symbol| {
+            symbol
+                .declarations()
+                .iter()
+                .any(|&declaration| ast::get_source_file_of_node(declaration) == Some(ctx.file))
+        })
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum StringMethod {
     StartsWith,
@@ -468,10 +487,15 @@ impl Visitor {
         ctx.report_node(node, method.message(always_true));
     }
 
-    /// Fallback for identifiers whose type is not a string literal union: the type annotation of the first
-    /// variable declared with that name anywhere in the file.
-    fn annotated_literals_of(&mut self, ctx: &Ctx, object: P<Node>) -> Option<Vec<&'static str>> {
-        if !ast::is_identifier(object) {
+    /// Fallback for identifiers that resolve to no declaration of this file (a script's `const status: 'a'` clashing
+    /// with the DOM's global `status: string`): the type annotation of the first variable declared with that name
+    /// anywhere in the file.
+    fn annotated_literals_of(
+        &mut self,
+        ctx: &mut Ctx,
+        object: P<Node>,
+    ) -> Option<Vec<&'static str>> {
+        if !ast::is_identifier(object) || is_declared_in_file(ctx, object) {
             return None;
         }
         let found = self.annotated_literals.get_or_insert_with(|| {
@@ -491,6 +515,9 @@ impl Visitor {
         let Some(property) = literal_key_of_expression(ctx.checker, left) else {
             return;
         };
+        if property.is_empty() {
+            return;
+        }
         let right = skip_parens(binary.right());
         let t = ctx.checker.get_type_at_location(right);
         let message = match property_presence(ctx.checker, t, property) {

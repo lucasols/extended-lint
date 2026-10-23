@@ -203,17 +203,42 @@ struct JsonFile<'a> {
     messages: Vec<JsonMessage<'a>>,
 }
 
-fn json_fixes(fixes: &[tsrslint::rule::RuleFix]) -> Vec<JsonFix<'_>> {
+/// Converts byte offsets of a file's text to the UTF-16 indices ESLint uses for fix ranges.
+struct Utf16Offsets<'a> {
+    /// `None` for ASCII text, where both are the same.
+    text: Option<&'a str>,
+}
+
+impl Utf16Offsets<'_> {
+    fn new(text: &str) -> Utf16Offsets<'_> {
+        Utf16Offsets {
+            text: (!text.is_ascii()).then_some(text),
+        }
+    }
+
+    fn get(&self, offset: i32) -> i32 {
+        let Some(text) = self.text else {
+            return offset;
+        };
+        let offset = usize::try_from(offset).unwrap_or(0);
+        let units = text
+            .get(..offset)
+            .map_or(0, |prefix| prefix.encode_utf16().count());
+        i32::try_from(units).unwrap_or(i32::MAX)
+    }
+}
+
+fn json_fixes<'a>(text: &Utf16Offsets, fixes: &'a [tsrslint::rule::RuleFix]) -> Vec<JsonFix<'a>> {
     fixes
         .iter()
         .map(|f| JsonFix {
-            range: [f.pos, f.end],
+            range: [text.get(f.pos), text.get(f.end)],
             text: &f.text,
         })
         .collect()
 }
 
-fn json_message(d: &Diagnostic) -> JsonMessage<'_> {
+fn json_message<'a>(text: &Utf16Offsets, d: &'a Diagnostic) -> JsonMessage<'a> {
     JsonMessage {
         rule_id: d.rule,
         severity: match d.severity {
@@ -227,14 +252,14 @@ fn json_message(d: &Diagnostic) -> JsonMessage<'_> {
         column: d.column,
         end_line: d.end_line,
         end_column: d.end_column,
-        fixes: json_fixes(&d.fixes),
+        fixes: json_fixes(text, &d.fixes),
         suggestions: d
             .suggestions
             .iter()
             .map(|s| JsonSuggestion {
                 message_id: s.message.id,
                 desc: &s.message.description,
-                fixes: json_fixes(&s.fixes),
+                fixes: json_fixes(text, &s.fixes),
             })
             .collect(),
     }
@@ -245,7 +270,13 @@ fn json(files: &[FileResult]) -> String {
         .iter()
         .map(|f| JsonFile {
             file_path: &f.path,
-            messages: f.diagnostics.iter().map(json_message).collect(),
+            messages: {
+                let offsets = Utf16Offsets::new(f.text());
+                f.diagnostics
+                    .iter()
+                    .map(|d| json_message(&offsets, d))
+                    .collect()
+            },
         })
         .collect();
     serde_json::to_string(&files).unwrap_or_else(|_| "[]".to_string())
