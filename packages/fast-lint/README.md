@@ -52,6 +52,7 @@ plugin, whose rules were all moved here or removed.
 | `use-top-level-regex` | moved from `@ls-stack/extended-lint` (see below) |
 | `no-unused-obj-props` | moved from `@ls-stack/extended-lint`, stricter (see below) |
 | `require-type-guard-explanation` | new, a stricter alternative to `no-type-guards` (see below) |
+| `require-const-binding` | new, replaces `no-restricted-syntax` selectors restricting where a call can appear (see below) |
 
 Options are the same as the former ESLint rules' (see `lib/index.d.ts`). Rule names may carry a plugin prefix, so
 existing `@ls-stack/strict-casting` configs and disable comments keep working.
@@ -868,6 +869,36 @@ type Options = [
       /** Guards passed directly to `.filter()` */
       inArrayFilter?: string
     }
+  },
+]
+```
+
+### `require-const-binding`
+
+Requires calls to the configured functions to be the value of their own `const` binding with an identifier name, at
+any scope, so the result gets a name and is referenced instead of being built inline.
+
+- only calls whose callee is a plain identifier are checked (`obj.fn()` is ignored)
+- curried calls (`fn<T>()({...})`), chained method calls (`.orNull().withFallback(null)`, any length), parentheses
+  and `as`/`satisfies`/`!` are part of the same value
+- calls nested in another call, object property or chained method argument (`.extend(fn()(...))`), `let`/`var`
+  bindings, destructured `const`s, `return`, `export default` and any other position are reported
+  (`requireConstBinding`)
+
+```ts
+const userSchema = rc_obj_builder<User>()({ name: rc_string }).orNull() // ok
+
+const teamSchema = rc_obj_builder<Team>()({
+  owner: userSchema, // ok
+  admin: rc_obj_builder<User>()({ name: rc_string }), // Error: declare it as a `const` and reference it
+})
+```
+
+```ts
+type Options = [
+  {
+    /** Names of the functions whose calls must be the value of a `const` binding */
+    functions?: string[]
   },
 ]
 ```
