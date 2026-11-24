@@ -232,6 +232,10 @@ export type RequireTypeGuardExplanationOptions = {
   }
 }
 
+export type RequireConstBindingOptions = {
+  functions?: string[]
+}
+
 export type RequireUsageExplanationOptions = {
   matches: {
     fn?: string
@@ -286,6 +290,7 @@ type RuleOptions = {
   'use-top-level-regex': Record<string, never>
   'no-unused-obj-props': Record<string, never>
   'require-type-guard-explanation': RequireTypeGuardExplanationOptions
+  'require-const-binding': RequireConstBindingOptions
 }
 
 export type RulesConfig = {

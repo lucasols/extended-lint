@@ -33,6 +33,7 @@ pub mod prefer_react_hook_alternative;
 pub mod react_compiler_extra;
 pub mod react_no_module_level_single_use_values;
 pub mod react_single_export;
+pub mod require_const_binding;
 pub mod require_description;
 pub mod require_lazy_execution;
 pub mod require_reads_to_var_prop;
@@ -86,6 +87,7 @@ pub const RULE_NAMES: &[&str] = &[
     react_compiler_extra::NAME,
     react_no_module_level_single_use_values::NAME,
     react_single_export::NAME,
+    require_const_binding::NAME,
     require_description::NAME,
     require_lazy_execution::NAME,
     require_reads_to_var_prop::NAME,
@@ -140,6 +142,7 @@ pub fn create_rule(
             react_no_module_level_single_use_values::create(options)
         }
         react_single_export::NAME => react_single_export::create(options),
+        require_const_binding::NAME => require_const_binding::create(options),
         require_description::NAME => require_description::create(options),
         require_lazy_execution::NAME => require_lazy_execution::create(options),
         require_reads_to_var_prop::NAME => require_reads_to_var_prop::create(options),
